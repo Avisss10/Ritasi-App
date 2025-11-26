@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rekap Data - Sistem Manajemen</title>
+    <link rel="stylesheet" href="../assets/css/rekap.css">
+</head>
+<body>
+    <div class="fullscreen-container">
+        <header>
+            <h1>📊 Rekap Data</h1>
+            <p class="subtitle">Laporan Order dan Buangan</p>
+        </header>
+
+        <!-- Tab Navigation -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="order">Rekap Order</button>
+            <button class="tab-btn" data-tab="buangan">Rekap Buangan</button>
+        </div>
+
+        <!-- Tab Content: Rekap Order -->
+        <div id="order-tab" class="tab-content active">
+            <div class="filter-section">
+                <h3>🔍 Filter Rekap Order</h3>
+                <div class="filter-grid">
+                    <div class="filter-item">
+                        <label>Dari Tanggal</label>
+                        <input type="date" id="filter-tanggal-dari-order" placeholder="Dari Tanggal">
+                    </div>
+                    <div class="filter-item">
+                        <label>Sampai Tanggal</label>
+                        <input type="date" id="filter-tanggal-sampai-order" placeholder="Sampai Tanggal">
+                    </div>
+                    <div class="filter-item">
+                        <label>Proyek Input</label>
+                        <input type="text" id="filter-proyek-order" placeholder="Proyek Input">
+                    </div>
+                    <div class="filter-item">
+                        <label>Petugas Order</label>
+                        <input type="text" id="filter-petugas-order" placeholder="Petugas Order">
+                    </div>
+                    <div class="filter-item">
+                        <label>Kendaraan</label>
+                        <select id="filter-kendaraan-order">
+                            <option value="">-- Pilih Kendaraan --</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label>Supir</label>
+                        <select id="filter-supir-order">
+                            <option value="">-- Pilih Supir --</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label>Galian</label>
+                        <select id="filter-galian-order">
+                            <option value="">-- Pilih Galian --</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="filter-actions">
+                    <button class="btn btn-primary" onclick="loadRekapOrder()">🔍 Tampilkan</button>
+                    <button class="btn btn-secondary" onclick="resetFilterOrder()">🔄 Reset</button>
+                    <button class="btn btn-success" onclick="exportToExcel('order')">📥 Export Excel</button>
+                    <button class="btn btn-danger" onclick="exportToPDF('order')">📄 Export PDF</button>
+                </div>
+            </div>
+
+            <div class="table-wrapper">
+                <table id="table-order">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Tanggal Order</th>
+                            <th>No Order</th>
+                            <th>Petugas</th>
+                            <th>Kendaraan</th>
+                            <th>Supir</th>
+                            <th>Galian</th>
+                            <th>No DO</th>
+                            <th>Jam Order</th>
+                            <th>KM Awal</th>
+                            <th>Uang Jalan</th>
+                            <th>Potongan</th>
+                            <th>Hasil Akhir</th>
+                            <th>Proyek</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-order">
+                        <tr>
+                            <td colspan="15" class="text-center">Memuat data...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tab Content: Rekap Buangan -->
+        <div id="buangan-tab" class="tab-content">
+            <div class="filter-section">
+                <h3>🔍 Filter Rekap Buangan</h3>
+                <div class="filter-grid">
+                    <div class="filter-item">
+                        <label>Dari Tanggal</label>
+                        <input type="date" id="filter-tanggal-dari-buangan" placeholder="Dari Tanggal">
+                    </div>
+                    <div class="filter-item">
+                        <label>Sampai Tanggal</label>
+                        <input type="date" id="filter-tanggal-sampai-buangan" placeholder="Sampai Tanggal">
+                    </div>
+                    <div class="filter-item">
+                        <label>Order ID</label>
+                        <input type="number" id="filter-order-id" placeholder="Order ID">
+                    </div>
+                </div>
+                <div class="filter-actions">
+                    <button class="btn btn-primary" onclick="loadRekapBuangan()">🔍 Tampilkan</button>
+                    <button class="btn btn-secondary" onclick="resetFilterBuangan()">🔄 Reset</button>
+                    <button class="btn btn-success" onclick="exportToExcel('buangan')">📥 Export Excel</button>
+                    <button class="btn btn-danger" onclick="exportToPDF('buangan')">📄 Export PDF</button>
+                </div>
+            </div>
+
+            <div class="table-wrapper">
+                <table id="table-buangan">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Order ID</th>
+                            <th>Tgl Bongkar</th>
+                            <th>Jam Bongkar</th>
+                            <th>KM Akhir</th>
+                            <th>Jarak KM</th>
+                            <th>Alihan</th>
+                            <th>Galian Alihan</th>
+                            <th>Keterangan</th>
+                            <th>Uang Alihan</th>
+                            <th>No Urut</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-buangan">
+                        <tr>
+                            <td colspan="11" class="text-center">Memuat data...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="../assets/js/rekap.js"></script>
+</body>
+</html>

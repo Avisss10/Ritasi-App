@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buangan (Ritasi)</title>
+    <link rel="stylesheet" href="../assets/css/buangan.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Buangan (Ritasi)</h1>
+
+        <!-- KOTAK 1: CARI ORDER -->
+        <div class="card" id="searchSection">
+            <h2>Cari Order</h2>
+            <div class="form-group-inline">
+                <div class="form-group">
+                    <label for="tanggalOrder">Tanggal Order <span class="required">*</span></label>
+                    <input type="date" id="tanggalOrder" required>
+                </div>
+                <button class="btn btn-primary" onclick="cariOrder()">
+                    <span class="icon">🔍</span> Cari Order
+                </button>
+            </div>
+        </div>
+
+        <!-- KOTAK 2: DATA ORDER / DAFTAR BUANGAN -->
+        <div class="card" id="mainTableSection">
+            <div class="table-header">
+                <h2 id="tableTitle">Daftar Buangan</h2>
+                <div class="form-group" style="margin-bottom: 0; max-width: 400px;">
+                    <input 
+                        type="text" 
+                        id="filterNoPintu" 
+                        placeholder="🔍 Filter berdasarkan No Pintu..." 
+                        oninput="filterTable()"
+                    >
+                </div>
+            </div>
+
+            <!-- TABLE DATA ORDER -->
+            <div class="table-responsive" id="orderTableContainer" style="display: none;">
+                <table id="orderTable">
+                    <thead>
+                        <tr>
+                            <th>No Order</th>
+                            <th>Tanggal</th>
+                            <th>No Pintu</th>
+                            <th>Supir</th>
+                            <th>Galian</th>
+                            <th>KM Awal</th>
+                            <th>Status</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orderTableBody">
+                        <!-- Data will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TABLE DAFTAR BUANGAN -->
+            <div class="table-responsive" id="buanganTableContainer">
+                <table id="buanganTable">
+                    <thead>
+                        <tr>
+                            <th>No Order</th>
+                            <th>Tanggal</th>
+                            <th>No Pintu</th>
+                            <th>Supir</th>
+                            <th>Galian</th>
+                            <th>Tgl Bongkar</th>
+                            <th>Jam</th>
+                            <th>KM Akhir</th>
+                            <th>Jarak (KM)</th>
+                            <th>Alihan</th>
+                            <th>Status</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="buanganTableBody">
+                        <!-- Data will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- SECTION: DETAIL BUANGAN -->
+        <div class="card" id="detailSection" style="display: none;">
+            <div class="form-header">
+                <h2>Detail Ritasi Buangan</h2>
+                <button class="btn btn-secondary" onclick="tutupDetail()">
+                    <span class="icon">←</span> Kembali
+                </button>
+            </div>
+
+            <!-- INFO ORDER -->
+            <div class="detail-section">
+                <h3 class="detail-title">📋 Informasi Order</h3>
+                <div class="detail-grid" id="detailOrderInfo">
+                    <!-- Data will be populated here -->
+                </div>
+            </div>
+
+            <!-- INFO BUANGAN -->
+            <div class="detail-section">
+                <h3 class="detail-title">🚛 Informasi Buangan</h3>
+                <div class="detail-grid" id="detailBuanganInfo">
+                    <!-- Data will be populated here -->
+                </div>
+            </div>
+
+            <!-- ACTIONS -->
+            <div class="detail-actions">
+                <button class="btn btn-warning" onclick="editBuangan()">
+                    <span class="icon">✏️</span> Edit Ritasi
+                </button>
+                <button class="btn btn-danger" onclick="hapusBuangan(currentBuanganDetail.id)">
+                    <span class="icon">🗑️</span> Hapus Ritasi
+                </button>
+            </div>
+        </div>
+
+        <!-- SECTION: FORM EDIT BUANGAN -->
+        <div class="card" id="editSection" style="display: none;">
+            <div class="form-header">
+                <h2>Edit Ritasi Buangan</h2>
+                <button class="btn btn-secondary" onclick="batalEdit()">
+                    <span class="icon">←</span> Kembali
+                </button>
+            </div>
+
+            <div class="order-info" id="editOrderInfo">
+                <!-- Order info will be displayed here -->
+            </div>
+
+            <form id="editBuanganForm">
+                <input type="hidden" id="editBuanganId">
+                <input type="hidden" id="editOrderId">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editNoUrut">No Urut Ritasi <span class="required">*</span></label>
+                        <input type="number" id="editNoUrut" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editTanggalBongkar">Tanggal Bongkar <span class="required">*</span></label>
+                        <input type="date" id="editTanggalBongkar" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editJamBongkar">Jam Bongkar <span class="required">*</span></label>
+                        <input type="time" id="editJamBongkar" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editKmAkhir">KM Akhir <span class="required">*</span></label>
+                        <input type="number" id="editKmAkhir" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editJarakKm">Jarak (KM)</label>
+                        <input type="text" id="editJarakKm" readonly disabled>
+                    </div>
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="editAlihan" onchange="toggleAlihanEdit()">
+                        <span>Buangan Alihan</span>
+                    </label>
+                </div>
+
+                <div id="editAlihanFields" style="display: none;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="editGalianAlihan">Galian Alihan</label>
+                            <select id="editGalianAlihan">
+                                <option value="">-- Pilih Galian Alihan --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="editUangAlihan">Uang Alihan (Rp)</label>
+                            <input type="number" id="editUangAlihan" step="1000">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="editKeterangan">Keterangan</label>
+                    <textarea id="editKeterangan" rows="3" placeholder="Tambahan keterangan (opsional)"></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="batalEdit()">Batal</button>
+                    <button type="submit" class="btn btn-success">
+                        <span class="icon">✓</span> Update Ritasi
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- SECTION: FORM BUANGAN (OVERLAY) -->
+        <div class="card" id="formSection" style="display: none;">
+            <div class="form-header">
+                <h2>Form Ritasi Buangan</h2>
+                <button class="btn btn-secondary" onclick="batalForm()">
+                    <span class="icon">←</span> Kembali
+                </button>
+            </div>
+
+            <div class="order-info" id="orderInfo">
+                <!-- Order info will be displayed here -->
+            </div>
+
+            <form id="buanganForm">
+                <input type="hidden" id="orderId">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="noUrut">No Urut <span class="required">*</span></label>
+                        <input type="number" id="noUrut" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="tanggalBongkar">Tanggal Bongkar <span class="required">*</span></label>
+                        <input type="date" id="tanggalBongkar" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="jamBongkar">Jam Bongkar <span class="required">*</span></label>
+                        <input type="time" id="jamBongkar" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="kmAkhir">KM Akhir <span class="required">*</span></label>
+                        <input type="number" id="kmAkhir" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="jarakKm">Jarak (KM)</label>
+                        <input type="text" id="jarakKm" readonly disabled>
+                    </div>
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="alihan" onchange="toggleAlihan()">
+                        <span>Buangan Alihan</span>
+                    </label>
+                </div>
+
+                <div id="alihanFields" style="display: none;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="galianAlihan">Galian Alihan</label>
+                            <select id="galianAlihan">
+                                <option value="">-- Pilih Galian Alihan --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="uangAlihan">Uang Alihan (Rp)</label>
+                            <input type="number" id="uangAlihan" step="1000">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="keterangan">Keterangan</label>
+                    <textarea id="keterangan" rows="3" placeholder="Tambahan keterangan (opsional)"></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="batalForm()">Batal</button>
+                    <button type="submit" class="btn btn-success">
+                        <span class="icon">✓</span> Simpan Ritasi
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <script src="../assets/js/buangan.js"></script>
+</body>
+</html>

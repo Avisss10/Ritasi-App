@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manajemen Order</title>
+    <link rel="stylesheet" href="../assets/css/order.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📋 Manajemen Order (Ritasi)</h1>
+        </header>
+
+        <!-- Form Section -->
+        <section class="form-section">
+            <h2 id="form-title">Tambah Order Baru</h2>
+            <form id="orderForm">
+                <input type="hidden" id="orderId">
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="tanggal_order">Tanggal Order *</label>
+                        <input type="date" id="tanggal_order" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="no_order">No. Order *</label>
+                        <input type="text" id="no_order" placeholder="ORD-001" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="petugas_order">Petugas Order *</label>
+                        <input type="text" id="petugas_order" placeholder="Nama Petugas" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="kendaraan_id">Kendaraan *</label>
+                        <select id="kendaraan_id" required>
+                            <option value="">-- Pilih Kendaraan --</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="supir_id">Supir *</label>
+                        <select id="supir_id" required>
+                            <option value="">-- Pilih Supir --</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="galian_id">Galian *</label>
+                        <select id="galian_id" required>
+                            <option value="">-- Pilih Galian --</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="no_do">No. DO *</label>
+                        <input type="text" id="no_do" placeholder="DO-001" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="jam_order">Jam Order *</label>
+                        <input type="time" id="jam_order" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="km_awal">KM Awal *</label>
+                        <input type="number" id="km_awal" placeholder="0" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="uang_jalan">Uang Jalan *</label>
+                        <input type="number" id="uang_jalan" placeholder="0" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="potongan">Potongan</label>
+                        <input type="number" id="potongan" placeholder="0" value="0">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="proyek_input">Proyek</label>
+                        <input type="text" id="proyek_input" placeholder="Nama Proyek">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        💾 Simpan Order
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="cancelBtn">
+                        ❌ Batal
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Table Section -->
+        <section class="table-section">
+            <div class="table-header">
+                <h2>Daftar Order</h2>
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="🔍 Cari order...">
+                </div>
+            </div>
+
+            <div class="table-wrapper">
+                <table id="orderTable">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Tanggal</th>
+                            <th>No. Order</th>
+                            <th>Petugas</th>
+                            <th>Kendaraan</th>
+                            <th>Supir</th>
+                            <th>Galian</th>
+                            <th>No. DO</th>
+                            <th>Jam</th>
+                            <th>KM Awal</th>
+                            <th>Uang Jalan</th>
+                            <th>Potongan</th>
+                            <th>Total Uang</th>
+                            <th>Proyek</th>
+                            <th>Status</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orderTableBody">
+                        <tr>
+                            <td colspan="16" class="loading">Memuat data...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- Modal Konfirmasi -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <h3>⚠️ Konfirmasi Hapus</h3>
+            <p>Apakah Anda yakin ingin menghapus order ini?</p>
+            <div class="modal-actions">
+                <button class="btn btn-danger" id="confirmDelete">Hapus</button>
+                <button class="btn btn-secondary" id="cancelDelete">Batal</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../assets/js/order.js"></script>
+</body>
+</html>
