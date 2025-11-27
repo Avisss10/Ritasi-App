@@ -60,7 +60,8 @@ router.get("/:id", async (req, res) => {
         o.potongan,
         o.hasil_akhir,
         o.status,
-        o.km_awal
+        o.km_awal,
+        o.proyek_input
       FROM buangan b
       LEFT JOIN orders o ON b.order_id = o.id
       LEFT JOIN master_kendaraan k ON o.kendaraan_id = k.id

@@ -357,8 +357,12 @@ function displayOrderInfo(order) {
                 <div class="order-info-value">${order.nama_galian || '-'}</div>
             </div>
             <div class="order-info-item">
+                <div class="order-info-label">Proyek</div>
+                <div class="order-info-value">${order.proyek_input || '-'}</div>
+            </div>
+            <div class="order-info-item">
                 <div class="order-info-label">KM Awal</div>
-                <div class="order-info-value">${order.km_awal || 0} KM</div>
+                <div class="order-info-value">${parseFloat(order.km_awal || 0).toLocaleString('id-ID')} KM</div>
             </div>
         </div>
     `;
@@ -644,8 +648,12 @@ function displayOrderInfoEdit(order) {
                 <div class="order-info-value">${namaGalian}</div>
             </div>
             <div class="order-info-item">
+                <div class="order-info-label">Proyek</div>
+                <div class="order-info-value">${order.proyek_input || '-'}</div>
+            </div>
+            <div class="order-info-item">
                 <div class="order-info-label">KM Awal</div>
-                <div class="order-info-value">${order.km_awal || 0} KM</div>
+                <div class="order-info-value">${parseFloat(order.km_awal || 0).toLocaleString('id-ID')} KM</div>
             </div>
         </div>
     `;
@@ -1024,7 +1032,7 @@ function displayDetailOrder(order) {
         </div>
         <div class="detail-item">
             <div class="detail-label">KM Awal</div>
-            <div class="detail-value">${order.km_awal || 0} KM</div>
+            <div class="detail-value">${parseFloat(order.km_awal || 0).toLocaleString('id-ID')} KM</div>
         </div>
         <div class="detail-item">
             <div class="detail-label">Uang Jalan</div>
