@@ -48,6 +48,11 @@ function initEventListeners() {
     document.getElementById('uang_jalan').addEventListener('input', calculateHasilAkhir);
     document.getElementById('potongan').addEventListener('input', calculateHasilAkhir);
 
+    // Format inputs on input
+    document.getElementById('km_awal').addEventListener('input', formatKmInput);
+    document.getElementById('uang_jalan').addEventListener('input', formatRupiahInput);
+    document.getElementById('potongan').addEventListener('input', formatPotonganInput);
+
     // Setup autocomplete event listeners
     setupAutocompleteListeners();
 }
@@ -171,7 +176,7 @@ function renderTable(data) {
             <td>${order.nama_galian || '-'}</td>
             <td>${order.no_do}</td>
             <td>${order.jam_order}</td>
-            <td>${order.km_awal}</td>
+            <td>${formatKm(order.km_awal)}</td>
             <td>${formatRupiah(order.uang_jalan)}</td>
             <td>${formatRupiah(order.potongan)}</td>
             <td><strong>${formatRupiah(order.hasil_akhir)}</strong></td>
@@ -233,9 +238,9 @@ async function handleSubmit(e) {
         galian_id: parseInt(galianId),
         no_do: document.getElementById('no_do').value,
         jam_order: document.getElementById('jam_order').value,
-        km_awal: parseInt(document.getElementById('km_awal').value),
-        uang_jalan: parseInt(document.getElementById('uang_jalan').value),
-        potongan: parseInt(document.getElementById('potongan').value) || 0,
+        km_awal: parseKm(document.getElementById('km_awal').value),
+        uang_jalan: parseRupiah(document.getElementById('uang_jalan').value),
+        potongan: parseRupiah(document.getElementById('potongan').value) || 0,
         proyek_input: document.getElementById('proyek_input').value || null
     };
 
@@ -286,6 +291,8 @@ function resetForm() {
     submitBtn.textContent = '💾 Simpan Order';
     cancelBtn.style.display = 'none';
     setDefaultDate();
+    // Reset hasil akhir
+    document.getElementById('hasil_akhir').value = 'Rp 0';
 }
 
 function setDefaultDate() {
@@ -294,12 +301,12 @@ function setDefaultDate() {
 }
 
 function calculateHasilAkhir() {
-    const uangJalan = parseInt(document.getElementById('uang_jalan').value) || 0;
-    const potongan = parseInt(document.getElementById('potongan').value) || 0;
+    const uangJalan = parseRupiah(document.getElementById('uang_jalan').value) || 0;
+    const potongan = parseRupiah(document.getElementById('potongan').value) || 0;
     const hasilAkhir = uangJalan - potongan;
-    
-    // Optional: Tampilkan preview hasil akhir
-    console.log('Hasil Akhir:', hasilAkhir);
+
+    // Update field hasil akhir
+    document.getElementById('hasil_akhir').value = formatRupiah(hasilAkhir);
 }
 
 // ============================================================================
@@ -352,9 +359,9 @@ async function editOrder(id) {
 
             document.getElementById('no_do').value = order.no_do;
             document.getElementById('jam_order').value = order.jam_order;
-            document.getElementById('km_awal').value = order.km_awal;
-            document.getElementById('uang_jalan').value = order.uang_jalan;
-            document.getElementById('potongan').value = order.potongan || 0;
+            document.getElementById('km_awal').value = formatKm(order.km_awal);
+            document.getElementById('uang_jalan').value = formatRupiah(order.uang_jalan);
+            document.getElementById('potongan').value = formatRupiah(order.potongan || 0);
             document.getElementById('proyek_input').value = order.proyek_input || '';
 
             // Update state dan UI
@@ -462,13 +469,59 @@ function formatDate(dateString) {
 
 function formatRupiah(amount) {
     if (amount === null || amount === undefined) return 'Rp 0';
-    
+
     return new Intl.NumberFormat('id-ID', {
         style: 'currency',
         currency: 'IDR',
         minimumFractionDigits: 0,
         maximumFractionDigits: 0
     }).format(amount);
+}
+
+function formatNumber(amount) {
+    if (amount === null || amount === undefined) return '0';
+
+    return new Intl.NumberFormat('id-ID', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    }).format(amount);
+}
+
+function formatKm(km) {
+    if (km === null || km === undefined) return '0';
+    return formatNumber(km);
+}
+
+function parseRupiah(rupiahString) {
+    if (!rupiahString) return 0;
+    // Remove 'Rp' and dots, replace comma with dot if needed
+    const cleaned = rupiahString.replace(/Rp\s?/g, '').replace(/\./g, '').replace(',', '.');
+    return parseFloat(cleaned) || 0;
+}
+
+function parseKm(kmString) {
+    if (!kmString) return 0;
+    // Remove 'km', dots, and spaces
+    const cleaned = kmString.replace(/km\s?/g, '').replace(/\./g, '').trim();
+    return parseInt(cleaned) || 0;
+}
+
+function formatKmInput() {
+    const input = document.getElementById('km_awal');
+    const value = parseKm(input.value);
+    input.value = formatNumber(value);
+}
+
+function formatRupiahInput() {
+    const input = document.getElementById('uang_jalan');
+    const value = parseRupiah(input.value);
+    input.value = formatNumber(value);
+}
+
+function formatPotonganInput() {
+    const input = document.getElementById('potongan');
+    const value = parseRupiah(input.value);
+    input.value = formatNumber(value);
 }
 
 function showSuccess(message) {
