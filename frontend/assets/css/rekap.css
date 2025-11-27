@@ -186,7 +186,7 @@ header h1 {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 18px;
-    margin-bottom: 25px;
+    margin-bottom: 15px;
 }
 
 .filter-item {
@@ -230,6 +230,76 @@ header h1 {
     gap: 12px;
     flex-wrap: wrap;
     margin-top: 20px;
+}
+
+/* ============================================================================
+   DATE RANGE INPUTS (Manual Date Selection)
+   ============================================================================ */
+.date-range-inputs {
+    display: none;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 18px;
+    margin-top: 15px;
+    margin-bottom: 10px;
+}
+
+.date-range-inputs.show {
+    display: grid;
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.date-range-inputs .filter-item {
+    position: relative;
+}
+
+.date-range-inputs .filter-item label {
+    font-size: 0.9em;
+    font-weight: 600;
+    color: #495057;
+}
+
+.date-range-inputs input[type="date"] {
+    width: 100%;
+    padding: 14px 16px;
+    border: 2px solid #dee2e6;
+    border-radius: 10px;
+    font-size: 0.95em;
+    transition: all 0.3s ease;
+    background: white;
+    font-family: inherit;
+    color: #495057;
+}
+
+.date-range-inputs input[type="date"]:hover {
+    border-color: #667eea;
+}
+
+.date-range-inputs input[type="date"]:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+    transform: translateY(-2px);
+}
+
+/* Custom styling for date input calendar icon */
+.date-range-inputs input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.date-range-inputs input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    transform: scale(1.1);
 }
 
 /* ============================================================================
@@ -517,6 +587,10 @@ tbody tr:nth-child(even):hover {
         gap: 15px;
     }
 
+    .date-range-inputs {
+        grid-template-columns: 1fr;
+    }
+
     .filter-actions {
         flex-direction: column;
     }
@@ -569,6 +643,15 @@ tbody tr:nth-child(even):hover {
     table {
         font-size: 0.8em;
     }
+
+    .date-range-inputs {
+        padding: 20px 15px;
+    }
+
+    .date-range-inputs::before {
+        font-size: 0.75em;
+        padding: 3px 10px;
+    }
 }
 
 /* ============================================================================
@@ -589,7 +672,8 @@ tbody tr:nth-child(even):hover {
     .tabs,
     .filter-section,
     .filter-actions,
-    .btn {
+    .btn,
+    .date-range-inputs {
         display: none !important;
     }
 
@@ -610,4 +694,97 @@ tbody tr:nth-child(even):hover {
     thead {
         display: table-header-group;
     }
+}
+
+/* ============================================================================
+   AUTOCOMPLETE STYLING - TAMBAHAN UNTUK REKAP.CSS
+   ============================================================================ */
+
+/* Style untuk input autocomplete */
+input[list] {
+    position: relative;
+}
+
+/* Styling untuk input yang memiliki datalist */
+.filter-item input[list] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23667eea' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+    padding-right: 40px;
+}
+
+/* Hover effect untuk autocomplete input */
+.filter-item input[list]:hover {
+    border-color: #667eea;
+    cursor: pointer;
+}
+
+/* Focus state untuk autocomplete */
+.filter-item input[list]:focus {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23667eea' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cpath d='m21 21-4.35-4.35'%3E%3C/path%3E%3C/svg%3E");
+}
+
+/* Style untuk input yang sudah memiliki nilai terpilih */
+.filter-item input[list]:valid {
+    border-color: #28a745;
+    background-color: #f8fff9;
+}
+
+/* Hidden input untuk menyimpan ID */
+input[type="hidden"] {
+    display: none;
+}
+
+/* Efek loading saat mengambil data */
+.filter-item.loading input {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23667eea' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='12' y1='2' x2='12' y2='6'%3E%3C/line%3E%3Cline x1='12' y1='18' x2='12' y2='22'%3E%3C/line%3E%3Cline x1='4.93' y1='4.93' x2='7.76' y2='7.76'%3E%3C/line%3E%3Cline x1='16.24' y1='16.24' x2='19.07' y2='19.07'%3E%3C/line%3E%3Cline x1='2' y1='12' x2='6' y2='12'%3E%3C/line%3E%3Cline x1='18' y1='12' x2='22' y2='12'%3E%3C/line%3E%3Cline x1='4.93' y1='19.07' x2='7.76' y2='16.24'%3E%3C/line%3E%3Cline x1='16.24' y1='7.76' x2='19.07' y2='4.93'%3E%3C/line%3E%3C/svg%3E");
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .filter-item input[list] {
+        padding-right: 35px;
+        background-size: 14px;
+        background-position: right 10px center;
+    }
+}
+
+/* Clear button untuk autocomplete (optional enhancement) */
+.filter-item {
+    position: relative;
+}
+
+.filter-item .clear-btn {
+    position: absolute;
+    right: 35px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 4px 8px;
+    font-size: 16px;
+    display: none;
+    transition: all 0.2s ease;
+}
+
+.filter-item input[list]:not(:placeholder-shown) ~ .clear-btn {
+    display: block;
+}
+
+.filter-item .clear-btn:hover {
+    color: #dc3545;
+    transform: translateY(-50%) scale(1.2);
 }

@@ -6,6 +6,11 @@ let orderData = [];
 let editingId = null;
 let deleteId = null;
 
+// Storage untuk data master
+let masterKendaraan = [];
+let masterSupir = [];
+let masterGalian = [];
+
 // DOM Elements
 const orderForm = document.getElementById('orderForm');
 const orderTableBody = document.getElementById('orderTableBody');
@@ -38,10 +43,13 @@ function initEventListeners() {
     searchInput.addEventListener('input', handleSearch);
     confirmDeleteBtn.addEventListener('click', confirmDelete);
     cancelDeleteBtn.addEventListener('click', closeDeleteModal);
-    
+
     // Auto calculate hasil akhir
     document.getElementById('uang_jalan').addEventListener('input', calculateHasilAkhir);
     document.getElementById('potongan').addEventListener('input', calculateHasilAkhir);
+
+    // Setup autocomplete event listeners
+    setupAutocompleteListeners();
 }
 
 // ============================================================================
@@ -77,17 +85,10 @@ async function loadKendaraan() {
     try {
         const response = await fetch(`${API_BASE_URL}/master/kendaraan`);
         const result = await response.json();
-        
+
         if (result.status) {
-            const select = document.getElementById('kendaraan_id');
-            select.innerHTML = '<option value="">-- Pilih Kendaraan --</option>';
-            
-            result.data.forEach(item => {
-                const option = document.createElement('option');
-                option.value = item.id;
-                option.textContent = `${item.no_pintu} - ${item.jenis_kendaraan || ''}`;
-                select.appendChild(option);
-            });
+            masterKendaraan = result.data;
+            populateDatalist('datalist-kendaraan', result.data, 'no_pintu');
         }
     } catch (error) {
         console.error('Error loading kendaraan:', error);
@@ -98,17 +99,10 @@ async function loadSupir() {
     try {
         const response = await fetch(`${API_BASE_URL}/master/supir`);
         const result = await response.json();
-        
+
         if (result.status) {
-            const select = document.getElementById('supir_id');
-            select.innerHTML = '<option value="">-- Pilih Supir --</option>';
-            
-            result.data.forEach(item => {
-                const option = document.createElement('option');
-                option.value = item.id;
-                option.textContent = item.nama;
-                select.appendChild(option);
-            });
+            masterSupir = result.data;
+            populateDatalist('datalist-supir', result.data, 'nama');
         }
     } catch (error) {
         console.error('Error loading supir:', error);
@@ -119,21 +113,40 @@ async function loadGalian() {
     try {
         const response = await fetch(`${API_BASE_URL}/master/galian`);
         const result = await response.json();
-        
+
         if (result.status) {
-            const select = document.getElementById('galian_id');
-            select.innerHTML = '<option value="">-- Pilih Galian --</option>';
-            
-            result.data.forEach(item => {
-                const option = document.createElement('option');
-                option.value = item.id;
-                option.textContent = item.nama_galian;
-                select.appendChild(option);
-            });
+            masterGalian = result.data;
+            populateDatalist('datalist-galian', result.data, 'nama_galian');
         }
     } catch (error) {
         console.error('Error loading galian:', error);
     }
+}
+
+function populateDatalist(datalistId, data, textKey) {
+    const datalist = document.getElementById(datalistId);
+    if (!datalist) {
+        console.error(`❌ Datalist #${datalistId} not found`);
+        return;
+    }
+
+    datalist.innerHTML = '';
+
+    if (!Array.isArray(data) || data.length === 0) {
+        console.warn(`⚠️ No data to populate for #${datalistId}`);
+        return;
+    }
+
+    // Populate dengan maksimal 50 item pertama
+    data.slice(0, 50).forEach(item => {
+        if (item[textKey] !== undefined) {
+            const option = document.createElement('option');
+            option.value = item[textKey];
+            datalist.appendChild(option);
+        }
+    });
+
+    console.log(`✅ Populated #${datalistId}: ${Math.min(50, data.length)}/${data.length} items`);
 }
 
 // ============================================================================
@@ -198,10 +211,10 @@ function getStatusBadge(status) {
 async function handleSubmit(e) {
     e.preventDefault();
 
-    // Validasi form
-    const kendaraanId = document.getElementById('kendaraan_id').value;
-    const supirId = document.getElementById('supir_id').value;
-    const galianId = document.getElementById('galian_id').value;
+    // Validasi form - use hidden input values
+    const kendaraanId = document.getElementById('kendaraan_id_hidden').value;
+    const supirId = document.getElementById('supir_id_hidden').value;
+    const galianId = document.getElementById('galian_id_hidden').value;
 
     if (!kendaraanId || !supirId || !galianId) {
         showError('Harap pilih Kendaraan, Supir, dan Galian');
@@ -304,14 +317,39 @@ async function editOrder(id) {
 
         if (result.status) {
             const order = result.data;
-            
+
             // FIX: Populate form dengan data order (tanggal sudah format YYYY-MM-DD)
             document.getElementById('tanggal_order').value = order.tanggal_order;
             document.getElementById('no_order').value = order.no_order;
             document.getElementById('petugas_order').value = order.petugas_order;
-            document.getElementById('kendaraan_id').value = order.kendaraan_id;
-            document.getElementById('supir_id').value = order.supir_id;
-            document.getElementById('galian_id').value = order.galian_id;
+
+            // Set kendaraan - find text value from master data
+            const kendaraanInput = document.getElementById('kendaraan_id');
+            const kendaraanHidden = document.getElementById('kendaraan_id_hidden');
+            const kendaraanData = masterKendaraan.find(k => k.id === order.kendaraan_id);
+            if (kendaraanData) {
+                kendaraanInput.value = kendaraanData.no_pintu;
+                kendaraanHidden.value = kendaraanData.id;
+            }
+
+            // Set supir - find text value from master data
+            const supirInput = document.getElementById('supir_id');
+            const supirHidden = document.getElementById('supir_id_hidden');
+            const supirData = masterSupir.find(s => s.id === order.supir_id);
+            if (supirData) {
+                supirInput.value = supirData.nama;
+                supirHidden.value = supirData.id;
+            }
+
+            // Set galian - find text value from master data
+            const galianInput = document.getElementById('galian_id');
+            const galianHidden = document.getElementById('galian_id_hidden');
+            const galianData = masterGalian.find(g => g.id === order.galian_id);
+            if (galianData) {
+                galianInput.value = galianData.nama_galian;
+                galianHidden.value = galianData.id;
+            }
+
             document.getElementById('no_do').value = order.no_do;
             document.getElementById('jam_order').value = order.jam_order;
             document.getElementById('km_awal').value = order.km_awal;
@@ -456,3 +494,93 @@ document.addEventListener('keydown', (e) => {
         }
     }
 });
+
+// ============================================================================
+// AUTOCOMPLETE FUNCTIONS
+// ============================================================================
+function setupAutocompleteListeners() {
+    // Setup untuk kendaraan
+    const kendaraanInput = document.getElementById('kendaraan_id');
+    const kendaraanHidden = document.getElementById('kendaraan_id_hidden');
+    const kendaraanDatalist = document.getElementById('datalist-kendaraan');
+
+    if (kendaraanInput && kendaraanHidden && kendaraanDatalist) {
+        kendaraanInput.addEventListener('input', (e) => {
+            filterDatalist(e.target.value, kendaraanDatalist, masterKendaraan, 'no_pintu', kendaraanHidden);
+        });
+
+        kendaraanInput.addEventListener('change', (e) => {
+            const selectedItem = masterKendaraan.find(item => item.no_pintu === e.target.value);
+            kendaraanHidden.value = selectedItem ? selectedItem.id : '';
+        });
+    }
+
+    // Setup untuk supir
+    const supirInput = document.getElementById('supir_id');
+    const supirHidden = document.getElementById('supir_id_hidden');
+    const supirDatalist = document.getElementById('datalist-supir');
+
+    if (supirInput && supirHidden && supirDatalist) {
+        supirInput.addEventListener('input', (e) => {
+            filterDatalist(e.target.value, supirDatalist, masterSupir, 'nama', supirHidden);
+        });
+
+        supirInput.addEventListener('change', (e) => {
+            const selectedItem = masterSupir.find(item => item.nama === e.target.value);
+            supirHidden.value = selectedItem ? selectedItem.id : '';
+        });
+    }
+
+    // Setup untuk galian
+    const galianInput = document.getElementById('galian_id');
+    const galianHidden = document.getElementById('galian_id_hidden');
+    const galianDatalist = document.getElementById('datalist-galian');
+
+    if (galianInput && galianHidden && galianDatalist) {
+        galianInput.addEventListener('input', (e) => {
+            filterDatalist(e.target.value, galianDatalist, masterGalian, 'nama_galian', galianHidden);
+        });
+
+        galianInput.addEventListener('change', (e) => {
+            const selectedItem = masterGalian.find(item => item.nama_galian === e.target.value);
+            galianHidden.value = selectedItem ? selectedItem.id : '';
+        });
+    }
+}
+
+function filterDatalist(inputValue, datalist, dataArray, textKey, hiddenInput) {
+    if (!datalist || !Array.isArray(dataArray)) return;
+
+    datalist.innerHTML = '';
+
+    if (!inputValue.trim()) {
+        // Jika input kosong, tampilkan semua item (maksimal 50)
+        dataArray.slice(0, 50).forEach(item => {
+            if (item[textKey] !== undefined) {
+                const option = document.createElement('option');
+                option.value = item[textKey];
+                datalist.appendChild(option);
+            }
+        });
+        hiddenInput.value = '';
+        return;
+    }
+
+    // Filter data berdasarkan input
+    const filtered = dataArray.filter(item =>
+        item[textKey] && item[textKey].toLowerCase().includes(inputValue.toLowerCase())
+    );
+
+    // Populate datalist dengan hasil filter (maksimal 50)
+    filtered.slice(0, 50).forEach(item => {
+        const option = document.createElement('option');
+        option.value = item[textKey];
+        datalist.appendChild(option);
+    });
+
+    // Set hidden input jika ada exact match
+    const exactMatch = filtered.find(item => item[textKey].toLowerCase() === inputValue.toLowerCase());
+    hiddenInput.value = exactMatch ? exactMatch.id : '';
+
+    console.log(`🔍 Filtered ${textKey}: ${filtered.length} matches for "${inputValue}"`);
+}

@@ -36,23 +36,44 @@
 
                     <div class="form-group">
                         <label for="kendaraan_id">Kendaraan *</label>
-                        <select id="kendaraan_id" required>
-                            <option value="">-- Pilih Kendaraan --</option>
-                        </select>
+                        <input
+                            type="text"
+                            id="kendaraan_id"
+                            list="datalist-kendaraan"
+                            placeholder="Ketik untuk mencari kendaraan..."
+                            autocomplete="off"
+                            required
+                        >
+                        <datalist id="datalist-kendaraan"></datalist>
+                        <input type="hidden" id="kendaraan_id_hidden">
                     </div>
 
                     <div class="form-group">
                         <label for="supir_id">Supir *</label>
-                        <select id="supir_id" required>
-                            <option value="">-- Pilih Supir --</option>
-                        </select>
+                        <input
+                            type="text"
+                            id="supir_id"
+                            list="datalist-supir"
+                            placeholder="Ketik untuk mencari supir..."
+                            autocomplete="off"
+                            required
+                        >
+                        <datalist id="datalist-supir"></datalist>
+                        <input type="hidden" id="supir_id_hidden">
                     </div>
 
                     <div class="form-group">
                         <label for="galian_id">Galian *</label>
-                        <select id="galian_id" required>
-                            <option value="">-- Pilih Galian --</option>
-                        </select>
+                        <input
+                            type="text"
+                            id="galian_id"
+                            list="datalist-galian"
+                            placeholder="Ketik untuk mencari galian..."
+                            autocomplete="off"
+                            required
+                        >
+                        <datalist id="datalist-galian"></datalist>
+                        <input type="hidden" id="galian_id_hidden">
                     </div>
 
                     <div class="form-group">

@@ -24,6 +24,76 @@
             <div class="filter-section">
                 <h3>🔍 Filter Rekap Order</h3>
                 <div class="filter-grid">
+                    <!-- Filter Tanggal Dropdown -->
+                    <div class="filter-item">
+                        <label>Filter Tanggal</label>
+                        <select id="filter-tanggal-type-order" onchange="toggleDateRangeOrder()">
+                            <option value="semua">Semua</option>
+                            <option value="hari-ini">Hari Ini</option>
+                            <option value="7-hari">7 Hari Ke Belakang</option>
+                            <option value="manual">Tanggal Manual</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-item">
+                        <label>Proyek Input</label>
+                        <input type="text" id="filter-proyek-order" placeholder="Ketik untuk mencari proyek...">
+                    </div>
+                    
+                    <div class="filter-item">
+                        <label>Status</label>
+                        <select id="filter-status-order">
+                            <option value="">Semua</option>
+                            <option value="COMPLETE">COMPLETE</option>
+                            <option value="ON PROCESS">ON PROCESS</option>
+                        </select>
+                    </div>
+                    
+                    <!-- KENDARAAN - AUTOCOMPLETE -->
+                    <div class="filter-item">
+                        <label>Kendaraan</label>
+                        <input 
+                            type="text" 
+                            id="filter-kendaraan-order" 
+                            list="datalist-kendaraan"
+                            placeholder="Ketik untuk mencari kendaraan..."
+                            autocomplete="off"
+                        >
+                        <datalist id="datalist-kendaraan"></datalist>
+                        <input type="hidden" id="filter-kendaraan-order-id">
+                    </div>
+                    
+                    <!-- SUPIR - AUTOCOMPLETE -->
+                    <div class="filter-item">
+                        <label>Supir</label>
+                        <input 
+                            type="text" 
+                            id="filter-supir-order" 
+                            list="datalist-supir"
+                            placeholder="Ketik untuk mencari supir..."
+                            autocomplete="off"
+                        >
+                        <datalist id="datalist-supir"></datalist>
+                        <input type="hidden" id="filter-supir-order-id">
+                    </div>
+                    
+                    <!-- GALIAN - AUTOCOMPLETE -->
+                    <div class="filter-item">
+                        <label>Galian</label>
+                        <input 
+                            type="text" 
+                            id="filter-galian-order" 
+                            list="datalist-galian"
+                            placeholder="Ketik untuk mencari galian..."
+                            autocomplete="off"
+                        >
+                        <datalist id="datalist-galian"></datalist>
+                        <input type="hidden" id="filter-galian-order-id">
+                    </div>
+                </div>
+                
+                <!-- Date Range Inputs (Hidden by default) -->
+                <div id="date-range-order" class="date-range-inputs">
                     <div class="filter-item">
                         <label>Dari Tanggal</label>
                         <input type="date" id="filter-tanggal-dari-order" placeholder="Dari Tanggal">
@@ -32,33 +102,8 @@
                         <label>Sampai Tanggal</label>
                         <input type="date" id="filter-tanggal-sampai-order" placeholder="Sampai Tanggal">
                     </div>
-                    <div class="filter-item">
-                        <label>Proyek Input</label>
-                        <input type="text" id="filter-proyek-order" placeholder="Proyek Input">
-                    </div>
-                    <div class="filter-item">
-                        <label>Petugas Order</label>
-                        <input type="text" id="filter-petugas-order" placeholder="Petugas Order">
-                    </div>
-                    <div class="filter-item">
-                        <label>Kendaraan</label>
-                        <select id="filter-kendaraan-order">
-                            <option value="">-- Pilih Kendaraan --</option>
-                        </select>
-                    </div>
-                    <div class="filter-item">
-                        <label>Supir</label>
-                        <select id="filter-supir-order">
-                            <option value="">-- Pilih Supir --</option>
-                        </select>
-                    </div>
-                    <div class="filter-item">
-                        <label>Galian</label>
-                        <select id="filter-galian-order">
-                            <option value="">-- Pilih Galian --</option>
-                        </select>
-                    </div>
                 </div>
+                
                 <div class="filter-actions">
                     <button class="btn btn-primary" onclick="loadRekapOrder()">🔍 Tampilkan</button>
                     <button class="btn btn-secondary" onclick="resetFilterOrder()">🔄 Reset</button>
@@ -102,6 +147,34 @@
             <div class="filter-section">
                 <h3>🔍 Filter Rekap Buangan</h3>
                 <div class="filter-grid">
+                    <!-- Filter Tanggal Dropdown -->
+                    <div class="filter-item">
+                        <label>Filter Tanggal</label>
+                        <select id="filter-tanggal-type-buangan" onchange="toggleDateRangeBuangan()">
+                            <option value="semua">Semua</option>
+                            <option value="hari-ini">Hari Ini</option>
+                            <option value="7-hari">7 Hari Ke Belakang</option>
+                            <option value="manual">Tanggal Manual</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-item">
+                        <label>No Order</label>
+                        <input type="text" id="filter-no-order" placeholder="No Order">
+                    </div>
+                    
+                    <div class="filter-item">
+                        <label>Alihan</label>
+                        <select id="filter-alihan">
+                            <option value="">Semua</option>
+                            <option value="1">Ya</option>
+                            <option value="0">Tidak</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Date Range Inputs (Hidden by default) -->
+                <div id="date-range-buangan" class="date-range-inputs">
                     <div class="filter-item">
                         <label>Dari Tanggal</label>
                         <input type="date" id="filter-tanggal-dari-buangan" placeholder="Dari Tanggal">
@@ -110,11 +183,8 @@
                         <label>Sampai Tanggal</label>
                         <input type="date" id="filter-tanggal-sampai-buangan" placeholder="Sampai Tanggal">
                     </div>
-                    <div class="filter-item">
-                        <label>Order ID</label>
-                        <input type="number" id="filter-order-id" placeholder="Order ID">
-                    </div>
                 </div>
+                
                 <div class="filter-actions">
                     <button class="btn btn-primary" onclick="loadRekapBuangan()">🔍 Tampilkan</button>
                     <button class="btn btn-secondary" onclick="resetFilterBuangan()">🔄 Reset</button>
@@ -128,7 +198,8 @@
                     <thead>
                         <tr>
                             <th>No</th>
-                            <th>Order ID</th>
+                            <th>Tanggal Order</th>
+                            <th>No Order</th>
                             <th>Tgl Bongkar</th>
                             <th>Jam Bongkar</th>
                             <th>KM Akhir</th>
@@ -142,7 +213,7 @@
                     </thead>
                     <tbody id="tbody-buangan">
                         <tr>
-                            <td colspan="11" class="text-center">Memuat data...</td>
+                            <td colspan="12" class="text-center">Memuat data...</td>
                         </tr>
                     </tbody>
                 </table>

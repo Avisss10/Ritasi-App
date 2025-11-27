@@ -17,14 +17,17 @@ function buildFilters(req, allowedFields) {
 
   for (const key of allowedFields) {
     const value = req.query[key];
-    // Only add filter if value exists and is not empty string
     if (value && value !== '' && value !== 'null' && value !== 'undefined') {
-      conditions.push(`o.${key} = ?`);
-      values.push(value);
+      if (key === 'proyek_input') {
+        conditions.push(`LOWER(o.${key}) LIKE LOWER(?)`);
+        values.push(`${value}%`);
+      } else {
+        conditions.push(`o.${key} = ?`);
+        values.push(value);
+      }
     }
   }
 
-  // Handle date range filter for orders
   if (req.query.tanggal_dari && req.query.tanggal_sampai) {
     conditions.push(`o.tanggal_order BETWEEN ? AND ?`);
     values.push(req.query.tanggal_dari, req.query.tanggal_sampai);
@@ -35,9 +38,6 @@ function buildFilters(req, allowedFields) {
     conditions.push(`o.tanggal_order <= ?`);
     values.push(req.query.tanggal_sampai);
   }
-
-  console.log('Build filters - Conditions:', conditions);
-  console.log('Build filters - Values:', values);
 
   return {
     where: conditions.length ? `WHERE ${conditions.join(" AND ")}` : "",
@@ -52,14 +52,16 @@ function buildFiltersBuangan(req, allowedFields) {
 
   for (const key of allowedFields) {
     const value = req.query[key];
-    // Only add filter if value exists and is not empty string
     if (value && value !== '' && value !== 'null' && value !== 'undefined') {
-      conditions.push(`b.${key} = ?`);
+      if (key === 'no_order') {
+        conditions.push(`o.${key} = ?`);
+      } else {
+        conditions.push(`b.${key} = ?`);
+      }
       values.push(value);
     }
   }
 
-  // Handle date range filter for buangan
   if (req.query.tanggal_dari && req.query.tanggal_sampai) {
     conditions.push(`b.tanggal_bongkar BETWEEN ? AND ?`);
     values.push(req.query.tanggal_dari, req.query.tanggal_sampai);
@@ -71,13 +73,147 @@ function buildFiltersBuangan(req, allowedFields) {
     values.push(req.query.tanggal_sampai);
   }
 
-  console.log('Build filters buangan - Conditions:', conditions);
-  console.log('Build filters buangan - Values:', values);
-
   return {
     where: conditions.length ? `WHERE ${conditions.join(" AND ")}` : "",
     values
   };
+}
+
+// Helper: Generate filter info for exports
+function generateFilterInfo(req, type) {
+  const filters = {};
+  
+  if (type === "order") {
+    if (req.query.tanggal_dari && req.query.tanggal_sampai) {
+      filters["Periode"] = `${formatDateDisplay(req.query.tanggal_dari)} s/d ${formatDateDisplay(req.query.tanggal_sampai)}`;
+    } else if (req.query.tanggal_dari) {
+      filters["Tanggal Mulai"] = formatDateDisplay(req.query.tanggal_dari);
+    } else if (req.query.tanggal_sampai) {
+      filters["Tanggal Akhir"] = formatDateDisplay(req.query.tanggal_sampai);
+    } else {
+      filters["Periode"] = "Semua Data";
+    }
+
+    if (req.query.proyek_input) {
+      filters["Proyek"] = req.query.proyek_input;
+    }
+    
+    if (req.query.status) {
+      filters["Status"] = req.query.status.toUpperCase();
+    }
+    
+    if (req.query.kendaraan_id) {
+      filters["Filter Kendaraan"] = "Ya";
+    }
+    
+    if (req.query.supir_id) {
+      filters["Filter Supir"] = "Ya";
+    }
+    
+    if (req.query.galian_id) {
+      filters["Filter Galian"] = "Ya";
+    }
+  } else if (type === "buangan") {
+    if (req.query.tanggal_dari && req.query.tanggal_sampai) {
+      filters["Periode Bongkar"] = `${formatDateDisplay(req.query.tanggal_dari)} s/d ${formatDateDisplay(req.query.tanggal_sampai)}`;
+    } else if (req.query.tanggal_dari) {
+      filters["Tanggal Bongkar Mulai"] = formatDateDisplay(req.query.tanggal_dari);
+    } else if (req.query.tanggal_sampai) {
+      filters["Tanggal Bongkar Akhir"] = formatDateDisplay(req.query.tanggal_sampai);
+    } else {
+      filters["Periode"] = "Semua Data";
+    }
+
+    if (req.query.no_order) {
+      filters["No Order"] = req.query.no_order;
+    }
+    
+    if (req.query.alihan !== undefined && req.query.alihan !== '') {
+      filters["Alihan"] = req.query.alihan === '1' || req.query.alihan === 'true' ? "Ya" : "Tidak";
+    }
+  } else if (type === "gabungan") {
+    if (req.query.tanggal_dari && req.query.tanggal_sampai) {
+      filters["Periode"] = `${formatDateDisplay(req.query.tanggal_dari)} s/d ${formatDateDisplay(req.query.tanggal_sampai)}`;
+    } else if (req.query.tanggal_dari) {
+      filters["Tanggal Mulai"] = formatDateDisplay(req.query.tanggal_dari);
+    } else if (req.query.tanggal_sampai) {
+      filters["Tanggal Akhir"] = formatDateDisplay(req.query.tanggal_sampai);
+    } else {
+      filters["Periode"] = "Semua Data";
+    }
+
+    if (req.query.proyek_input) {
+      filters["Proyek"] = req.query.proyek_input;
+    }
+    
+    if (req.query.kendaraan_id) {
+      filters["Filter Kendaraan"] = "Ya";
+    }
+    
+    if (req.query.supir_id) {
+      filters["Filter Supir"] = "Ya";
+    }
+    
+    if (req.query.galian_id) {
+      filters["Filter Galian"] = "Ya";
+    }
+  }
+
+  // Generate filename yang lebih deskriptif
+  const timestamp = new Date();
+  const dateStr = `${timestamp.getDate().toString().padStart(2, '0')}${(timestamp.getMonth() + 1).toString().padStart(2, '0')}${timestamp.getFullYear()}`;
+  const timeStr = `${timestamp.getHours().toString().padStart(2, '0')}${timestamp.getMinutes().toString().padStart(2, '0')}`;
+  
+  let filename = `Rekap_${type.charAt(0).toUpperCase() + type.slice(1)}`;
+  
+  // Tambahkan info periode ke filename
+  if (req.query.tanggal_dari && req.query.tanggal_sampai) {
+    filename += `_${req.query.tanggal_dari.replace(/-/g, '')}_sd_${req.query.tanggal_sampai.replace(/-/g, '')}`;
+  } else if (req.query.tanggal_dari) {
+    filename += `_dari_${req.query.tanggal_dari.replace(/-/g, '')}`;
+  } else if (req.query.tanggal_sampai) {
+    filename += `_sampai_${req.query.tanggal_sampai.replace(/-/g, '')}`;
+  } else {
+    filename += `_Semua_Data`;
+  }
+  
+  // Tambahkan info proyek jika ada
+  if (req.query.proyek_input) {
+    const proyekClean = req.query.proyek_input
+      .replace(/[^a-zA-Z0-9]/g, '_')
+      .substring(0, 20);
+    filename += `_${proyekClean}`;
+  }
+  
+  // Tambahkan info status jika ada
+  if (req.query.status) {
+    filename += `_${req.query.status}`;
+  }
+  
+  // Tambahkan info no_order untuk buangan jika ada
+  if (type === "buangan" && req.query.no_order) {
+    filename += `_${req.query.no_order}`;
+  }
+  
+  // Tambahkan timestamp
+  filename += `_${dateStr}_${timeStr}`;
+
+  return {
+    title: `LAPORAN REKAP ${type.toUpperCase()}`,
+    filters: Object.keys(filters).length > 0 ? filters : null,
+    filename
+  };
+}
+
+// Helper: Format date for display
+function formatDateDisplay(dateString) {
+  if (!dateString) return "-";
+  const date = new Date(dateString);
+  return date.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric"
+  });
 }
 
 // ============================================================================
@@ -90,7 +226,8 @@ router.get("/order", async (req, res) => {
       "petugas_order",
       "kendaraan_id",
       "supir_id",
-      "galian_id"
+      "galian_id",
+      "status"
     ]);
 
     const sql = `
@@ -130,7 +267,7 @@ router.get("/order", async (req, res) => {
 });
 
 // ============================================================================
-// REKAP ORDER - EXPORT EXCEL (WITH NAMES)
+// REKAP ORDER - EXPORT EXCEL (WITH NAMES & FILTER INFO)
 // ============================================================================
 router.get("/order/export/excel", async (req, res) => {
   try {
@@ -139,7 +276,8 @@ router.get("/order/export/excel", async (req, res) => {
       "petugas_order",
       "kendaraan_id",
       "supir_id",
-      "galian_id"
+      "galian_id",
+      "status"
     ]);
 
     const sql = `
@@ -187,7 +325,8 @@ router.get("/order/export/excel", async (req, res) => {
       { label: "Status", key: "status", width: 15 }
     ];
 
-    await generateExcel("Rekap_Order", headers, rows[0], res);
+    const filterInfo = generateFilterInfo(req, "order");
+    await generateExcel("Rekap_Order", headers, rows[0], filterInfo, res);
   } catch (err) {
     console.error("Error in /rekap/order/export/excel:", err);
     return error(res, 500, "Gagal export Excel", err);
@@ -195,7 +334,7 @@ router.get("/order/export/excel", async (req, res) => {
 });
 
 // ============================================================================
-// REKAP ORDER - EXPORT PDF (WITH NAMES)
+// REKAP ORDER - EXPORT PDF (WITH NAMES & FILTER INFO)
 // ============================================================================
 router.get("/order/export/pdf", async (req, res) => {
   try {
@@ -204,7 +343,8 @@ router.get("/order/export/pdf", async (req, res) => {
       "petugas_order",
       "kendaraan_id",
       "supir_id",
-      "galian_id"
+      "galian_id",
+      "status"
     ]);
 
     const sql = `
@@ -233,7 +373,8 @@ router.get("/order/export/pdf", async (req, res) => {
     `;
 
     const rows = await db.query(sql, values);
-    generatePDF("Rekap Order", rows[0], res);
+    const filterInfo = generateFilterInfo(req, "order");
+    generatePDF("Rekap Order", rows[0], filterInfo, res);
   } catch (err) {
     console.error("Error in /rekap/order/export/pdf:", err);
     return error(res, 500, "Gagal export PDF", err);
@@ -246,13 +387,15 @@ router.get("/order/export/pdf", async (req, res) => {
 router.get("/buangan", async (req, res) => {
   try {
     const { where, values } = buildFiltersBuangan(req, [
-      "order_id"
+      "no_order",
+      "alihan"
     ]);
 
     const sql = `
       SELECT
         b.id,
-        b.order_id,
+        o.tanggal_order AS tanggal_order,
+        o.no_order AS no_order,
         b.tanggal_bongkar,
         b.jam_bongkar,
         b.km_akhir,
@@ -264,6 +407,7 @@ router.get("/buangan", async (req, res) => {
         b.uang_alihan,
         b.no_urut
       FROM buangan b
+      LEFT JOIN orders o ON b.order_id = o.id
       LEFT JOIN master_galian g ON b.galian_alihan_id = g.id
       ${where}
       ORDER BY b.id DESC
@@ -278,18 +422,20 @@ router.get("/buangan", async (req, res) => {
 });
 
 // ============================================================================
-// REKAP BUANGAN - EXPORT EXCEL (WITH GALIAN NAME)
+// REKAP BUANGAN - EXPORT EXCEL (WITH GALIAN NAME & FILTER INFO)
 // ============================================================================
 router.get("/buangan/export/excel", async (req, res) => {
   try {
     const { where, values } = buildFiltersBuangan(req, [
-      "order_id"
+      "no_order",
+      "alihan"
     ]);
 
     const sql = `
       SELECT
         b.id,
-        b.order_id,
+        o.tanggal_order AS tanggal_order,
+        o.no_order AS no_order,
         b.tanggal_bongkar,
         b.jam_bongkar,
         b.km_akhir,
@@ -300,6 +446,7 @@ router.get("/buangan/export/excel", async (req, res) => {
         b.uang_alihan,
         b.no_urut
       FROM buangan b
+      LEFT JOIN orders o ON b.order_id = o.id
       LEFT JOIN master_galian g ON b.galian_alihan_id = g.id
       ${where}
       ORDER BY b.id DESC
@@ -309,7 +456,8 @@ router.get("/buangan/export/excel", async (req, res) => {
 
     const headers = [
       { label: "ID", key: "id", width: 10 },
-      { label: "Order ID", key: "order_id", width: 12 },
+      { label: "Tanggal Order", key: "tanggal_order", width: 15 },
+      { label: "No Order", key: "no_order", width: 20 },
       { label: "Tgl Bongkar", key: "tanggal_bongkar", width: 15 },
       { label: "Jam Bongkar", key: "jam_bongkar", width: 12 },
       { label: "KM Akhir", key: "km_akhir", width: 12 },
@@ -321,7 +469,8 @@ router.get("/buangan/export/excel", async (req, res) => {
       { label: "No Urut", key: "no_urut", width: 12 }
     ];
 
-    await generateExcel("Rekap_Buangan", headers, rows[0], res);
+    const filterInfo = generateFilterInfo(req, "buangan");
+    await generateExcel("Rekap_Buangan", headers, rows[0], filterInfo, res);
   } catch (err) {
     console.error("Error in /rekap/buangan/export/excel:", err);
     return error(res, 500, "Gagal export Excel", err);
@@ -329,18 +478,21 @@ router.get("/buangan/export/excel", async (req, res) => {
 });
 
 // ============================================================================
-// REKAP BUANGAN - EXPORT PDF (WITH GALIAN NAME)
+// REKAP BUANGAN - EXPORT PDF (WITH GALIAN NAME & FILTER INFO)
 // ============================================================================
 router.get("/buangan/export/pdf", async (req, res) => {
   try {
     const { where, values } = buildFiltersBuangan(req, [
-      "order_id"
+      "no_order",
+      "alihan"
     ]);
 
     const sql = `
       SELECT
         b.id,
         b.order_id,
+        o.tanggal_order AS tanggal_order,
+        o.no_order AS no_order,
         b.tanggal_bongkar,
         b.jam_bongkar,
         b.km_akhir,
@@ -351,13 +503,15 @@ router.get("/buangan/export/pdf", async (req, res) => {
         b.uang_alihan,
         b.no_urut
       FROM buangan b
-      LEFT JOIN galian g ON b.galian_alihan_id = g.id
+      LEFT JOIN orders o ON b.order_id = o.id
+      LEFT JOIN master_galian g ON b.galian_alihan_id = g.id
       ${where}
       ORDER BY b.id DESC
     `;
 
     const rows = await db.query(sql, values);
-    generatePDF("Rekap Buangan", rows[0], res);
+    const filterInfo = generateFilterInfo(req, "buangan");
+    generatePDF("Rekap Buangan", rows[0], filterInfo, res);
   } catch (err) {
     console.error("Error in /rekap/buangan/export/pdf:", err);
     return error(res, 500, "Gagal export PDF", err);
@@ -388,13 +542,13 @@ router.get("/gabungan", async (req, res) => {
         g.nama_galian AS galian,
         o.hasil_akhir,
         COUNT(b.id) AS total_ritasi,
-        COALESCE(SUM(b.km_akhir), 0) AS total_tonase,
+        COALESCE(SUM(b.jarak_km), 0) AS total_tonase,
         o.hasil_akhir AS nilai_bayaran
       FROM orders o
       LEFT JOIN buangan b ON o.id = b.order_id
-      LEFT JOIN kendaraan k ON o.kendaraan_id = k.id
-      LEFT JOIN supir s ON o.supir_id = s.id
-      LEFT JOIN galian g ON o.galian_id = g.id
+      LEFT JOIN master_kendaraan k ON o.kendaraan_id = k.id
+      LEFT JOIN master_supir s ON o.supir_id = s.id
+      LEFT JOIN master_galian g ON o.galian_id = g.id
       ${where}
       GROUP BY o.id
       ORDER BY o.id DESC
@@ -409,7 +563,7 @@ router.get("/gabungan", async (req, res) => {
 });
 
 // ============================================================================
-// REKAP GABUNGAN - EXPORT EXCEL
+// REKAP GABUNGAN - EXPORT EXCEL (WITH FILTER INFO)
 // ============================================================================
 router.get("/gabungan/export/excel", async (req, res) => {
   try {
@@ -432,13 +586,13 @@ router.get("/gabungan/export/excel", async (req, res) => {
         g.nama_galian AS galian,
         o.hasil_akhir,
         COUNT(b.id) AS total_ritasi,
-        COALESCE(SUM(b.km_akhir), 0) AS total_tonase,
+        COALESCE(SUM(b.jarak_km), 0) AS total_tonase,
         o.hasil_akhir AS nilai_bayaran
       FROM orders o
       LEFT JOIN buangan b ON o.id = b.order_id
-      LEFT JOIN kendaraan k ON o.kendaraan_id = k.id
-      LEFT JOIN supir s ON o.supir_id = s.id
-      LEFT JOIN galian g ON o.galian_id = g.id
+      LEFT JOIN master_kendaraan k ON o.kendaraan_id = k.id
+      LEFT JOIN master_supir s ON o.supir_id = s.id
+      LEFT JOIN master_galian g ON o.galian_id = g.id
       ${where}
       GROUP BY o.id
       ORDER BY o.id DESC
@@ -460,7 +614,8 @@ router.get("/gabungan/export/excel", async (req, res) => {
       { label: "Nilai Bayaran", key: "nilai_bayaran", width: 18 }
     ];
 
-    await generateExcel("Rekap_Gabungan", headers, rows[0], res);
+    const filterInfo = generateFilterInfo(req, "gabungan");
+    await generateExcel("Rekap_Gabungan", headers, rows[0], filterInfo, res);
   } catch (err) {
     console.error("Error in /rekap/gabungan/export/excel:", err);
     return error(res, 500, "Gagal export Excel", err);
@@ -468,7 +623,7 @@ router.get("/gabungan/export/excel", async (req, res) => {
 });
 
 // ============================================================================
-// REKAP GABUNGAN - EXPORT PDF
+// REKAP GABUNGAN - EXPORT PDF (WITH FILTER INFO)
 // ============================================================================
 router.get("/gabungan/export/pdf", async (req, res) => {
   try {
@@ -491,20 +646,21 @@ router.get("/gabungan/export/pdf", async (req, res) => {
         g.nama_galian AS galian,
         o.hasil_akhir,
         COUNT(b.id) AS total_ritasi,
-        COALESCE(SUM(b.km_akhir), 0) AS total_tonase,
+        COALESCE(SUM(b.jarak_km), 0) AS total_tonase,
         o.hasil_akhir AS nilai_bayaran
       FROM orders o
       LEFT JOIN buangan b ON o.id = b.order_id
-      LEFT JOIN kendaraan k ON o.kendaraan_id = k.id
-      LEFT JOIN supir s ON o.supir_id = s.id
-      LEFT JOIN galian g ON o.galian_id = g.id
+      LEFT JOIN master_kendaraan k ON o.kendaraan_id = k.id
+      LEFT JOIN master_supir s ON o.supir_id = s.id
+      LEFT JOIN master_galian g ON o.galian_id = g.id
       ${where}
       GROUP BY o.id
       ORDER BY o.id DESC
     `;
 
     const rows = await db.query(sql, values);
-    generatePDF("Rekap Gabungan", rows[0], res);
+    const filterInfo = generateFilterInfo(req, "gabungan");
+    generatePDF("Rekap Gabungan", rows[0], filterInfo, res);
   } catch (err) {
     console.error("Error in /rekap/gabungan/export/pdf:", err);
     return error(res, 500, "Gagal export PDF", err);

@@ -1,6 +1,11 @@
 // API Base URL
 const API_URL = 'http://localhost:3000/api';
 
+// Storage untuk data master
+let masterKendaraan = [];
+let masterSupir = [];
+let masterGalian = [];
+
 // ============================================================================
 // DEBUG UTILITIES
 // ============================================================================
@@ -12,53 +17,215 @@ function debugLog(title, data) {
     console.log('='.repeat(60) + '\n');
 }
 
-// Test connection dengan error details
-async function testConnection() {
-    debugLog('Testing API Connection', `URL: ${API_URL}/rekap/order`);
+// ============================================================================
+// DATE FILTER FUNCTIONS
+// ============================================================================
+function getToday() {
+    const today = new Date();
+    return formatDateForInput(today);
+}
+
+function get7DaysAgo() {
+    const today = new Date();
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(today.getDate() - 7);
+    return formatDateForInput(sevenDaysAgo);
+}
+
+function formatDateForInput(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function toggleDateRangeOrder() {
+    const filterType = document.getElementById('filter-tanggal-type-order').value;
+    const dateRangeDiv = document.getElementById('date-range-order');
+    const dariInput = document.getElementById('filter-tanggal-dari-order');
+    const sampaiInput = document.getElementById('filter-tanggal-sampai-order');
     
-    try {
-        const response = await fetch(`${API_URL}/rekap/order`);
-        debugLog('Response Status', {
-            status: response.status,
-            statusText: response.statusText,
-            ok: response.ok,
-            headers: Object.fromEntries(response.headers.entries())
-        });
+    if (filterType === 'manual') {
+        dateRangeDiv.classList.add('show');
+        dariInput.value = '';
+        sampaiInput.value = '';
+    } else {
+        dateRangeDiv.classList.remove('show');
         
-        const text = await response.text();
-        debugLog('Raw Response Text', text);
-        
-        try {
-            const json = JSON.parse(text);
-            debugLog('Parsed JSON', json);
-            return json;
-        } catch (e) {
-            console.error('❌ JSON Parse Error:', e.message);
-            return null;
+        if (filterType === 'hari-ini') {
+            const today = getToday();
+            dariInput.value = today;
+            sampaiInput.value = today;
+        } else if (filterType === '7-hari') {
+            dariInput.value = get7DaysAgo();
+            sampaiInput.value = getToday();
+        } else if (filterType === 'semua') {
+            dariInput.value = '';
+            sampaiInput.value = '';
         }
-    } catch (err) {
-        console.error('❌ Connection Error:', err.message);
-        return null;
+    }
+}
+
+function toggleDateRangeBuangan() {
+    const filterType = document.getElementById('filter-tanggal-type-buangan').value;
+    const dateRangeDiv = document.getElementById('date-range-buangan');
+    const dariInput = document.getElementById('filter-tanggal-dari-buangan');
+    const sampaiInput = document.getElementById('filter-tanggal-sampai-buangan');
+    
+    if (filterType === 'manual') {
+        dateRangeDiv.classList.add('show');
+        dariInput.value = '';
+        sampaiInput.value = '';
+    } else {
+        dateRangeDiv.classList.remove('show');
+        
+        if (filterType === 'hari-ini') {
+            const today = getToday();
+            dariInput.value = today;
+            sampaiInput.value = today;
+        } else if (filterType === '7-hari') {
+            dariInput.value = get7DaysAgo();
+            sampaiInput.value = getToday();
+        } else if (filterType === 'semua') {
+            dariInput.value = '';
+            sampaiInput.value = '';
+        }
     }
 }
 
 // ============================================================================
 // TAB NAVIGATION
 // ============================================================================
-document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        const tabName = btn.dataset.tab;
-        
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        
-        btn.classList.add('active');
-        document.getElementById(`${tabName}-tab`).classList.add('active');
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tabName = btn.dataset.tab;
+            
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            btn.classList.add('active');
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            
+            // Load data for buangan tab when switching to it
+            if (tabName === 'buangan') {
+                loadRekapBuangan();
+            }
+        });
     });
+    
+    // Real-time search untuk proyek input
+    const proyekInput = document.getElementById('filter-proyek-order');
+    if (proyekInput) {
+        let typingTimer;
+        const typingDelay = 500;
+        
+        proyekInput.addEventListener('input', () => {
+            clearTimeout(typingTimer);
+            typingTimer = setTimeout(() => {
+                loadRekapOrder();
+            }, typingDelay);
+        });
+    }
+    
+    // Setup autocomplete event listeners
+    setupAutocompleteListeners();
 });
 
 // ============================================================================
-// LOAD MASTER DATA FOR DROPDOWNS
+// AUTOCOMPLETE SETUP
+// ============================================================================
+function setupAutocompleteListeners() {
+    // Kendaraan autocomplete
+    const kendaraanInput = document.getElementById('filter-kendaraan-order');
+    if (kendaraanInput) {
+        kendaraanInput.addEventListener('input', function() {
+            filterDatalist(this.value, masterKendaraan, 'datalist-kendaraan', 'no_pintu');
+        });
+        
+        kendaraanInput.addEventListener('change', function() {
+            const selectedItem = masterKendaraan.find(k => k.no_pintu === this.value);
+            if (selectedItem) {
+                document.getElementById('filter-kendaraan-order-id').value = selectedItem.id;
+                console.log('Kendaraan terpilih:', selectedItem);
+            } else {
+                document.getElementById('filter-kendaraan-order-id').value = '';
+            }
+        });
+    }
+    
+    // Supir autocomplete
+    const supirInput = document.getElementById('filter-supir-order');
+    if (supirInput) {
+        supirInput.addEventListener('input', function() {
+            filterDatalist(this.value, masterSupir, 'datalist-supir', 'nama');
+        });
+        
+        supirInput.addEventListener('change', function() {
+            const selectedItem = masterSupir.find(s => s.nama === this.value);
+            if (selectedItem) {
+                document.getElementById('filter-supir-order-id').value = selectedItem.id;
+                console.log('Supir terpilih:', selectedItem);
+            } else {
+                document.getElementById('filter-supir-order-id').value = '';
+            }
+        });
+    }
+    
+    // Galian autocomplete
+    const galianInput = document.getElementById('filter-galian-order');
+    if (galianInput) {
+        galianInput.addEventListener('input', function() {
+            filterDatalist(this.value, masterGalian, 'datalist-galian', 'nama_galian');
+        });
+        
+        galianInput.addEventListener('change', function() {
+            const selectedItem = masterGalian.find(g => g.nama_galian === this.value);
+            if (selectedItem) {
+                document.getElementById('filter-galian-order-id').value = selectedItem.id;
+                console.log('Galian terpilih:', selectedItem);
+            } else {
+                document.getElementById('filter-galian-order-id').value = '';
+            }
+        });
+    }
+}
+
+// ============================================================================
+// FILTER DATALIST FUNCTION
+// ============================================================================
+function filterDatalist(searchTerm, dataArray, datalistId, displayKey) {
+    const datalist = document.getElementById(datalistId);
+    if (!datalist) return;
+    
+    datalist.innerHTML = '';
+    
+    if (!searchTerm || searchTerm.length < 1) {
+        // Tampilkan semua jika input kosong atau kurang dari 1 karakter
+        dataArray.slice(0, 50).forEach(item => {
+            const option = document.createElement('option');
+            option.value = item[displayKey];
+            datalist.appendChild(option);
+        });
+        return;
+    }
+    
+    // Filter berdasarkan search term
+    const filtered = dataArray.filter(item => 
+        item[displayKey] && 
+        item[displayKey].toString().toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    // Tampilkan maksimal 50 hasil
+    filtered.slice(0, 50).forEach(item => {
+        const option = document.createElement('option');
+        option.value = item[displayKey];
+        datalist.appendChild(option);
+    });
+}
+
+// ============================================================================
+// LOAD MASTER DATA FOR AUTOCOMPLETE
 // ============================================================================
 async function loadMasterData() {
     debugLog('Loading Master Data', 'Starting...');
@@ -83,7 +250,6 @@ async function loadKendaraan() {
         const result = await response.json();
         debugLog('Kendaraan Response', result);
         
-        // Extract data array from various response structures
         let data = null;
         if (result && result.success && Array.isArray(result.data)) {
             data = result.data;
@@ -96,8 +262,9 @@ async function loadKendaraan() {
         }
         
         if (data && Array.isArray(data)) {
-            console.log(`✅ Found ${data.length} kendaraan records`);
-            populateDropdown('filter-kendaraan-order', data, 'id', 'no_pintu');
+            masterKendaraan = data;
+            console.log(`✅ Loaded ${data.length} kendaraan records`);
+            populateDatalist('datalist-kendaraan', data, 'no_pintu');
         } else {
             console.error('❌ Kendaraan: Invalid data structure');
         }
@@ -131,8 +298,9 @@ async function loadSupir() {
         }
         
         if (data && Array.isArray(data)) {
-            console.log(`✅ Found ${data.length} supir records`);
-            populateDropdown('filter-supir-order', data, 'id', 'nama');
+            masterSupir = data;
+            console.log(`✅ Loaded ${data.length} supir records`);
+            populateDatalist('datalist-supir', data, 'nama');
         } else {
             console.error('❌ Supir: Invalid data structure');
         }
@@ -166,8 +334,9 @@ async function loadGalian() {
         }
         
         if (data && Array.isArray(data)) {
-            console.log(`✅ Found ${data.length} galian records`);
-            populateDropdown('filter-galian-order', data, 'id', 'nama_galian');
+            masterGalian = data;
+            console.log(`✅ Loaded ${data.length} galian records`);
+            populateDatalist('datalist-galian', data, 'nama_galian');
         } else {
             console.error('❌ Galian: Invalid data structure');
         }
@@ -176,35 +345,30 @@ async function loadGalian() {
     }
 }
 
-function populateDropdown(elementId, data, valueKey, textKey) {
-    const select = document.getElementById(elementId);
-    if (!select) {
-        console.error(`❌ Element #${elementId} not found`);
+function populateDatalist(datalistId, data, textKey) {
+    const datalist = document.getElementById(datalistId);
+    if (!datalist) {
+        console.error(`❌ Datalist #${datalistId} not found`);
         return;
     }
     
-    const placeholderText = select.options[0]?.text || '-- Pilih --';
-    select.innerHTML = `<option value="">${placeholderText}</option>`;
+    datalist.innerHTML = '';
     
     if (!Array.isArray(data) || data.length === 0) {
-        console.warn(`⚠️ No data to populate for #${elementId}`);
+        console.warn(`⚠️ No data to populate for #${datalistId}`);
         return;
     }
     
-    let successCount = 0;
-    data.forEach((item, index) => {
-        if (item[valueKey] !== undefined && item[textKey] !== undefined) {
+    // Populate dengan maksimal 50 item pertama
+    data.slice(0, 50).forEach(item => {
+        if (item[textKey] !== undefined) {
             const option = document.createElement('option');
-            option.value = item[valueKey];
-            option.textContent = item[textKey];
-            select.appendChild(option);
-            successCount++;
-        } else {
-            console.warn(`⚠️ Item ${index} missing keys:`, item);
+            option.value = item[textKey];
+            datalist.appendChild(option);
         }
     });
     
-    console.log(`✅ Populated #${elementId}: ${successCount}/${data.length} items`);
+    console.log(`✅ Populated #${datalistId}: ${Math.min(50, data.length)}/${data.length} items`);
 }
 
 // ============================================================================
@@ -221,13 +385,12 @@ async function loadRekapOrder() {
             tanggal_dari: document.getElementById('filter-tanggal-dari-order').value,
             tanggal_sampai: document.getElementById('filter-tanggal-sampai-order').value,
             proyek_input: document.getElementById('filter-proyek-order').value.trim(),
-            petugas_order: document.getElementById('filter-petugas-order').value.trim(),
-            kendaraan_id: document.getElementById('filter-kendaraan-order').value,
-            supir_id: document.getElementById('filter-supir-order').value,
-            galian_id: document.getElementById('filter-galian-order').value
+            status: document.getElementById('filter-status-order').value,
+            kendaraan_id: document.getElementById('filter-kendaraan-order-id').value,
+            supir_id: document.getElementById('filter-supir-order-id').value,
+            galian_id: document.getElementById('filter-galian-order-id').value
         };
 
-        // Only add non-empty filters
         Object.keys(filters).forEach(key => {
             const value = filters[key];
             if (value && value !== '' && value !== '0') {
@@ -250,26 +413,18 @@ async function loadRekapOrder() {
         const result = await response.json();
         debugLog('Rekap Order Response', result);
 
-        // Extract data from response
         let data = null;
         
-        // Check if result has success field with data array
         if (result && result.success === true && result.data) {
             console.log('✓ Using result.data structure');
             data = result.data;
-        }
-        // Check if result itself is an array
-        else if (Array.isArray(result)) {
+        } else if (Array.isArray(result)) {
             console.log('✓ Result is directly an array');
             data = result;
-        }
-        // Check if result has rows property
-        else if (result && Array.isArray(result.rows)) {
+        } else if (result && Array.isArray(result.rows)) {
             console.log('✓ Using result.rows structure');
             data = result.rows;
-        }
-        // Check if result.data exists but success is not checked
-        else if (result && Array.isArray(result.data)) {
+        } else if (result && Array.isArray(result.data)) {
             console.log('✓ Using result.data (no success check)');
             data = result.data;
         }
@@ -281,7 +436,6 @@ async function loadRekapOrder() {
         if (data && Array.isArray(data) && data.length > 0) {
             console.log(`✅ Displaying ${data.length} order records`);
             tbody.innerHTML = data.map((row, index) => {
-                // Determine status color
                 let statusStyle = '';
                 const status = (row.status || '').toUpperCase();
                 if (status === 'COMPLETE') {
@@ -324,13 +478,18 @@ async function loadRekapOrder() {
 
 function resetFilterOrder() {
     console.log('🔄 Resetting Order filters...');
+    document.getElementById('filter-tanggal-type-order').value = 'semua';
     document.getElementById('filter-tanggal-dari-order').value = '';
     document.getElementById('filter-tanggal-sampai-order').value = '';
     document.getElementById('filter-proyek-order').value = '';
-    document.getElementById('filter-petugas-order').value = '';
+    document.getElementById('filter-status-order').value = '';
     document.getElementById('filter-kendaraan-order').value = '';
+    document.getElementById('filter-kendaraan-order-id').value = '';
     document.getElementById('filter-supir-order').value = '';
+    document.getElementById('filter-supir-order-id').value = '';
     document.getElementById('filter-galian-order').value = '';
+    document.getElementById('filter-galian-order-id').value = '';
+    document.getElementById('date-range-order').classList.remove('show');
     loadRekapOrder();
 }
 
@@ -339,7 +498,7 @@ function resetFilterOrder() {
 // ============================================================================
 async function loadRekapBuangan() {
     const tbody = document.getElementById('tbody-buangan');
-    tbody.innerHTML = '<tr><td colspan="11" class="text-center loading">Memuat data...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="text-center loading">Memuat data...</td></tr>';
 
     try {
         const params = new URLSearchParams();
@@ -347,7 +506,8 @@ async function loadRekapBuangan() {
         const filters = {
             tanggal_dari: document.getElementById('filter-tanggal-dari-buangan').value,
             tanggal_sampai: document.getElementById('filter-tanggal-sampai-buangan').value,
-            order_id: document.getElementById('filter-order-id').value.trim()
+            no_order: document.getElementById('filter-no-order').value.trim(),
+            alihan: document.getElementById('filter-alihan').value
         };
 
         Object.keys(filters).forEach(key => {
@@ -372,26 +532,18 @@ async function loadRekapBuangan() {
         const result = await response.json();
         debugLog('Rekap Buangan Response', result);
 
-        // Extract data from response
         let data = null;
         
-        // Check if result has success field with data array
         if (result && result.success === true && result.data) {
             console.log('✓ Using result.data structure');
             data = result.data;
-        }
-        // Check if result itself is an array
-        else if (Array.isArray(result)) {
+        } else if (Array.isArray(result)) {
             console.log('✓ Result is directly an array');
             data = result;
-        }
-        // Check if result has rows property
-        else if (result && Array.isArray(result.rows)) {
+        } else if (result && Array.isArray(result.rows)) {
             console.log('✓ Using result.rows structure');
             data = result.rows;
-        }
-        // Check if result.data exists but success is not checked
-        else if (result && Array.isArray(result.data)) {
+        } else if (result && Array.isArray(result.data)) {
             console.log('✓ Using result.data (no success check)');
             data = result.data;
         }
@@ -405,7 +557,8 @@ async function loadRekapBuangan() {
             tbody.innerHTML = data.map((row, index) => `
                 <tr>
                     <td>${index + 1}</td>
-                    <td>${row.order_id || '-'}</td>
+                    <td>${formatDate(row.tanggal_order)}</td>
+                    <td>${row.no_order || '-'}</td>
                     <td>${formatDate(row.tanggal_bongkar)}</td>
                     <td>${row.jam_bongkar || '-'}</td>
                     <td>${row.km_akhir || 0}</td>
@@ -419,19 +572,22 @@ async function loadRekapBuangan() {
             `).join('');
         } else {
             console.log('ℹ️ No buangan data found');
-            tbody.innerHTML = '<tr><td colspan="11" class="text-center">Tidak ada data buangan</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="12" class="text-center">Tidak ada data buangan</td></tr>';
         }
     } catch (err) {
         console.error('❌ Error loading rekap buangan:', err);
-        tbody.innerHTML = `<tr><td colspan="11" class="text-center" style="color: red;">Error: ${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="12" class="text-center" style="color: red;">Error: ${err.message}</td></tr>`;
     }
 }
 
 function resetFilterBuangan() {
     console.log('🔄 Resetting Buangan filters...');
+    document.getElementById('filter-tanggal-type-buangan').value = 'semua';
     document.getElementById('filter-tanggal-dari-buangan').value = '';
     document.getElementById('filter-tanggal-sampai-buangan').value = '';
-    document.getElementById('filter-order-id').value = '';
+    document.getElementById('filter-no-order').value = '';
+    document.getElementById('filter-alihan').value = '';
+    document.getElementById('date-range-buangan').classList.remove('show');
     loadRekapBuangan();
 }
 
@@ -449,10 +605,10 @@ async function exportToExcel(type) {
                 tanggal_dari: document.getElementById('filter-tanggal-dari-order').value,
                 tanggal_sampai: document.getElementById('filter-tanggal-sampai-order').value,
                 proyek_input: document.getElementById('filter-proyek-order').value,
-                petugas_order: document.getElementById('filter-petugas-order').value,
-                kendaraan_id: document.getElementById('filter-kendaraan-order').value,
-                supir_id: document.getElementById('filter-supir-order').value,
-                galian_id: document.getElementById('filter-galian-order').value
+                status: document.getElementById('filter-status-order').value,
+                kendaraan_id: document.getElementById('filter-kendaraan-order-id').value,
+                supir_id: document.getElementById('filter-supir-order-id').value,
+                galian_id: document.getElementById('filter-galian-order-id').value
             };
             Object.keys(filters).forEach(key => {
                 if (filters[key]) params.append(key, filters[key]);
@@ -462,7 +618,7 @@ async function exportToExcel(type) {
             const filters = {
                 tanggal_dari: document.getElementById('filter-tanggal-dari-buangan').value,
                 tanggal_sampai: document.getElementById('filter-tanggal-sampai-buangan').value,
-                order_id: document.getElementById('filter-order-id').value
+                no_order: document.getElementById('filter-no-order').value
             };
             Object.keys(filters).forEach(key => {
                 if (filters[key]) params.append(key, filters[key]);
@@ -503,10 +659,10 @@ async function exportToPDF(type) {
                 tanggal_dari: document.getElementById('filter-tanggal-dari-order').value,
                 tanggal_sampai: document.getElementById('filter-tanggal-sampai-order').value,
                 proyek_input: document.getElementById('filter-proyek-order').value,
-                petugas_order: document.getElementById('filter-petugas-order').value,
-                kendaraan_id: document.getElementById('filter-kendaraan-order').value,
-                supir_id: document.getElementById('filter-supir-order').value,
-                galian_id: document.getElementById('filter-galian-order').value
+                status: document.getElementById('filter-status-order').value,
+                kendaraan_id: document.getElementById('filter-kendaraan-order-id').value,
+                supir_id: document.getElementById('filter-supir-order-id').value,
+                galian_id: document.getElementById('filter-galian-order-id').value
             };
             Object.keys(filters).forEach(key => {
                 if (filters[key]) params.append(key, filters[key]);
@@ -516,7 +672,7 @@ async function exportToPDF(type) {
             const filters = {
                 tanggal_dari: document.getElementById('filter-tanggal-dari-buangan').value,
                 tanggal_sampai: document.getElementById('filter-tanggal-sampai-buangan').value,
-                order_id: document.getElementById('filter-order-id').value
+                no_order: document.getElementById('filter-no-order').value
             };
             Object.keys(filters).forEach(key => {
                 if (filters[key]) params.append(key, filters[key]);
@@ -574,16 +730,10 @@ function formatDate(dateString) {
 document.addEventListener('DOMContentLoaded', async () => {
     debugLog('Page Initialization', 'Starting...');
     
-    // Test connection
-    console.log('1️⃣ Testing API connection...');
-    await testConnection();
-    
-    // Load master data
-    console.log('\n2️⃣ Loading master data...');
+    console.log('1️⃣ Loading master data...');
     await loadMasterData();
     
-    // Load initial order data
-    console.log('\n3️⃣ Loading initial order data...');
+    console.log('\n2️⃣ Loading initial order data...');
     await loadRekapOrder();
     
     console.log('\n✅ Initialization complete!\n');
