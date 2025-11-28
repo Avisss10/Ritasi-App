@@ -457,7 +457,7 @@ async function loadRekapOrder() {
                         <td>${row.galian_nama || '-'}</td>
                         <td>${row.no_do || '-'}</td>
                         <td>${row.jam_order || '-'}</td>
-                        <td>${row.km_awal || 0}</td>
+                        <td>${formatKilometer(row.km_awal)}</td>
                         <td>${formatCurrency(row.uang_jalan)}</td>
                         <td>${formatCurrency(row.potongan)}</td>
                         <td>${formatCurrency(row.hasil_akhir)}</td>
@@ -561,8 +561,8 @@ async function loadRekapBuangan() {
                     <td>${row.no_order || '-'}</td>
                     <td>${formatDate(row.tanggal_bongkar)}</td>
                     <td>${row.jam_bongkar || '-'}</td>
-                    <td>${row.km_akhir || 0}</td>
-                    <td>${row.jarak_km || 0}</td>
+                    <td>${formatKilometer(row.km_akhir)}</td>
+                    <td>${formatKilometer(row.jarak_km)}</td>
                     <td>${row.alihan ? 'Ya' : 'Tidak'}</td>
                     <td>${row.galian_alihan_nama || '-'}</td>
                     <td>${row.keterangan || '-'}</td>
@@ -708,6 +708,11 @@ async function exportToPDF(type) {
 function formatCurrency(value) {
     if (!value || value === 0) return 'Rp 0';
     return 'Rp ' + parseInt(value).toLocaleString('id-ID');
+}
+
+function formatKilometer(value) {
+    if (!value || value === 0) return '0';
+    return parseInt(value).toLocaleString('id-ID');
 }
 
 function formatDate(dateString) {
