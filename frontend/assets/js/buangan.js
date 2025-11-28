@@ -109,11 +109,36 @@ async function cariOrder() {
             return localDateStr === tanggal;
         });
 
-        console.log('Filtered orders:', filteredOrders);
+console.log('Filtered orders:', filteredOrders);
 
         if (filteredOrders.length === 0) {
             showToast('Tidak ada order pada tanggal ini', 'warning');
-            document.getElementById('resultSection').style.display = 'none';
+            
+            // Tampilkan pesan "tidak ada data" di tabel order
+            allOrderData = [];
+            currentViewMode = 'order';
+            
+            document.getElementById('tableTitle').textContent = 'Data Order';
+            document.getElementById('orderTableContainer').style.display = 'block';
+            document.getElementById('buanganTableContainer').style.display = 'none';
+            
+            // Tampilkan tabel kosong dengan pesan
+            const tbody = document.getElementById('orderTableBody');
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="empty-state">
+                        <div class="empty-state-icon">📦</div>
+                        <div class="empty-state-text">Tidak ditemukan data order pada tanggal ini</div>
+                    </td>
+                </tr>
+            `;
+            
+            // Reset filter
+            const filterInput = document.getElementById('filterNoPintu');
+            if (filterInput) {
+                filterInput.value = '';
+            }
+            
             return;
         }
 
@@ -212,7 +237,7 @@ function displayOrderResults(orders) {
             <td>${order.no_pintu || '-'}</td>
             <td>${order.supir || '-'}</td>
             <td>${order.galian || '-'}</td>
-            <td>${order.km_awal || 0}</td>
+            <td>${formatKM(order.km_awal)} KM</td>
             <td>${statusBadge}</td>
             <td>
                 <button class="btn btn-warning btn-small" onclick="bukaFormBuangan(${order.id})">
@@ -362,7 +387,7 @@ function displayOrderInfo(order) {
             </div>
             <div class="order-info-item">
                 <div class="order-info-label">KM Awal</div>
-                <div class="order-info-value">${parseFloat(order.km_awal || 0).toLocaleString('id-ID')} KM</div>
+                <div class="order-info-value">${formatKM(order.km_awal)} KM</div>
             </div>
         </div>
     `;
@@ -415,9 +440,9 @@ function hitungJarak() {
 
     // Tampilkan hasil real-time (boleh negatif untuk validasi visual)
     if (jarak >= 0) {
-        jarakKmInput.value = jarak.toFixed(2);
+        jarakKmInput.value = formatKM(jarak) + ' KM';
     } else {
-        jarakKmInput.value = jarak.toFixed(2); // Tetap tampilkan meski negatif
+        jarakKmInput.value = formatKM(jarak) + ' KM';
     }
 }
 
@@ -436,7 +461,7 @@ function hitungJarakEdit() {
     const jarak = kmAkhir - kmAwal;
 
     if (jarak >= 0) {
-        document.getElementById('editJarakKm').value = jarak + ' KM';
+        document.getElementById('editJarakKm').value = formatKM(jarak) + ' KM';
     } else {
         document.getElementById('editJarakKm').value = '';
     }
@@ -501,7 +526,7 @@ async function handleFormSubmit(e) {
 
         const result = await response.json();
 
-        showToast('Ritasi berhasil disimpan! Jarak: ' + jarakKm.toFixed(2) + ' KM', 'success');
+        showToast('Ritasi berhasil disimpan! Jarak: ' + formatKM(jarakKm) + ' KM', 'success');
         
         // Reset form dan kembali ke halaman awal
         setTimeout(() => {
@@ -653,7 +678,7 @@ function displayOrderInfoEdit(order) {
             </div>
             <div class="order-info-item">
                 <div class="order-info-label">KM Awal</div>
-                <div class="order-info-value">${parseFloat(order.km_awal || 0).toLocaleString('id-ID')} KM</div>
+                <div class="order-info-value">${formatKM(order.km_awal)} KM</div>
             </div>
         </div>
     `;
@@ -849,10 +874,10 @@ function displayBuanganList(buanganList) {
             <td>${buangan.nama_galian || '-'}</td>
             <td>${formatDate(buangan.tanggal_bongkar)}</td>
             <td>${buangan.jam_bongkar || '-'}</td>
-            <td>${buangan.km_akhir || 0} KM</td>
+            <td>${formatKM(buangan.km_akhir)} KM</td>
 
             <!-- Tampilkan jarak_km dari backend -->
-            <td>${(buangan.jarak_km || 0) + ' KM'}</td>
+            <td>${formatKM(buangan.jarak_km)} KM</td>
 
             <td>${alihanBadge}</td>
             <td>${statusBadge}</td>
@@ -1032,7 +1057,7 @@ function displayDetailOrder(order) {
         </div>
         <div class="detail-item">
             <div class="detail-label">KM Awal</div>
-            <div class="detail-value">${parseFloat(order.km_awal || 0).toLocaleString('id-ID')} KM</div>
+            <div class="detail-value">${formatKM(order.km_awal)} KM</div>
         </div>
         <div class="detail-item">
             <div class="detail-label">Uang Jalan</div>
@@ -1078,11 +1103,11 @@ function displayDetailBuangan(buangan) {
         </div>
         <div class="detail-item">
             <div class="detail-label">KM Akhir</div>
-            <div class="detail-value">${buangan.km_akhir || 0} KM</div>
+            <div class="detail-value">${formatKM(buangan.km_akhir)} KM</div>
         </div>
         <div class="detail-item">
             <div class="detail-label">Jarak KM</div>
-            <div class="detail-value">${(buangan.jarak_km || 0)} KM</div>
+            <div class="detail-value">${formatKM(buangan.jarak_km)} KM</div>
         </div>
         <div class="detail-item">
             <div class="detail-label">Buangan Alihan</div>
@@ -1192,4 +1217,24 @@ function showToast(message, type = 'success') {
     setTimeout(() => {
         toast.className = 'toast';
     }, 3000);
+}
+
+// Format KM dengan titik ribuan
+function formatKM(km) {
+    if (!km && km !== 0) return '0';
+    
+    const kmValue = parseFloat(km);
+    if (isNaN(kmValue)) return '0';
+    
+    return kmValue.toLocaleString('id-ID', { 
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2 
+    });
+}
+
+// Parse input KM - hilangkan titik sebelum parsing
+function parseKMInput(value) {
+    if (!value) return 0;
+    const cleaned = value.toString().replace(/\./g, '');
+    return parseFloat(cleaned) || 0;
 }
