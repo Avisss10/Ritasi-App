@@ -27,9 +27,27 @@ document.addEventListener('DOMContentLoaded', function() {
     // Setup edit form submit
     document.getElementById('editBuanganForm').addEventListener('submit', handleEditFormSubmit);
 
-    // Setup KM Akhir change untuk hitung jarak
-    document.getElementById('kmAkhir').addEventListener('input', hitungJarak);
-    document.getElementById('editKmAkhir').addEventListener('input', hitungJarakEdit);
+    // Gabungkan format dan hitung dalam satu fungsi
+    
+    // KM Akhir (Form Tambah)
+    document.getElementById('kmAkhir').addEventListener('input', function(e) {
+        handleKmAkhirInput(e.target);
+    });
+
+    // KM Akhir (Form Edit)
+    document.getElementById('editKmAkhir').addEventListener('input', function(e) {
+        handleKmAkhirInputEdit(e.target);
+    });
+
+    // Uang Alihan - Format saja (Form Tambah)
+    document.getElementById('uangAlihan').addEventListener('input', function(e) {
+        formatNumberInput(e.target);
+    });
+
+    // Uang Alihan - Format saja (Form Edit)
+    document.getElementById('editUangAlihan').addEventListener('input', function(e) {
+        formatNumberInput(e.target);
+    });
 });
 
 // Global variable untuk menyimpan semua data
@@ -426,7 +444,7 @@ function hitungJarak() {
     const kmAkhirInput = document.getElementById('kmAkhir');
     const jarakKmInput = document.getElementById('jarakKm');
     
-    const kmAkhir = parseFloat(kmAkhirInput.value);
+    const kmAkhir = parseKMInput(kmAkhirInput.value);
     const kmAwal = parseFloat(currentKmAwal);
 
     // Validasi input
@@ -450,7 +468,7 @@ function hitungJarak() {
 // HITUNG JARAK EDIT
 // ============================================================================
 function hitungJarakEdit() {
-    const kmAkhir = Number(document.getElementById('editKmAkhir').value);
+    const kmAkhir = parseKMInput(document.getElementById('editKmAkhir').value);
     const kmAwal = Number(currentKmAwalEdit);
 
     if (isNaN(kmAkhir) || isNaN(kmAwal)) {
@@ -473,7 +491,7 @@ function hitungJarakEdit() {
 async function handleFormSubmit(e) {
     e.preventDefault();
 
-    const kmAkhir = parseFloat(document.getElementById('kmAkhir').value);
+    const kmAkhir = parseKMInput(document.getElementById('kmAkhir').value);
     const kmAwal = parseFloat(currentKmAwal);
     
     // Hitung jarak_km
@@ -489,7 +507,7 @@ async function handleFormSubmit(e) {
         alihan: document.getElementById('alihan').checked,
         galian_alihan_id: document.getElementById('galianAlihan').value || null,
         uang_alihan: document.getElementById('uangAlihan').value 
-            ? parseFloat(document.getElementById('uangAlihan').value)
+            ? parseKMInput(document.getElementById('uangAlihan').value)
             : null,
         keterangan: document.getElementById('keterangan').value || null
     };
@@ -551,11 +569,11 @@ async function handleEditFormSubmit(e) {
         no_urut: parseInt(document.getElementById('editNoUrut').value),
         tanggal_bongkar: document.getElementById('editTanggalBongkar').value,
         jam_bongkar: document.getElementById('editJamBongkar').value,
-        km_akhir: parseFloat(document.getElementById('editKmAkhir').value),
+        km_akhir: parseKMInput(document.getElementById('editKmAkhir').value),
         alihan: document.getElementById('editAlihan').checked,
         galian_alihan_id: document.getElementById('editGalianAlihan').value || null,
         uang_alihan: document.getElementById('editUangAlihan').value 
-            ? parseFloat(document.getElementById('editUangAlihan').value)
+            ? parseKMInput(document.getElementById('editUangAlihan').value)
             : null,
         keterangan: document.getElementById('editKeterangan').value || null
     };
@@ -1203,6 +1221,90 @@ function formatDate(dateString) {
     return `${day}/${month}/${year}`;
 }
 
+// Format input angka dengan titik ribuan
+function formatNumberInput(input) {
+    // Hapus semua karakter selain angka
+    let value = input.value.replace(/\D/g, '');
+    
+    if (value === '') {
+        input.value = '';
+        return;
+    }
+    
+    // Batasi 10 digit
+    if (value.length > 10) {
+        value = value.substring(0, 10);
+    }
+    
+    // Format dengan titik ribuan
+    const number = parseInt(value, 10);
+    input.value = number.toLocaleString('id-ID');
+}
+
+// Handle KM Akhir Input + Hitung Jarak (Form Tambah)
+function handleKmAkhirInput(input) {
+    // Hapus semua karakter selain angka
+    let value = input.value.replace(/\D/g, '');
+    
+    if (value === '') {
+        input.value = '';
+        document.getElementById('jarakKm').value = '';
+        return;
+    }
+    
+    // Batasi 10 digit
+    if (value.length > 10) {
+        value = value.substring(0, 10);
+    }
+    
+    // Format dengan titik ribuan
+    const number = parseInt(value, 10);
+    input.value = number.toLocaleString('id-ID');
+    
+    // Hitung jarak
+    const kmAkhir = number;
+    const kmAwal = parseFloat(currentKmAwal);
+    
+    if (!isNaN(kmAkhir) && !isNaN(kmAwal)) {
+        const jarak = kmAkhir - kmAwal;
+        document.getElementById('jarakKm').value = formatKM(jarak) + ' KM';
+    }
+}
+
+// Handle KM Akhir Input + Hitung Jarak (Form Edit)
+function handleKmAkhirInputEdit(input) {
+    // Hapus semua karakter selain angka
+    let value = input.value.replace(/\D/g, '');
+    
+    if (value === '') {
+        input.value = '';
+        document.getElementById('editJarakKm').value = '';
+        return;
+    }
+    
+    // Batasi 10 digit
+    if (value.length > 10) {
+        value = value.substring(0, 10);
+    }
+    
+    // Format dengan titik ribuan
+    const number = parseInt(value, 10);
+    input.value = number.toLocaleString('id-ID');
+    
+    // Hitung jarak
+    const kmAkhir = number;
+    const kmAwal = Number(currentKmAwalEdit);
+    
+    if (!isNaN(kmAkhir) && !isNaN(kmAwal)) {
+        const jarak = kmAkhir - kmAwal;
+        if (jarak >= 0) {
+            document.getElementById('editJarakKm').value = formatKM(jarak) + ' KM';
+        } else {
+            document.getElementById('editJarakKm').value = '';
+        }
+    }
+}
+
 function formatCurrency(amount) {
     if (!amount) return 'Rp 0';
     
@@ -1235,6 +1337,7 @@ function formatKM(km) {
 // Parse input KM - hilangkan titik sebelum parsing
 function parseKMInput(value) {
     if (!value) return 0;
-    const cleaned = value.toString().replace(/\./g, '');
+    // Hapus semua titik dan spasi
+    const cleaned = value.toString().replace(/\./g, '').replace(/\s/g, '');
     return parseFloat(cleaned) || 0;
 }
