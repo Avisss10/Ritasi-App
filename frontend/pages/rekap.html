@@ -131,11 +131,12 @@
                             <th>Hasil Akhir</th>
                             <th>Proyek</th>
                             <th>Status</th>
+                            <th>Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="tbody-order">
                         <tr>
-                            <td colspan="15" class="text-center">Memuat data...</td>
+                            <td colspan="16" class="text-center">Memuat data...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -217,6 +218,33 @@
                         </tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- Order Detail Modal -->
+        <div id="order-detail-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>📋 Detail Order</h2>
+                    <span class="modal-close">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <!-- Order Information Section -->
+                    <div class="order-info-section">
+                        <h3>ℹ️ Informasi Order</h3>
+                        <div class="order-info-grid" id="order-info-grid">
+                            <!-- Order info will be populated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <!-- Buangan Data Section -->
+                    <div class="buangan-section">
+                        <h3>🚛 Data Buangan</h3>
+                        <div class="buangan-cards" id="buangan-cards">
+                            <!-- Buangan cards will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

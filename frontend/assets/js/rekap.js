@@ -446,6 +446,11 @@ async function loadRekapOrder() {
                     statusStyle = 'background: #6c757d; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
                 }
                 
+                const isComplete = (row.status || '').toUpperCase() === 'COMPLETE';
+                const actionButton = isComplete ?
+                    `<button class="btn btn-info btn-sm" onclick="showOrderDetail(${row.id})">Detail</button>` :
+                    '-';
+
                 return `
                     <tr>
                         <td>${index + 1}</td>
@@ -463,6 +468,7 @@ async function loadRekapOrder() {
                         <td>${formatCurrency(row.hasil_akhir)}</td>
                         <td>${row.proyek_input || '-'}</td>
                         <td><span style="${statusStyle}">${row.status || '-'}</span></td>
+                        <td>${actionButton}</td>
                     </tr>
                 `;
             }).join('');
@@ -700,6 +706,140 @@ async function exportToPDF(type) {
         console.error('❌ Error exporting to PDF:', err);
         alert('❌ Gagal export PDF: ' + err.message);
     }
+}
+
+// ============================================================================
+// ORDER DETAIL MODAL FUNCTIONS
+// ============================================================================
+async function showOrderDetail(orderId) {
+    try {
+        console.log('📋 Showing order detail for ID:', orderId);
+
+        // Show modal
+        const modal = document.getElementById('order-detail-modal');
+        modal.style.display = 'block';
+
+        // Load order data
+        const orderResponse = await fetch(`${API_URL}/rekap/order`);
+        const orderResult = await orderResponse.json();
+        const orderData = orderResult.data.find(order => order.id == orderId);
+
+        // Load buangan data
+        const buanganResponse = await fetch(`${API_URL}/rekap/buangan/order/${orderId}`);
+        const buanganResult = await buanganResponse.json();
+        const buanganData = buanganResult.data || [];
+
+        // Populate order info
+        populateOrderInfo(orderData);
+
+        // Populate buangan cards
+        populateBuanganCards(buanganData, orderData);
+
+        // Setup modal close event
+        const closeBtn = modal.querySelector('.modal-close');
+        closeBtn.onclick = () => {
+            modal.style.display = 'none';
+        };
+
+        // Close modal when clicking outside
+        window.onclick = (event) => {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        };
+
+    } catch (err) {
+        console.error('❌ Error showing order detail:', err);
+        alert('❌ Gagal memuat detail order: ' + err.message);
+    }
+}
+
+function populateOrderInfo(orderData) {
+    const grid = document.getElementById('order-info-grid');
+    grid.innerHTML = '';
+
+    const infoItems = [
+        { label: 'No Order', value: orderData.no_order || '-' },
+        { label: 'Tanggal Order', value: formatDate(orderData.tanggal_order) },
+        { label: 'Petugas', value: orderData.petugas_order || '-' },
+        { label: 'Kendaraan', value: orderData.kendaraan_nama || orderData.no_pintu || '-' },
+        { label: 'Supir', value: orderData.supir_nama || '-' },
+        { label: 'Galian', value: orderData.galian_nama || '-' },
+        { label: 'No DO', value: orderData.no_do || '-' },
+        { label: 'Jam Order', value: orderData.jam_order || '-' },
+        { label: 'KM Awal', value: formatKilometer(orderData.km_awal) },
+        { label: 'Uang Jalan', value: formatCurrency(orderData.uang_jalan) },
+        { label: 'Potongan', value: formatCurrency(orderData.potongan) },
+        { label: 'Hasil Akhir', value: formatCurrency(orderData.hasil_akhir) },
+        { label: 'Proyek', value: orderData.proyek_input || '-' },
+        { label: 'Status', value: orderData.status || '-' }
+    ];
+
+    infoItems.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'info-item';
+        div.innerHTML = `
+            <strong>${item.label}:</strong> ${item.value}
+        `;
+        grid.appendChild(div);
+    });
+}
+
+function populateBuanganCards(buanganData, orderData) {
+    const container = document.getElementById('buangan-cards');
+    container.innerHTML = '';
+
+    if (!buanganData || buanganData.length === 0) {
+        container.innerHTML = '<p class="no-data">Tidak ada data buangan untuk order ini</p>';
+        return;
+    }
+
+    buanganData.forEach((buangan, index) => {
+        const card = document.createElement('div');
+        card.className = 'buangan-card';
+        card.innerHTML = `
+            <div class="card-header">
+                <h4>No. Urut ${buangan.no_urut || (index + 1)}</h4>
+                <span class="card-proyek">${orderData.proyek_input || '-'}</span>
+                <span class="card-date">${formatDate(buangan.tanggal_bongkar)}</span>
+            </div>
+            <div class="card-body">
+                <div class="card-row">
+                    <span class="label">Jam Bongkar:</span>
+                    <span class="value">${buangan.jam_bongkar || '-'}</span>
+                </div>
+                <div class="card-row">
+                    <span class="label">KM Akhir:</span>
+                    <span class="value">${formatKilometer(buangan.km_akhir)}</span>
+                </div>
+                <div class="card-row">
+                    <span class="label">Jarak KM:</span>
+                    <span class="value">${formatKilometer(buangan.jarak_km)}</span>
+                </div>
+                <div class="card-row">
+                    <span class="label">Alihan:</span>
+                    <span class="value">${buangan.alihan ? 'Ya' : 'Tidak'}</span>
+                </div>
+                ${buangan.alihan ? `
+                    <div class="card-row">
+                        <span class="label">Galian Alihan:</span>
+                        <span class="value">${buangan.galian_alihan_nama || '-'}</span>
+                    </div>
+                    <div class="card-row">
+                        <span class="label">Uang Alihan:</span>
+                        <span class="value">${formatCurrency(buangan.uang_alihan)}</span>
+                    </div>
+                ` : ''}
+                ${buangan.keterangan ? `
+                    <div class="card-row">
+                        <span class="label">Keterangan:</span>
+                        <span class="value">${buangan.keterangan}</span>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+        container.appendChild(card);
+    });
 }
 
 // ============================================================================

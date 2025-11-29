@@ -623,6 +623,47 @@ router.get("/gabungan/export/excel", async (req, res) => {
 });
 
 // ============================================================================
+// GET BUANGAN BY ORDER ID (FOR DETAIL MODAL)
+// ============================================================================
+router.get("/buangan/order/:orderId", async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    if (!orderId || isNaN(orderId)) {
+      return error(res, 400, "Order ID tidak valid");
+    }
+
+    const sql = `
+      SELECT
+        b.id,
+        b.order_id,
+        o.no_order,
+        b.tanggal_bongkar,
+        b.jam_bongkar,
+        b.km_akhir,
+        b.jarak_km,
+        b.alihan,
+        b.galian_alihan_id,
+        g.nama_galian AS galian_alihan_nama,
+        b.keterangan,
+        b.uang_alihan,
+        b.no_urut
+      FROM buangan b
+      LEFT JOIN orders o ON b.order_id = o.id
+      LEFT JOIN master_galian g ON b.galian_alihan_id = g.id
+      WHERE b.order_id = ?
+      ORDER BY b.no_urut ASC, b.id ASC
+    `;
+
+    const rows = await db.query(sql, [orderId]);
+    return success(res, "Berhasil mengambil data buangan untuk order", rows[0]);
+  } catch (err) {
+    console.error("Error in /rekap/buangan/order/:orderId:", err);
+    return error(res, 500, "Gagal mengambil data buangan", err);
+  }
+});
+
+// ============================================================================
 // REKAP GABUNGAN - EXPORT PDF (WITH FILTER INFO)
 // ============================================================================
 router.get("/gabungan/export/pdf", async (req, res) => {
