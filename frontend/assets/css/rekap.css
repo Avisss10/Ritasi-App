@@ -1191,3 +1191,117 @@ input[type="hidden"] {
         display: table-header-group;
     }
 }
+
+/* ============================================================================
+   SUMMARY SECTION - TAMBAHAN UNTUK REKAP.CSS
+   ============================================================================ */
+.summary-section {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    padding: 25px 30px;
+    border-radius: 12px;
+    margin-top: 20px;
+    border: 2px solid #dee2e6;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+
+.summary-title {
+    font-size: 1.3em;
+    font-weight: 700;
+    color: #495057;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 3px solid #667eea;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+}
+
+.summary-item {
+    background: white;
+    padding: 18px 20px;
+    border-radius: 10px;
+    border: 2px solid #e9ecef;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.3s ease;
+}
+
+.summary-item:hover {
+    border-color: #667eea;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+    transform: translateY(-2px);
+}
+
+.summary-item .label {
+    font-weight: 600;
+    color: #6c757d;
+    font-size: 0.95em;
+}
+
+.summary-item .value {
+    font-weight: 700;
+    color: #495057;
+    font-size: 1.1em;
+}
+
+.summary-item.grand-total {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    grid-column: 1 / -1;
+}
+
+.summary-item.grand-total .label,
+.summary-item.grand-total .value {
+    color: white;
+    font-size: 1.2em;
+}
+
+/* Responsive untuk Summary */
+@media (max-width: 768px) {
+    .summary-section {
+        padding: 20px;
+    }
+
+    .summary-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .summary-item.grand-total {
+        grid-column: 1;
+    }
+
+    .summary-title {
+        font-size: 1.1em;
+    }
+
+    .summary-item .label {
+        font-size: 0.9em;
+    }
+
+    .summary-item .value {
+        font-size: 1em;
+    }
+}
+
+/* Print untuk Summary */
+@media print {
+    .summary-section {
+        page-break-inside: avoid;
+        margin-top: 20px;
+        box-shadow: none;
+        border: 1px solid #000;
+    }
+
+    .summary-item.grand-total {
+        background: #333 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}

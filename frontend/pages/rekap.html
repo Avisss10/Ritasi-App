@@ -3,113 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rekap Data - Sistem Manajemen</title>
+    <title>Rekap Ritasi</title>
     <link rel="stylesheet" href="../assets/css/rekap.css">
 </head>
 <body>
     <div class="fullscreen-container">
         <header>
-            <h1>📊 Rekap Data</h1>
-            <p class="subtitle">Laporan Order, Buangan, dan Gabungan</p>
+            <h1>📊 Rekap Ritasi</h1>
+            <p class="subtitle">Laporan dan Rekapitulasi Data Ritasi</p>
         </header>
 
-        <!-- Tab Navigation -->
+        <!-- Navigation Tabs -->
         <div class="tabs">
+            <button class="tab-btn" data-tab="gabungan">Rekap Gabungan</button>
             <button class="tab-btn active" data-tab="order">Rekap Order</button>
             <button class="tab-btn" data-tab="buangan">Rekap Buangan</button>
-            <button class="tab-btn" data-tab="gabungan">Rekap Gabungan</button>
         </div>
 
-        <!-- Tab Content: Rekap Order -->
+        <!-- TAB 1: REKAP ORDER -->
         <div id="order-tab" class="tab-content active">
+            <!-- Filter Section -->
             <div class="filter-section">
-                <h3>🔍 Filter Rekap Order</h3>
+                <h3>🔍 Filter Data Order</h3>
+                
                 <div class="filter-grid">
                     <div class="filter-item">
-                        <label>Filter Tanggal</label>
+                        <label>Pilih Periode:</label>
                         <select id="filter-tanggal-type-order" onchange="toggleDateRangeOrder()">
-                            <option value="semua">Semua</option>
+                            <option value="semua">Semua Data</option>
                             <option value="hari-ini">Hari Ini</option>
-                            <option value="7-hari">7 Hari Ke Belakang</option>
-                            <option value="manual">Tanggal Manual</option>
+                            <option value="7-hari">7 Hari Terakhir</option>
+                            <option value="manual">Pilih Tanggal Manual</option>
                         </select>
                     </div>
-                    
+
                     <div class="filter-item">
-                        <label>Proyek</label>
-                        <input type="text" id="filter-proyek-order" placeholder="Ketik untuk mencari proyek...">
+                        <label>Proyek:</label>
+                        <input type="text" id="filter-proyek-order" placeholder="Cari proyek...">
                     </div>
-                    
+
                     <div class="filter-item">
-                        <label>Status</label>
+                        <label>Status:</label>
                         <select id="filter-status-order">
-                            <option value="">Semua</option>
-                            <option value="COMPLETE">COMPLETE</option>
-                            <option value="ON PROCESS">ON PROCESS</option>
+                            <option value="">Semua Status</option>
+                            <option value="COMPLETE">Complete</option>
+                            <option value="ON_PROCESS">On Process</option>
                         </select>
                     </div>
-                    
+
                     <div class="filter-item">
-                        <label>Kendaraan</label>
-                        <input 
-                            type="text" 
-                            id="filter-kendaraan-order" 
-                            list="datalist-kendaraan"
-                            placeholder="Ketik untuk mencari kendaraan..."
-                            autocomplete="off"
-                        >
-                        <datalist id="datalist-kendaraan"></datalist>
+                        <label>Kendaraan:</label>
+                        <input type="text" id="filter-kendaraan-order" list="datalist-kendaraan" placeholder="Pilih kendaraan...">
                         <input type="hidden" id="filter-kendaraan-order-id">
+                        <datalist id="datalist-kendaraan"></datalist>
                     </div>
-                    
+
                     <div class="filter-item">
-                        <label>Supir</label>
-                        <input 
-                            type="text" 
-                            id="filter-supir-order" 
-                            list="datalist-supir"
-                            placeholder="Ketik untuk mencari supir..."
-                            autocomplete="off"
-                        >
-                        <datalist id="datalist-supir"></datalist>
+                        <label>Supir:</label>
+                        <input type="text" id="filter-supir-order" list="datalist-supir" placeholder="Pilih supir...">
                         <input type="hidden" id="filter-supir-order-id">
+                        <datalist id="datalist-supir"></datalist>
                     </div>
-                    
+
                     <div class="filter-item">
-                        <label>Galian</label>
-                        <input 
-                            type="text" 
-                            id="filter-galian-order" 
-                            list="datalist-galian"
-                            placeholder="Ketik untuk mencari galian..."
-                            autocomplete="off"
-                        >
-                        <datalist id="datalist-galian"></datalist>
+                        <label>Galian:</label>
+                        <input type="text" id="filter-galian-order" list="datalist-galian" placeholder="Pilih galian...">
                         <input type="hidden" id="filter-galian-order-id">
+                        <datalist id="datalist-galian"></datalist>
                     </div>
                 </div>
-                
+
+                <!-- Manual Date Range -->
                 <div id="date-range-order" class="date-range-inputs">
                     <div class="filter-item">
-                        <label>Dari Tanggal</label>
+                        <label>Tanggal Dari:</label>
                         <input type="date" id="filter-tanggal-dari-order">
                     </div>
                     <div class="filter-item">
-                        <label>Sampai Tanggal</label>
+                        <label>Tanggal Sampai:</label>
                         <input type="date" id="filter-tanggal-sampai-order">
                     </div>
                 </div>
-                
+
                 <div class="filter-actions">
-                    <button class="btn btn-primary" onclick="loadRekapOrder()">🔍 Tampilkan</button>
-                    <button class="btn btn-secondary" onclick="resetFilterOrder()">🔄 Reset</button>
-                    <button class="btn btn-success" onclick="exportToExcel('order')">📥 Export Excel</button>
-                    <button class="btn btn-danger" onclick="exportToPDF('order')">📄 Export PDF</button>
+                    <button class="btn btn-primary" onclick="loadRekapOrder()">🔍 Tampilkan Data</button>
+                    <button class="btn btn-secondary" onclick="resetFilterOrder()">🔄 Reset Filter</button>
+                    <button class="btn btn-success" onclick="exportToExcel('order')">📊 Export Excel</button>
+                    <button class="btn btn-success" onclick="exportToPDF('order')">📄 Export PDF</button>
                 </div>
             </div>
 
+            <!-- Table -->
             <div class="table-wrapper">
-                <table id="table-order">
+                <table>
                     <thead>
                         <tr>
                             <th>No</th>
@@ -131,36 +117,39 @@
                         </tr>
                     </thead>
                     <tbody id="tbody-order">
-                        <tr>
-                            <td colspan="16" class="text-center">Memuat data...</td>
-                        </tr>
+                        <tr><td colspan="16" class="text-center">Memuat data...</td></tr>
                     </tbody>
                 </table>
             </div>
+
+            <!-- Summary Section -->
+            <div id="summary-order"></div>
         </div>
 
-        <!-- Tab Content: Rekap Buangan -->
+        <!-- TAB 2: REKAP BUANGAN -->
         <div id="buangan-tab" class="tab-content">
+            <!-- Filter Section -->
             <div class="filter-section">
-                <h3>🔍 Filter Rekap Buangan</h3>
+                <h3>🔍 Filter Data Buangan</h3>
+                
                 <div class="filter-grid">
                     <div class="filter-item">
-                        <label>Filter Tanggal</label>
+                        <label>Pilih Periode:</label>
                         <select id="filter-tanggal-type-buangan" onchange="toggleDateRangeBuangan()">
-                            <option value="semua">Semua</option>
+                            <option value="semua">Semua Data</option>
                             <option value="hari-ini">Hari Ini</option>
-                            <option value="7-hari">7 Hari Ke Belakang</option>
-                            <option value="manual">Tanggal Manual</option>
+                            <option value="7-hari">7 Hari Terakhir</option>
+                            <option value="manual">Pilih Tanggal Manual</option>
                         </select>
                     </div>
-                    
+
                     <div class="filter-item">
-                        <label>No Order</label>
-                        <input type="text" id="filter-no-order" placeholder="No Order">
+                        <label>No Order:</label>
+                        <input type="text" id="filter-no-order" placeholder="Cari nomor order...">
                     </div>
-                    
+
                     <div class="filter-item">
-                        <label>Alihan</label>
+                        <label>Alihan:</label>
                         <select id="filter-alihan">
                             <option value="">Semua</option>
                             <option value="1">Ya</option>
@@ -168,34 +157,36 @@
                         </select>
                     </div>
                 </div>
-                
+
+                <!-- Manual Date Range -->
                 <div id="date-range-buangan" class="date-range-inputs">
                     <div class="filter-item">
-                        <label>Dari Tanggal</label>
+                        <label>Tanggal Dari:</label>
                         <input type="date" id="filter-tanggal-dari-buangan">
                     </div>
                     <div class="filter-item">
-                        <label>Sampai Tanggal</label>
+                        <label>Tanggal Sampai:</label>
                         <input type="date" id="filter-tanggal-sampai-buangan">
                     </div>
                 </div>
-                
+
                 <div class="filter-actions">
-                    <button class="btn btn-primary" onclick="loadRekapBuangan()">🔍 Tampilkan</button>
-                    <button class="btn btn-secondary" onclick="resetFilterBuangan()">🔄 Reset</button>
-                    <button class="btn btn-success" onclick="exportToExcel('buangan')">📥 Export Excel</button>
-                    <button class="btn btn-danger" onclick="exportToPDF('buangan')">📄 Export PDF</button>
+                    <button class="btn btn-primary" onclick="loadRekapBuangan()">🔍 Tampilkan Data</button>
+                    <button class="btn btn-secondary" onclick="resetFilterBuangan()">🔄 Reset Filter</button>
+                    <button class="btn btn-success" onclick="exportToExcel('buangan')">📊 Export Excel</button>
+                    <button class="btn btn-success" onclick="exportToPDF('buangan')">📄 Export PDF</button>
                 </div>
             </div>
 
+            <!-- Table -->
             <div class="table-wrapper">
-                <table id="table-buangan">
+                <table>
                     <thead>
                         <tr>
                             <th>No</th>
                             <th>Tanggal Order</th>
                             <th>No Order</th>
-                            <th>Tgl Bongkar</th>
+                            <th>Tanggal Bongkar</th>
                             <th>Jam Bongkar</th>
                             <th>KM Akhir</th>
                             <th>Jarak KM</th>
@@ -207,91 +198,84 @@
                         </tr>
                     </thead>
                     <tbody id="tbody-buangan">
-                        <tr>
-                            <td colspan="12" class="text-center">Memuat data...</td>
-                        </tr>
+                        <tr><td colspan="12" class="text-center">Klik "Tampilkan Data" untuk memuat...</td></tr>
                     </tbody>
                 </table>
             </div>
+
+            <!-- Summary Section -->
+            <div id="summary-buangan"></div>
         </div>
 
-        <!-- Tab Content: Rekap Gabungan -->
+        <!-- TAB 3: REKAP GABUNGAN -->
         <div id="gabungan-tab" class="tab-content">
+            <!-- Filter Section -->
             <div class="filter-section">
-                <h3>🔍 Filter Rekap Gabungan</h3>
+                <h3>🔍 Filter Data Gabungan</h3>
+                
                 <div class="filter-grid">
                     <div class="filter-item">
-                        <label>Filter Tanggal</label>
+                        <label>Pilih Periode:</label>
                         <select id="filter-tanggal-type-gabungan" onchange="toggleDateRangeGabungan()">
-                            <option value="semua">Semua</option>
+                            <option value="semua">Semua Data</option>
                             <option value="hari-ini">Hari Ini</option>
-                            <option value="7-hari">7 Hari Ke Belakang</option>
-                            <option value="manual">Tanggal Manual</option>
+                            <option value="7-hari">7 Hari Terakhir</option>
+                            <option value="manual">Pilih Tanggal Manual</option>
                         </select>
                     </div>
-                    
+
                     <div class="filter-item">
-                        <label>Proyek</label>
-                        <input type="text" id="filter-proyek-gabungan" placeholder="Ketik untuk mencari proyek...">
+                        <label>Proyek:</label>
+                        <input type="text" id="filter-proyek-gabungan" placeholder="Cari proyek...">
                     </div>
-                    
+
                     <div class="filter-item">
-                        <label>Status</label>
+                        <label>Status:</label>
                         <select id="filter-status-gabungan">
-                            <option value="">Semua</option>
-                            <option value="COMPLETE">COMPLETE</option>
-                            <option value="ON PROCESS">ON PROCESS</option>
+                            <option value="">Semua Status</option>
+                            <option value="COMPLETE">Complete</option>
+                            <option value="ON_PROCESS">On Process</option>
                         </select>
                     </div>
-                    
+
                     <div class="filter-item">
-                        <label>Kendaraan</label>
-                        <input 
-                            type="text" 
-                            id="filter-kendaraan-gabungan" 
-                            list="datalist-kendaraan-gabungan"
-                            placeholder="Ketik untuk mencari kendaraan..."
-                            autocomplete="off"
-                        >
-                        <datalist id="datalist-kendaraan-gabungan"></datalist>
+                        <label>Kendaraan:</label>
+                        <input type="text" id="filter-kendaraan-gabungan" list="datalist-kendaraan-gabungan" placeholder="Pilih kendaraan...">
                         <input type="hidden" id="filter-kendaraan-gabungan-id">
+                        <datalist id="datalist-kendaraan-gabungan"></datalist>
                     </div>
-                    
+
                     <div class="filter-item">
-                        <label>Galian</label>
-                        <input 
-                            type="text" 
-                            id="filter-galian-gabungan" 
-                            list="datalist-galian-gabungan"
-                            placeholder="Ketik untuk mencari galian..."
-                            autocomplete="off"
-                        >
-                        <datalist id="datalist-galian-gabungan"></datalist>
+                        <label>Galian:</label>
+                        <input type="text" id="filter-galian-gabungan" list="datalist-galian-gabungan" placeholder="Pilih galian...">
                         <input type="hidden" id="filter-galian-gabungan-id">
+                        <datalist id="datalist-galian-gabungan"></datalist>
                     </div>
                 </div>
-                
+
+                <!-- Manual Date Range -->
                 <div id="date-range-gabungan" class="date-range-inputs">
                     <div class="filter-item">
-                        <label>Dari Tanggal</label>
+                        <label>Tanggal Dari:</label>
                         <input type="date" id="filter-tanggal-dari-gabungan">
                     </div>
                     <div class="filter-item">
-                        <label>Sampai Tanggal</label>
+                        <label>Tanggal Sampai:</label>
                         <input type="date" id="filter-tanggal-sampai-gabungan">
                     </div>
                 </div>
-                
+
                 <div class="filter-actions">
-                    <button class="btn btn-primary" onclick="loadRekapGabungan()">🔍 Tampilkan</button>
-                    <button class="btn btn-secondary" onclick="resetFilterGabungan()">🔄 Reset</button>
-                    <button class="btn btn-success" onclick="exportToExcel('gabungan')">📥 Export Excel</button>
-                    <button class="btn btn-danger" onclick="exportToPDF('gabungan')">📄 Export PDF</button>
+                    <button class="btn btn-primary" onclick="loadRekapGabungan()">🔍 Tampilkan Data</button>
+                    <button class="btn btn-secondary" onclick="resetFilterGabungan()">🔄 Reset Filter</button>
+                    <button class="btn btn-success" onclick="exportToExcel('gabungan')">📊 Export Excel</button>
+                    <button class="btn btn-success" onclick="exportToPDF('gabungan')">📄 Export PDF</button>
                 </div>
             </div>
 
+            <!-- Table -->
             <div class="table-wrapper">
-                <table id="table-gabungan">
+                <table>
                     <thead>
                         <tr>
                             <th>No</th>
@@ -319,30 +303,34 @@
                         </tr>
                     </thead>
                     <tbody id="tbody-gabungan">
-                        <tr>
-                            <td colspan="22" class="text-center">Memuat data...</td>
-                        </tr>
+                        <tr><td colspan="22" class="text-center">Klik "Tampilkan Data" untuk memuat...</td></tr>
                     </tbody>
                 </table>
             </div>
-        </div>
 
-        <!-- Order Detail Modal -->
-        <div id="order-detail-modal" class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>📋 Detail Order</h2>
-                    <span class="modal-close">&times;</span>
+            <!-- Summary Section -->
+            <div id="summary-gabungan"></div>
+        </div>
+    </div>
+
+    <!-- Modal untuk Detail Order -->
+    <div id="order-detail-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📋 Detail Order</h2>
+                <span class="modal-close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <!-- Order Info Section -->
+                <div class="order-info-section">
+                    <h3>📝 Informasi Order</h3>
+                    <div id="order-info-grid" class="order-info-grid"></div>
                 </div>
-                <div class="modal-body">
-                    <div class="order-info-section">
-                        <h3>ℹ️ Informasi Order</h3>
-                        <div class="order-info-grid" id="order-info-grid"></div>
-                    </div>
-                    <div class="buangan-section">
-                        <h3>🚛 Data Buangan</h3>
-                        <div class="buangan-cards" id="buangan-cards"></div>
-                    </div>
+
+                <!-- Buangan Section -->
+                <div class="buangan-section">
+                    <h3>🚛 Daftar Buangan</h3>
+                    <div id="buangan-cards" class="buangan-cards"></div>
                 </div>
             </div>
         </div>

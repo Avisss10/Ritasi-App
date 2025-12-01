@@ -524,6 +524,18 @@ async function loadRekapOrder() {
 
         if (data && Array.isArray(data) && data.length > 0) {
             console.log(`✅ Displaying ${data.length} order records`);
+
+            // Calculate totals
+            let totalUangJalan = 0;
+            let totalPotongan = 0;
+            let totalHasilAkhir = 0;
+
+            data.forEach(row => {
+                totalUangJalan += parseFloat(row.uang_jalan || 0);
+                totalPotongan += parseFloat(row.potongan || 0);
+                totalHasilAkhir += parseFloat(row.hasil_akhir || 0);
+            });
+
             tbody.innerHTML = data.map((row, index) => {
                 let statusStyle = '';
                 const status = (row.status || '').toUpperCase();
@@ -534,7 +546,7 @@ async function loadRekapOrder() {
                 } else {
                     statusStyle = 'background: #6c757d; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
                 }
-                
+
                 const isComplete = (row.status || '').toUpperCase() === 'COMPLETE';
                 const actionButton = isComplete ?
                     `<button class="btn btn-info btn-sm" onclick="showOrderDetail(${row.id})">Detail</button>` :
@@ -561,9 +573,15 @@ async function loadRekapOrder() {
                     </tr>
                 `;
             }).join('');
+
+            // Display summary for Order
+            displayOrderSummary(totalUangJalan, totalPotongan, totalHasilAkhir);
         } else {
             console.log('ℹ️ No order data found');
             tbody.innerHTML = '<tr><td colspan="15" class="text-center">Tidak ada data order</td></tr>';
+            // Clear summary when no data
+            const summaryDiv = document.getElementById('summary-order');
+            if (summaryDiv) summaryDiv.innerHTML = '';
         }
     } catch (err) {
         console.error('❌ Error loading rekap order:', err);
@@ -649,6 +667,14 @@ async function loadRekapBuangan() {
 
         if (data && Array.isArray(data) && data.length > 0) {
             console.log(`✅ Displaying ${data.length} buangan records`);
+
+            // Calculate totals
+            let totalUangAlihan = 0;
+
+            data.forEach(row => {
+                totalUangAlihan += parseFloat(row.uang_alihan || 0);
+            });
+
             tbody.innerHTML = data.map((row, index) => `
                 <tr>
                     <td>${index + 1}</td>
@@ -665,9 +691,15 @@ async function loadRekapBuangan() {
                     <td>${row.no_urut || '-'}</td>
                 </tr>
             `).join('');
+
+            // Display summary for Buangan
+            displayBuanganSummary(totalUangAlihan);
         } else {
             console.log('ℹ️ No buangan data found');
             tbody.innerHTML = '<tr><td colspan="12" class="text-center">Tidak ada data buangan</td></tr>';
+            // Clear summary when no data
+            const summaryDiv = document.getElementById('summary-buangan');
+            if (summaryDiv) summaryDiv.innerHTML = '';
         }
     } catch (err) {
         console.error('❌ Error loading rekap buangan:', err);
@@ -738,6 +770,20 @@ async function loadRekapGabungan() {
 
         if (data && Array.isArray(data) && data.length > 0) {
             console.log(`✅ Displaying ${data.length} gabungan records`);
+
+            // Calculate totals
+            let totalUangJalan = 0;
+            let totalPotongan = 0;
+            let totalHasilAkhir = 0;
+            let totalUangAlihan = 0;
+
+            data.forEach(row => {
+                totalUangJalan += parseFloat(row.uang_jalan || 0);
+                totalPotongan += parseFloat(row.potongan || 0);
+                totalHasilAkhir += parseFloat(row.hasil_akhir || 0);
+                totalUangAlihan += parseFloat(row.uang_alihan || 0);
+            });
+
             tbody.innerHTML = data.map((row, index) => {
                 let statusStyle = '';
                 const status = (row.status || '').toUpperCase();
@@ -776,9 +822,15 @@ async function loadRekapGabungan() {
                     </tr>
                 `;
             }).join('');
+
+            // Display summary for Gabungan
+            displayGabunganSummary(totalUangJalan, totalPotongan, totalHasilAkhir, totalUangAlihan);
         } else {
             console.log('ℹ️ No gabungan data found');
             tbody.innerHTML = '<tr><td colspan="22" class="text-center">Tidak ada data gabungan</td></tr>';
+            // Clear summary when no data
+            const summaryDiv = document.getElementById('summary-gabungan');
+            if (summaryDiv) summaryDiv.innerHTML = '';
         }
     } catch (err) {
         console.error('❌ Error loading rekap gabungan:', err);
@@ -962,20 +1014,95 @@ async function showOrderDetail(orderId) {
         modal.style.display = 'block';
 
         // Load order data
-        const orderResponse = await fetch(`${API_URL}/rekap/order`);
+        const orderResponse = await fetch(`${API_URL}/rekap/order?id=${orderId}`);
+        if (!orderResponse.ok) {
+            throw new Error(`Failed to fetch order: ${orderResponse.status}`);
+        }
         const orderResult = await orderResponse.json();
-        const orderData = orderResult.data.find(order => order.id == orderId);
+        
+        // Handle different response structures
+        let orderData = null;
+        if (orderResult.data) {
+            orderData = Array.isArray(orderResult.data) 
+                ? orderResult.data.find(order => order.id == orderId)
+                : orderResult.data;
+        } else if (Array.isArray(orderResult)) {
+            orderData = orderResult.find(order => order.id == orderId);
+        }
+        
+        if (!orderData) {
+            throw new Error('Order data not found');
+        }
 
-        // Load buangan data
-        const buanganResponse = await fetch(`${API_URL}/rekap/buangan/order/${orderId}`);
+        // Load buangan data (backend mungkin mengembalikan array tanpa field order_id)
+        const buanganResponse = await fetch(`${API_URL}/rekap/buangan`);
+        if (!buanganResponse.ok) {
+            throw new Error(`Failed to fetch buangan: ${buanganResponse.status}`);
+        }
         const buanganResult = await buanganResponse.json();
-        const buanganData = buanganResult.data || [];
+        
+        // Normalize buangan array
+        let buanganData = [];
+        if (buanganResult.data) {
+            buanganData = Array.isArray(buanganResult.data) ? buanganResult.data : [];
+        } else if (Array.isArray(buanganResult)) {
+            buanganData = buanganResult;
+        }
+
+        // 🔍 Cari key penghubung otomatis dan filter buangan yang terhubung ke order ini
+        const candidateKeys = ['order_id','orderId','id_order','no_order','noOrder','order_no','order'];
+        let matchKey = null;
+        if (buanganData.length > 0) {
+            for (const k of candidateKeys) {
+                if (buanganData.some(b => b[k] !== undefined)) {
+                    matchKey = k;
+                    break;
+                }
+            }
+        }
+
+        // Tentukan nilai order untuk dicocokkan
+        const orderMatchCandidates = [
+            orderData.id,
+            orderData.order_id,
+            orderData.no_order,
+            orderData.noOrder,
+            orderData.no_do,
+            orderData.no
+        ].filter(v => v !== undefined && v !== null);
+
+        let filteredBuangan = [];
+        if (matchKey) {
+            // cocokkan berdasarkan key yang ditemukan di buangan
+            filteredBuangan = buanganData.filter(b => {
+                return orderMatchCandidates.some(ov => String(ov) === String(b[matchKey]));
+            });
+        } else {
+            // fallback: coba cocokkan no_order (umum dipakai)
+            filteredBuangan = buanganData.filter(b => String(b.no_order) === String(orderData.no_order || orderData.noOrder || orderData.id));
+        }
+
+        console.log('=== BUANGAN MATCH DEBUG ===');
+        console.log('Order ID:', orderId);
+        console.log('Detected matchKey:', matchKey);
+        console.log('Order match candidates:', orderMatchCandidates);
+        console.log('Total buangan fetched:', buanganData.length);
+        console.log('Filtered buangan count:', filteredBuangan.length);
+        if (filteredBuangan.length > 0) console.log('Matched buangan example:', filteredBuangan[0]);
+        console.log('==========================');
 
         // Populate order info
         populateOrderInfo(orderData);
 
-        // Populate buangan cards
-        populateBuanganCards(buanganData, orderData);
+        // Tampilkan hanya buangan yang terhubung (ambil pertama kalau memang satu)
+        const container = document.getElementById('buangan-cards');
+        if (filteredBuangan.length > 0) {
+            // jika ingin menampilkan semua yang terhubung: loop dan panggil populateBuanganCards untuk tiap item
+            // untuk 1 order = 1 buangan ambil index 0
+            populateBuanganCards(filteredBuangan[0], orderData);
+        } else {
+            container.innerHTML = '<p class="no-data">Tidak ada data buangan yang terhubung ke order ini</p>';
+        }
 
         // Setup modal close event
         const closeBtn = modal.querySelector('.modal-close');
@@ -994,6 +1121,61 @@ async function showOrderDetail(orderId) {
         console.error('❌ Error showing order detail:', err);
         alert('❌ Gagal memuat detail order: ' + err.message);
     }
+}
+
+function populateBuanganCards(buangan, orderData) {
+    const container = document.getElementById('buangan-cards');
+    container.innerHTML = '';
+
+    if (!buangan) {
+        container.innerHTML = '<p class="no-data">Tidak ada data buangan untuk order ini</p>';
+        return;
+    }
+
+    const card = document.createElement('div');
+    card.className = 'buangan-card';
+    card.innerHTML = `
+        <div class="card-header">
+            <h4>No. Urut ${buangan.no_urut || '1'}</h4>
+            <span class="card-proyek">${orderData.proyek_input || '-'}</span>
+            <span class="card-date">${formatDate(buangan.tanggal_bongkar)}</span>
+        </div>
+        <div class="card-body">
+            <div class="card-row">
+                <span class="label">Jam Bongkar:</span>
+                <span class="value">${buangan.jam_bongkar || '-'}</span>
+            </div>
+            <div class="card-row">
+                <span class="label">KM Akhir:</span>
+                <span class="value">${formatKilometer(buangan.km_akhir)}</span>
+            </div>
+            <div class="card-row">
+                <span class="label">Jarak KM:</span>
+                <span class="value">${formatKilometer(buangan.jarak_km)}</span>
+            </div>
+            <div class="card-row">
+                <span class="label">Alihan:</span>
+                <span class="value">${buangan.alihan ? 'Ya' : 'Tidak'}</span>
+            </div>
+            ${buangan.alihan ? `
+                <div class="card-row">
+                    <span class="label">Galian Alihan:</span>
+                    <span class="value">${buangan.galian_alihan_nama || '-'}</span>
+                </div>
+                <div class="card-row">
+                    <span class="label">Uang Alihan:</span>
+                    <span class="value">${formatCurrency(buangan.uang_alihan)}</span>
+                </div>
+            ` : ''}
+            ${buangan.keterangan ? `
+                <div class="card-row">
+                    <span class="label">Keterangan:</span>
+                    <span class="value">${buangan.keterangan}</span>
+                </div>
+            ` : ''}
+        </div>
+    `;
+    container.appendChild(card);
 }
 
 function populateOrderInfo(orderData) {
@@ -1026,62 +1208,114 @@ function populateOrderInfo(orderData) {
         grid.appendChild(div);
     });
 }
+function populateOrderInfo(orderData) {
+    const grid = document.getElementById('order-info-grid');
+    grid.innerHTML = '';
 
-function populateBuanganCards(buanganData, orderData) {
-    const container = document.getElementById('buangan-cards');
-    container.innerHTML = '';
+    const infoItems = [
+        { label: 'No Order', value: orderData.no_order || '-' },
+        { label: 'Tanggal Order', value: formatDate(orderData.tanggal_order) },
+        { label: 'Petugas', value: orderData.petugas_order || '-' },
+        { label: 'Kendaraan', value: orderData.kendaraan_nama || orderData.no_pintu || '-' },
+        { label: 'Supir', value: orderData.supir_nama || '-' },
+        { label: 'Galian', value: orderData.galian_nama || '-' },
+        { label: 'No DO', value: orderData.no_do || '-' },
+        { label: 'Jam Order', value: orderData.jam_order || '-' },
+        { label: 'KM Awal', value: formatKilometer(orderData.km_awal) },
+        { label: 'Uang Jalan', value: formatCurrency(orderData.uang_jalan) },
+        { label: 'Potongan', value: formatCurrency(orderData.potongan) },
+        { label: 'Hasil Akhir', value: formatCurrency(orderData.hasil_akhir) },
+        { label: 'Proyek', value: orderData.proyek_input || '-' },
+        { label: 'Status', value: orderData.status || '-' }
+    ];
 
-    if (!buanganData || buanganData.length === 0) {
-        container.innerHTML = '<p class="no-data">Tidak ada data buangan untuk order ini</p>';
-        return;
-    }
-
-    buanganData.forEach((buangan, index) => {
-        const card = document.createElement('div');
-        card.className = 'buangan-card';
-        card.innerHTML = `
-            <div class="card-header">
-                <h4>No. Urut ${buangan.no_urut || (index + 1)}</h4>
-                <span class="card-proyek">${orderData.proyek_input || '-'}</span>
-                <span class="card-date">${formatDate(buangan.tanggal_bongkar)}</span>
-            </div>
-            <div class="card-body">
-                <div class="card-row">
-                    <span class="label">Jam Bongkar:</span>
-                    <span class="value">${buangan.jam_bongkar || '-'}</span>
-                </div>
-                <div class="card-row">
-                    <span class="label">KM Akhir:</span>
-                    <span class="value">${formatKilometer(buangan.km_akhir)}</span>
-                </div>
-                <div class="card-row">
-                    <span class="label">Jarak KM:</span>
-                    <span class="value">${formatKilometer(buangan.jarak_km)}</span>
-                </div>
-                <div class="card-row">
-                    <span class="label">Alihan:</span>
-                    <span class="value">${buangan.alihan ? 'Ya' : 'Tidak'}</span>
-                </div>
-                ${buangan.alihan ? `
-                    <div class="card-row">
-                        <span class="label">Galian Alihan:</span>
-                        <span class="value">${buangan.galian_alihan_nama || '-'}</span>
-                    </div>
-                    <div class="card-row">
-                        <span class="label">Uang Alihan:</span>
-                        <span class="value">${formatCurrency(buangan.uang_alihan)}</span>
-                    </div>
-                ` : ''}
-                ${buangan.keterangan ? `
-                    <div class="card-row">
-                        <span class="label">Keterangan:</span>
-                        <span class="value">${buangan.keterangan}</span>
-                    </div>
-                ` : ''}
-            </div>
+    infoItems.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'info-item';
+        div.innerHTML = `
+            <strong>${item.label}:</strong> ${item.value}
         `;
-        container.appendChild(card);
+        grid.appendChild(div);
     });
+}
+
+
+// ============================================================================
+// SUMMARY DISPLAY FUNCTIONS
+// ============================================================================
+function displayOrderSummary(totalUangJalan, totalPotongan, totalHasilAkhir) {
+    const summaryDiv = document.getElementById('summary-order');
+    if (!summaryDiv) return;
+
+    const grandTotal = totalHasilAkhir;
+
+    summaryDiv.innerHTML = `
+        <div class="summary-section">
+            <div class="summary-title">📊 Ringkasan Order</div>
+            <div class="summary-grid">
+                <div class="summary-item">
+                    <span class="label">Total Uang Jalan:</span>
+                    <span class="value">${formatCurrency(totalUangJalan)}</span>
+                </div>
+                <div class="summary-item">
+                    <span class="label">Total Potongan:</span>
+                    <span class="value">${formatCurrency(totalPotongan)}</span>
+                </div>
+                <div class="summary-item grand-total">
+                    <span class="label">Grand Total:</span>
+                    <span class="value">${formatCurrency(grandTotal)}</span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function displayBuanganSummary(totalUangAlihan) {
+    const summaryDiv = document.getElementById('summary-buangan');
+    if (!summaryDiv) return;
+
+    summaryDiv.innerHTML = `
+        <div class="summary-section">
+            <div class="summary-title">📊 Ringkasan Buangan</div>
+            <div class="summary-grid">
+                <div class="summary-item grand-total">
+                    <span class="label">Total Uang Alihan:</span>
+                    <span class="value">${formatCurrency(totalUangAlihan)}</span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function displayGabunganSummary(totalUangJalan, totalPotongan, totalHasilAkhir, totalUangAlihan) {
+    const summaryDiv = document.getElementById('summary-gabungan');
+    if (!summaryDiv) return;
+
+    const grandTotal = totalHasilAkhir + totalUangAlihan;
+
+    summaryDiv.innerHTML = `
+        <div class="summary-section">
+            <div class="summary-title">📊 Ringkasan Gabungan</div>
+            <div class="summary-grid">
+                <div class="summary-item">
+                    <span class="label">Total Uang Jalan:</span>
+                    <span class="value">${formatCurrency(totalUangJalan)}</span>
+                </div>
+                <div class="summary-item">
+                    <span class="label">Total Potongan:</span>
+                    <span class="value">${formatCurrency(totalPotongan)}</span>
+                </div>
+                <div class="summary-item">
+                    <span class="label">Total Uang Alihan:</span>
+                    <span class="value">${formatCurrency(totalUangAlihan)}</span>
+                </div>
+                <div class="summary-item grand-total">
+                    <span class="label">Grand Total:</span>
+                    <span class="value">${formatCurrency(grandTotal)}</span>
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 // ============================================================================
