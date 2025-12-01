@@ -79,6 +79,41 @@ function buildFiltersBuangan(req, allowedFields) {
   };
 }
 
+// Helper: Build WHERE clause for gabungan
+function buildFiltersGabungan(req, allowedFields) {
+  const conditions = [];
+  const values = [];
+
+  for (const key of allowedFields) {
+    const value = req.query[key];
+    if (value && value !== '' && value !== 'null' && value !== 'undefined') {
+      if (key === 'proyek_input') {
+        conditions.push(`LOWER(o.${key}) LIKE LOWER(?)`);
+        values.push(`${value}%`);
+      } else {
+        conditions.push(`o.${key} = ?`);
+        values.push(value);
+      }
+    }
+  }
+
+  if (req.query.tanggal_dari && req.query.tanggal_sampai) {
+    conditions.push(`o.tanggal_order BETWEEN ? AND ?`);
+    values.push(req.query.tanggal_dari, req.query.tanggal_sampai);
+  } else if (req.query.tanggal_dari) {
+    conditions.push(`o.tanggal_order >= ?`);
+    values.push(req.query.tanggal_dari);
+  } else if (req.query.tanggal_sampai) {
+    conditions.push(`o.tanggal_order <= ?`);
+    values.push(req.query.tanggal_sampai);
+  }
+
+  return {
+    where: conditions.length ? `WHERE ${conditions.join(" AND ")}` : "",
+    values
+  };
+}
+
 // Helper: Generate filter info for exports
 function generateFilterInfo(req, type) {
   const filters = {};
@@ -519,39 +554,49 @@ router.get("/buangan/export/pdf", async (req, res) => {
 });
 
 // ============================================================================
-// REKAP GABUNGAN + FILTER (WITH JOINS)
+// REKAP GABUNGAN + FILTER (COMBINED ORDER AND BUANGAN)
 // ============================================================================
 router.get("/gabungan", async (req, res) => {
   try {
-    const { where, values } = buildFilters(req, [
+    const { where, values } = buildFiltersGabungan(req, [
       "proyek_input",
       "kendaraan_id",
-      "supir_id",
-      "galian_id"
+      "galian_id",
+      "status"
     ]);
 
     const sql = `
       SELECT
-        o.id AS order_id,
-        o.proyek_input,
+        o.id AS no,
         o.tanggal_order,
+        b.tanggal_bongkar,
+        o.jam_order,
+        b.jam_bongkar,
         o.no_order,
-        o.petugas_order,
         k.no_pintu AS kendaraan,
-        s.nama AS supir,
         g.nama_galian AS galian,
+        o.no_do,
+        b.jam_bongkar AS jam_buang,
+        o.km_awal,
+        b.km_akhir,
+        b.jarak_km,
+        o.uang_jalan,
+        o.potongan,
         o.hasil_akhir,
-        COUNT(b.id) AS total_ritasi,
-        COALESCE(SUM(b.jarak_km), 0) AS total_tonase,
-        o.hasil_akhir AS nilai_bayaran
+        b.alihan,
+        g2.nama_galian AS galian_alihan,
+        b.keterangan,
+        b.uang_alihan,
+        b.no_urut,
+        o.proyek_input AS proyek,
+        o.status
       FROM orders o
       LEFT JOIN buangan b ON o.id = b.order_id
       LEFT JOIN master_kendaraan k ON o.kendaraan_id = k.id
-      LEFT JOIN master_supir s ON o.supir_id = s.id
       LEFT JOIN master_galian g ON o.galian_id = g.id
+      LEFT JOIN master_galian g2 ON b.galian_alihan_id = g2.id
       ${where}
-      GROUP BY o.id
-      ORDER BY o.id DESC
+      ORDER BY o.id DESC, b.id DESC
     `;
 
     const rows = await db.query(sql, values);
@@ -563,55 +608,77 @@ router.get("/gabungan", async (req, res) => {
 });
 
 // ============================================================================
-// REKAP GABUNGAN - EXPORT EXCEL (WITH FILTER INFO)
+// REKAP GABUNGAN - EXPORT EXCEL
 // ============================================================================
 router.get("/gabungan/export/excel", async (req, res) => {
   try {
-    const { where, values } = buildFilters(req, [
+    const { where, values } = buildFiltersGabungan(req, [
       "proyek_input",
       "kendaraan_id",
-      "supir_id",
-      "galian_id"
+      "galian_id",
+      "status"
     ]);
 
     const sql = `
       SELECT
-        o.id AS order_id,
-        o.proyek_input,
+        o.id AS no,
         o.tanggal_order,
+        b.tanggal_bongkar,
+        o.jam_order,
+        b.jam_bongkar,
         o.no_order,
-        o.petugas_order,
         k.no_pintu AS kendaraan,
-        s.nama AS supir,
         g.nama_galian AS galian,
+        o.no_do,
+        b.jam_bongkar AS jam_buang,
+        o.km_awal,
+        b.km_akhir,
+        b.jarak_km,
+        o.uang_jalan,
+        o.potongan,
         o.hasil_akhir,
-        COUNT(b.id) AS total_ritasi,
-        COALESCE(SUM(b.jarak_km), 0) AS total_tonase,
-        o.hasil_akhir AS nilai_bayaran
+        b.alihan,
+        g2.nama_galian AS galian_alihan,
+        b.keterangan,
+        b.uang_alihan,
+        b.no_urut,
+        o.proyek_input AS proyek,
+        o.status
       FROM orders o
       LEFT JOIN buangan b ON o.id = b.order_id
       LEFT JOIN master_kendaraan k ON o.kendaraan_id = k.id
-      LEFT JOIN master_supir s ON o.supir_id = s.id
       LEFT JOIN master_galian g ON o.galian_id = g.id
+      LEFT JOIN master_galian g2 ON b.galian_alihan_id = g2.id
       ${where}
-      GROUP BY o.id
-      ORDER BY o.id DESC
+      ORDER BY o.id DESC, b.id DESC
     `;
 
     const rows = await db.query(sql, values);
 
     const headers = [
-      { label: "Order ID", key: "order_id", width: 12 },
-      { label: "Proyek", key: "proyek_input", width: 25 },
-      { label: "Tanggal", key: "tanggal_order", width: 15 },
-      { label: "No Order", key: "no_order", width: 20 },
-      { label: "Petugas", key: "petugas_order", width: 20 },
-      { label: "Kendaraan", key: "kendaraan", width: 15 },
-      { label: "Supir", key: "supir", width: 20 },
-      { label: "Galian", key: "galian", width: 20 },
-      { label: "Total Ritasi", key: "total_ritasi", width: 15 },
-      { label: "Total Tonase", key: "total_tonase", width: 15 },
-      { label: "Nilai Bayaran", key: "nilai_bayaran", width: 18 }
+      { label: "NO", key: "no", width: 10 },
+      { label: "TANGGAL ORDER", key: "tanggal_order", width: 15 },
+      { label: "TANGGAL BONGKAR", key: "tanggal_bongkar", width: 15 },
+      { label: "JAM ORDER", key: "jam_order", width: 12 },
+      { label: "JAM BONGKAR", key: "jam_bongkar", width: 12 },
+      { label: "NO ORDER", key: "no_order", width: 20 },
+      { label: "KENDARAAN", key: "kendaraan", width: 15 },
+      { label: "GALIAN", key: "galian", width: 20 },
+      { label: "NO DO", key: "no_do", width: 20 },
+      { label: "JAM BUANG", key: "jam_buang", width: 12 },
+      { label: "KM AWAL", key: "km_awal", width: 12 },
+      { label: "KM AKHIR", key: "km_akhir", width: 12 },
+      { label: "JARAK KM", key: "jarak_km", width: 12 },
+      { label: "UANG JALAN", key: "uang_jalan", width: 15 },
+      { label: "POTONGAN", key: "potongan", width: 15 },
+      { label: "HASIL AKHIR", key: "hasil_akhir", width: 15 },
+      { label: "ALIHAN", key: "alihan", width: 10 },
+      { label: "GALIAN ALIHAN", key: "galian_alihan", width: 20 },
+      { label: "KETERANGAN", key: "keterangan", width: 25 },
+      { label: "UANG ALIHAN", key: "uang_alihan", width: 15 },
+      { label: "NO URUT", key: "no_urut", width: 12 },
+      { label: "PROYEK", key: "proyek", width: 25 },
+      { label: "STATUS", key: "status", width: 15 }
     ];
 
     const filterInfo = generateFilterInfo(req, "gabungan");
@@ -623,80 +690,49 @@ router.get("/gabungan/export/excel", async (req, res) => {
 });
 
 // ============================================================================
-// GET BUANGAN BY ORDER ID (FOR DETAIL MODAL)
-// ============================================================================
-router.get("/buangan/order/:orderId", async (req, res) => {
-  try {
-    const { orderId } = req.params;
-
-    if (!orderId || isNaN(orderId)) {
-      return error(res, 400, "Order ID tidak valid");
-    }
-
-    const sql = `
-      SELECT
-        b.id,
-        b.order_id,
-        o.no_order,
-        b.tanggal_bongkar,
-        b.jam_bongkar,
-        b.km_akhir,
-        b.jarak_km,
-        b.alihan,
-        b.galian_alihan_id,
-        g.nama_galian AS galian_alihan_nama,
-        b.keterangan,
-        b.uang_alihan,
-        b.no_urut
-      FROM buangan b
-      LEFT JOIN orders o ON b.order_id = o.id
-      LEFT JOIN master_galian g ON b.galian_alihan_id = g.id
-      WHERE b.order_id = ?
-      ORDER BY b.no_urut ASC, b.id ASC
-    `;
-
-    const rows = await db.query(sql, [orderId]);
-    return success(res, "Berhasil mengambil data buangan untuk order", rows[0]);
-  } catch (err) {
-    console.error("Error in /rekap/buangan/order/:orderId:", err);
-    return error(res, 500, "Gagal mengambil data buangan", err);
-  }
-});
-
-// ============================================================================
-// REKAP GABUNGAN - EXPORT PDF (WITH FILTER INFO)
+// REKAP GABUNGAN - EXPORT PDF
 // ============================================================================
 router.get("/gabungan/export/pdf", async (req, res) => {
   try {
-    const { where, values } = buildFilters(req, [
+    const { where, values } = buildFiltersGabungan(req, [
       "proyek_input",
       "kendaraan_id",
-      "supir_id",
-      "galian_id"
+      "galian_id",
+      "status"
     ]);
 
     const sql = `
       SELECT
-        o.id AS order_id,
-        o.proyek_input,
+        o.id AS no,
         o.tanggal_order,
+        b.tanggal_bongkar,
+        o.jam_order,
+        b.jam_bongkar,
         o.no_order,
-        o.petugas_order,
         k.no_pintu AS kendaraan,
-        s.nama AS supir,
         g.nama_galian AS galian,
+        o.no_do,
+        b.jam_bongkar AS jam_buang,
+        o.km_awal,
+        b.km_akhir,
+        b.jarak_km,
+        o.uang_jalan,
+        o.potongan,
         o.hasil_akhir,
-        COUNT(b.id) AS total_ritasi,
-        COALESCE(SUM(b.jarak_km), 0) AS total_tonase,
-        o.hasil_akhir AS nilai_bayaran
+        b.alihan,
+        g2.nama_galian AS galian_alihan,
+        b.keterangan,
+        b.uang_alihan,
+        b.no_urut,
+        o.proyek_input AS proyek,
+        o.status
       FROM orders o
       LEFT JOIN buangan b ON o.id = b.order_id
       LEFT JOIN master_kendaraan k ON o.kendaraan_id = k.id
-      LEFT JOIN master_supir s ON o.supir_id = s.id
       LEFT JOIN master_galian g ON o.galian_id = g.id
+      LEFT JOIN master_galian g2 ON b.galian_alihan_id = g2.id
       ${where}
-      GROUP BY o.id
-      ORDER BY o.id DESC
+      ORDER BY o.id DESC, b.id DESC
     `;
 
     const rows = await db.query(sql, values);
@@ -707,5 +743,6 @@ router.get("/gabungan/export/pdf", async (req, res) => {
     return error(res, 500, "Gagal export PDF", err);
   }
 });
+
 
 export default router;

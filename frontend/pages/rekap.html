@@ -10,13 +10,14 @@
     <div class="fullscreen-container">
         <header>
             <h1>📊 Rekap Data</h1>
-            <p class="subtitle">Laporan Order dan Buangan</p>
+            <p class="subtitle">Laporan Order, Buangan, dan Gabungan</p>
         </header>
 
         <!-- Tab Navigation -->
         <div class="tabs">
             <button class="tab-btn active" data-tab="order">Rekap Order</button>
             <button class="tab-btn" data-tab="buangan">Rekap Buangan</button>
+            <button class="tab-btn" data-tab="gabungan">Rekap Gabungan</button>
         </div>
 
         <!-- Tab Content: Rekap Order -->
@@ -24,7 +25,6 @@
             <div class="filter-section">
                 <h3>🔍 Filter Rekap Order</h3>
                 <div class="filter-grid">
-                    <!-- Filter Tanggal Dropdown -->
                     <div class="filter-item">
                         <label>Filter Tanggal</label>
                         <select id="filter-tanggal-type-order" onchange="toggleDateRangeOrder()">
@@ -49,7 +49,6 @@
                         </select>
                     </div>
                     
-                    <!-- KENDARAAN - AUTOCOMPLETE -->
                     <div class="filter-item">
                         <label>Kendaraan</label>
                         <input 
@@ -63,7 +62,6 @@
                         <input type="hidden" id="filter-kendaraan-order-id">
                     </div>
                     
-                    <!-- SUPIR - AUTOCOMPLETE -->
                     <div class="filter-item">
                         <label>Supir</label>
                         <input 
@@ -77,7 +75,6 @@
                         <input type="hidden" id="filter-supir-order-id">
                     </div>
                     
-                    <!-- GALIAN - AUTOCOMPLETE -->
                     <div class="filter-item">
                         <label>Galian</label>
                         <input 
@@ -92,15 +89,14 @@
                     </div>
                 </div>
                 
-                <!-- Date Range Inputs (Hidden by default) -->
                 <div id="date-range-order" class="date-range-inputs">
                     <div class="filter-item">
                         <label>Dari Tanggal</label>
-                        <input type="date" id="filter-tanggal-dari-order" placeholder="Dari Tanggal">
+                        <input type="date" id="filter-tanggal-dari-order">
                     </div>
                     <div class="filter-item">
                         <label>Sampai Tanggal</label>
-                        <input type="date" id="filter-tanggal-sampai-order" placeholder="Sampai Tanggal">
+                        <input type="date" id="filter-tanggal-sampai-order">
                     </div>
                 </div>
                 
@@ -148,7 +144,6 @@
             <div class="filter-section">
                 <h3>🔍 Filter Rekap Buangan</h3>
                 <div class="filter-grid">
-                    <!-- Filter Tanggal Dropdown -->
                     <div class="filter-item">
                         <label>Filter Tanggal</label>
                         <select id="filter-tanggal-type-buangan" onchange="toggleDateRangeBuangan()">
@@ -174,15 +169,14 @@
                     </div>
                 </div>
                 
-                <!-- Date Range Inputs (Hidden by default) -->
                 <div id="date-range-buangan" class="date-range-inputs">
                     <div class="filter-item">
                         <label>Dari Tanggal</label>
-                        <input type="date" id="filter-tanggal-dari-buangan" placeholder="Dari Tanggal">
+                        <input type="date" id="filter-tanggal-dari-buangan">
                     </div>
                     <div class="filter-item">
                         <label>Sampai Tanggal</label>
-                        <input type="date" id="filter-tanggal-sampai-buangan" placeholder="Sampai Tanggal">
+                        <input type="date" id="filter-tanggal-sampai-buangan">
                     </div>
                 </div>
                 
@@ -221,6 +215,118 @@
             </div>
         </div>
 
+        <!-- Tab Content: Rekap Gabungan -->
+        <div id="gabungan-tab" class="tab-content">
+            <div class="filter-section">
+                <h3>🔍 Filter Rekap Gabungan</h3>
+                <div class="filter-grid">
+                    <div class="filter-item">
+                        <label>Filter Tanggal</label>
+                        <select id="filter-tanggal-type-gabungan" onchange="toggleDateRangeGabungan()">
+                            <option value="semua">Semua</option>
+                            <option value="hari-ini">Hari Ini</option>
+                            <option value="7-hari">7 Hari Ke Belakang</option>
+                            <option value="manual">Tanggal Manual</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-item">
+                        <label>Proyek</label>
+                        <input type="text" id="filter-proyek-gabungan" placeholder="Ketik untuk mencari proyek...">
+                    </div>
+                    
+                    <div class="filter-item">
+                        <label>Status</label>
+                        <select id="filter-status-gabungan">
+                            <option value="">Semua</option>
+                            <option value="COMPLETE">COMPLETE</option>
+                            <option value="ON PROCESS">ON PROCESS</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-item">
+                        <label>Kendaraan</label>
+                        <input 
+                            type="text" 
+                            id="filter-kendaraan-gabungan" 
+                            list="datalist-kendaraan-gabungan"
+                            placeholder="Ketik untuk mencari kendaraan..."
+                            autocomplete="off"
+                        >
+                        <datalist id="datalist-kendaraan-gabungan"></datalist>
+                        <input type="hidden" id="filter-kendaraan-gabungan-id">
+                    </div>
+                    
+                    <div class="filter-item">
+                        <label>Galian</label>
+                        <input 
+                            type="text" 
+                            id="filter-galian-gabungan" 
+                            list="datalist-galian-gabungan"
+                            placeholder="Ketik untuk mencari galian..."
+                            autocomplete="off"
+                        >
+                        <datalist id="datalist-galian-gabungan"></datalist>
+                        <input type="hidden" id="filter-galian-gabungan-id">
+                    </div>
+                </div>
+                
+                <div id="date-range-gabungan" class="date-range-inputs">
+                    <div class="filter-item">
+                        <label>Dari Tanggal</label>
+                        <input type="date" id="filter-tanggal-dari-gabungan">
+                    </div>
+                    <div class="filter-item">
+                        <label>Sampai Tanggal</label>
+                        <input type="date" id="filter-tanggal-sampai-gabungan">
+                    </div>
+                </div>
+                
+                <div class="filter-actions">
+                    <button class="btn btn-primary" onclick="loadRekapGabungan()">🔍 Tampilkan</button>
+                    <button class="btn btn-secondary" onclick="resetFilterGabungan()">🔄 Reset</button>
+                    <button class="btn btn-success" onclick="exportToExcel('gabungan')">📥 Export Excel</button>
+                    <button class="btn btn-danger" onclick="exportToPDF('gabungan')">📄 Export PDF</button>
+                </div>
+            </div>
+
+            <div class="table-wrapper">
+                <table id="table-gabungan">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Tgl Order</th>
+                            <th>Tgl Bongkar</th>
+                            <th>Jam Order</th>
+                            <th>Jam Bongkar</th>
+                            <th>No Order</th>
+                            <th>Kendaraan</th>
+                            <th>Galian</th>
+                            <th>No DO</th>
+                            <th>KM Awal</th>
+                            <th>KM Akhir</th>
+                            <th>Jarak KM</th>
+                            <th>Uang Jalan</th>
+                            <th>Potongan</th>
+                            <th>Hasil Akhir</th>
+                            <th>Alihan</th>
+                            <th>Galian Alihan</th>
+                            <th>Keterangan</th>
+                            <th>Uang Alihan</th>
+                            <th>No Urut</th>
+                            <th>Proyek</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-gabungan">
+                        <tr>
+                            <td colspan="22" class="text-center">Memuat data...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- Order Detail Modal -->
         <div id="order-detail-modal" class="modal">
             <div class="modal-content">
@@ -229,20 +335,13 @@
                     <span class="modal-close">&times;</span>
                 </div>
                 <div class="modal-body">
-                    <!-- Order Information Section -->
                     <div class="order-info-section">
                         <h3>ℹ️ Informasi Order</h3>
-                        <div class="order-info-grid" id="order-info-grid">
-                            <!-- Order info will be populated by JavaScript -->
-                        </div>
+                        <div class="order-info-grid" id="order-info-grid"></div>
                     </div>
-
-                    <!-- Buangan Data Section -->
                     <div class="buangan-section">
                         <h3>🚛 Data Buangan</h3>
-                        <div class="buangan-cards" id="buangan-cards">
-                            <!-- Buangan cards will be populated by JavaScript -->
-                        </div>
+                        <div class="buangan-cards" id="buangan-cards"></div>
                     </div>
                 </div>
             </div>

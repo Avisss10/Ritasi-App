@@ -93,6 +93,33 @@ function toggleDateRangeBuangan() {
     }
 }
 
+function toggleDateRangeGabungan() {
+    const filterType = document.getElementById('filter-tanggal-type-gabungan').value;
+    const dateRangeDiv = document.getElementById('date-range-gabungan');
+    const dariInput = document.getElementById('filter-tanggal-dari-gabungan');
+    const sampaiInput = document.getElementById('filter-tanggal-sampai-gabungan');
+    
+    if (filterType === 'manual') {
+        dateRangeDiv.classList.add('show');
+        dariInput.value = '';
+        sampaiInput.value = '';
+    } else {
+        dateRangeDiv.classList.remove('show');
+        
+        if (filterType === 'hari-ini') {
+            const today = getToday();
+            dariInput.value = today;
+            sampaiInput.value = today;
+        } else if (filterType === '7-hari') {
+            dariInput.value = get7DaysAgo();
+            sampaiInput.value = getToday();
+        } else if (filterType === 'semua') {
+            dariInput.value = '';
+            sampaiInput.value = '';
+        }
+    }
+}
+
 // ============================================================================
 // TAB NAVIGATION
 // ============================================================================
@@ -110,6 +137,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // Load data for buangan tab when switching to it
             if (tabName === 'buangan') {
                 loadRekapBuangan();
+            }
+            // TAMBAHKAN INI - Load data for gabungan tab
+            if (tabName === 'gabungan') {
+                loadRekapGabungan();
             }
         });
     });
@@ -178,7 +209,7 @@ function setupAutocompleteListeners() {
         galianInput.addEventListener('input', function() {
             filterDatalist(this.value, masterGalian, 'datalist-galian', 'nama_galian');
         });
-        
+
         galianInput.addEventListener('change', function() {
             const selectedItem = masterGalian.find(g => g.nama_galian === this.value);
             if (selectedItem) {
@@ -187,6 +218,55 @@ function setupAutocompleteListeners() {
             } else {
                 document.getElementById('filter-galian-order-id').value = '';
             }
+        });
+    }
+
+    // === GABUNGAN AUTOCOMPLETE ===
+    const kendaraanGabunganInput = document.getElementById('filter-kendaraan-gabungan');
+    if (kendaraanGabunganInput) {
+        kendaraanGabunganInput.addEventListener('input', function() {
+            filterDatalist(this.value, masterKendaraan, 'datalist-kendaraan-gabungan', 'no_pintu');
+        });
+
+        kendaraanGabunganInput.addEventListener('change', function() {
+            const selectedItem = masterKendaraan.find(k => k.no_pintu === this.value);
+            if (selectedItem) {
+                document.getElementById('filter-kendaraan-gabungan-id').value = selectedItem.id;
+                console.log('Kendaraan (Gabungan) terpilih:', selectedItem);
+            } else {
+                document.getElementById('filter-kendaraan-gabungan-id').value = '';
+            }
+        });
+    }
+
+    const galianGabunganInput = document.getElementById('filter-galian-gabungan');
+    if (galianGabunganInput) {
+        galianGabunganInput.addEventListener('input', function() {
+            filterDatalist(this.value, masterGalian, 'datalist-galian-gabungan', 'nama_galian');
+        });
+
+        galianGabunganInput.addEventListener('change', function() {
+            const selectedItem = masterGalian.find(g => g.nama_galian === this.value);
+            if (selectedItem) {
+                document.getElementById('filter-galian-gabungan-id').value = selectedItem.id;
+                console.log('Galian (Gabungan) terpilih:', selectedItem);
+            } else {
+                document.getElementById('filter-galian-gabungan-id').value = '';
+            }
+        });
+    }
+
+    // Real-time search untuk proyek gabungan
+    const proyekGabunganInput = document.getElementById('filter-proyek-gabungan');
+    if (proyekGabunganInput) {
+        let typingTimer;
+        const typingDelay = 500;
+
+        proyekGabunganInput.addEventListener('input', () => {
+            clearTimeout(typingTimer);
+            typingTimer = setTimeout(() => {
+                loadRekapGabungan();
+            }, typingDelay);
         });
     }
 }
@@ -229,11 +309,20 @@ function filterDatalist(searchTerm, dataArray, datalistId, displayKey) {
 // ============================================================================
 async function loadMasterData() {
     debugLog('Loading Master Data', 'Starting...');
-    
+
     await loadKendaraan();
     await loadSupir();
     await loadGalian();
-    
+
+    // TAMBAHKAN INI:
+    // Populate datalist untuk gabungan
+    if (masterKendaraan.length > 0) {
+        populateDatalist('datalist-kendaraan-gabungan', masterKendaraan, 'no_pintu');
+    }
+    if (masterGalian.length > 0) {
+        populateDatalist('datalist-galian-gabungan', masterGalian, 'nama_galian');
+    }
+
     console.log('✅ Master data loading completed\n');
 }
 
@@ -586,6 +675,117 @@ async function loadRekapBuangan() {
     }
 }
 
+// ============================================================================
+// REKAP GABUNGAN
+// ============================================================================
+async function loadRekapGabungan() {
+    const tbody = document.getElementById('tbody-gabungan');
+    tbody.innerHTML = '<tr><td colspan="22" class="text-center loading">Memuat data...</td></tr>';
+
+    try {
+        const params = new URLSearchParams();
+
+        const filters = {
+            tanggal_dari: document.getElementById('filter-tanggal-dari-gabungan').value,
+            tanggal_sampai: document.getElementById('filter-tanggal-sampai-gabungan').value,
+            proyek_input: document.getElementById('filter-proyek-gabungan').value.trim(),
+            status: document.getElementById('filter-status-gabungan').value,
+            kendaraan_id: document.getElementById('filter-kendaraan-gabungan-id').value,
+            galian_id: document.getElementById('filter-galian-gabungan-id').value
+        };
+
+        Object.keys(filters).forEach(key => {
+            const value = filters[key];
+            if (value && value !== '' && value !== '0') {
+                params.append(key, value);
+            }
+        });
+
+        const url = `${API_URL}/rekap/gabungan${params.toString() ? '?' + params.toString() : ''}`;
+        debugLog('Loading Rekap Gabungan', {
+            url: url,
+            filters: filters
+        });
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        debugLog('Rekap Gabungan Response', result);
+
+        let data = null;
+
+        if (result && result.success === true && result.data) {
+            console.log('✓ Using result.data structure');
+            data = result.data;
+        } else if (Array.isArray(result)) {
+            console.log('✓ Result is directly an array');
+            data = result;
+        } else if (result && Array.isArray(result.rows)) {
+            console.log('✓ Using result.rows structure');
+            data = result.rows;
+        } else if (result && Array.isArray(result.data)) {
+            console.log('✓ Using result.data (no success check)');
+            data = result.data;
+        }
+
+        console.log('Extracted gabungan data:', data);
+        console.log('Data is array?', Array.isArray(data));
+        console.log('Data length:', data ? data.length : 0);
+
+        if (data && Array.isArray(data) && data.length > 0) {
+            console.log(`✅ Displaying ${data.length} gabungan records`);
+            tbody.innerHTML = data.map((row, index) => {
+                let statusStyle = '';
+                const status = (row.status || '').toUpperCase();
+                if (status === 'COMPLETE') {
+                    statusStyle = 'background: #28a745; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
+                } else if (status === 'ON PROCESS' || status === 'ON_PROCESS') {
+                    statusStyle = 'background: #ffc107; color: #000; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
+                } else {
+                    statusStyle = 'background: #6c757d; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
+                }
+
+                return `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${formatDate(row.tanggal_order)}</td>
+                        <td>${formatDate(row.tanggal_bongkar)}</td>
+                        <td>${row.jam_order || '-'}</td>
+                        <td>${row.jam_bongkar || '-'}</td>
+                        <td>${row.no_order || '-'}</td>
+                        <td>${row.kendaraan || '-'}</td>
+                        <td>${row.galian || '-'}</td>
+                        <td>${row.no_do || '-'}</td>
+                        <td>${formatKilometer(row.km_awal)}</td>
+                        <td>${formatKilometer(row.km_akhir)}</td>
+                        <td>${formatKilometer(row.jarak_km)}</td>
+                        <td>${formatCurrency(row.uang_jalan)}</td>
+                        <td>${formatCurrency(row.potongan)}</td>
+                        <td>${formatCurrency(row.hasil_akhir)}</td>
+                        <td>${row.alihan ? 'Ya' : 'Tidak'}</td>
+                        <td>${row.galian_alihan || '-'}</td>
+                        <td>${row.keterangan || '-'}</td>
+                        <td>${formatCurrency(row.uang_alihan)}</td>
+                        <td>${row.no_urut || '-'}</td>
+                        <td>${row.proyek || '-'}</td>
+                        <td><span style="${statusStyle}">${row.status || '-'}</span></td>
+                    </tr>
+                `;
+            }).join('');
+        } else {
+            console.log('ℹ️ No gabungan data found');
+            tbody.innerHTML = '<tr><td colspan="22" class="text-center">Tidak ada data gabungan</td></tr>';
+        }
+    } catch (err) {
+        console.error('❌ Error loading rekap gabungan:', err);
+        tbody.innerHTML = `<tr><td colspan="22" class="text-center" style="color: red;">Error: ${err.message}</td></tr>`;
+    }
+}
+
 function resetFilterBuangan() {
     console.log('🔄 Resetting Buangan filters...');
     document.getElementById('filter-tanggal-type-buangan').value = 'semua';
@@ -596,6 +796,22 @@ function resetFilterBuangan() {
     document.getElementById('date-range-buangan').classList.remove('show');
     loadRekapBuangan();
 }
+
+function resetFilterGabungan() {
+    console.log('🔄 Resetting Gabungan filters...');
+    document.getElementById('filter-tanggal-type-gabungan').value = 'semua';
+    document.getElementById('filter-tanggal-dari-gabungan').value = '';
+    document.getElementById('filter-tanggal-sampai-gabungan').value = '';
+    document.getElementById('filter-proyek-gabungan').value = '';
+    document.getElementById('filter-status-gabungan').value = '';
+    document.getElementById('filter-kendaraan-gabungan').value = '';
+    document.getElementById('filter-kendaraan-gabungan-id').value = '';
+    document.getElementById('filter-galian-gabungan').value = '';
+    document.getElementById('filter-galian-gabungan-id').value = '';
+    document.getElementById('date-range-gabungan').classList.remove('show');
+    loadRekapGabungan();
+}
+
 
 // ============================================================================
 // EXPORT FUNCTIONS
@@ -625,6 +841,19 @@ async function exportToExcel(type) {
                 tanggal_dari: document.getElementById('filter-tanggal-dari-buangan').value,
                 tanggal_sampai: document.getElementById('filter-tanggal-sampai-buangan').value,
                 no_order: document.getElementById('filter-no-order').value
+            };
+            Object.keys(filters).forEach(key => {
+                if (filters[key]) params.append(key, filters[key]);
+            });
+        } else if (type === 'gabungan') {
+            endpoint = '/rekap/gabungan/export/excel';
+            const filters = {
+                tanggal_dari: document.getElementById('filter-tanggal-dari-gabungan').value,
+                tanggal_sampai: document.getElementById('filter-tanggal-sampai-gabungan').value,
+                proyek_input: document.getElementById('filter-proyek-gabungan').value,
+                status: document.getElementById('filter-status-gabungan').value,
+                kendaraan_id: document.getElementById('filter-kendaraan-gabungan-id').value,
+                galian_id: document.getElementById('filter-galian-gabungan-id').value
             };
             Object.keys(filters).forEach(key => {
                 if (filters[key]) params.append(key, filters[key]);
@@ -679,6 +908,19 @@ async function exportToPDF(type) {
                 tanggal_dari: document.getElementById('filter-tanggal-dari-buangan').value,
                 tanggal_sampai: document.getElementById('filter-tanggal-sampai-buangan').value,
                 no_order: document.getElementById('filter-no-order').value
+            };
+            Object.keys(filters).forEach(key => {
+                if (filters[key]) params.append(key, filters[key]);
+            });
+        } else if (type === 'gabungan') {
+            endpoint = '/rekap/gabungan/export/pdf';
+            const filters = {
+                tanggal_dari: document.getElementById('filter-tanggal-dari-gabungan').value,
+                tanggal_sampai: document.getElementById('filter-tanggal-sampai-gabungan').value,
+                proyek_input: document.getElementById('filter-proyek-gabungan').value,
+                status: document.getElementById('filter-status-gabungan').value,
+                kendaraan_id: document.getElementById('filter-kendaraan-gabungan-id').value,
+                galian_id: document.getElementById('filter-galian-gabungan-id').value
             };
             Object.keys(filters).forEach(key => {
                 if (filters[key]) params.append(key, filters[key]);
