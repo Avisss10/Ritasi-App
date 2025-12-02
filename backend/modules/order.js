@@ -47,6 +47,33 @@ router.get("/", async (req, res) => {
   }
 });
 
+// Endpoint untuk mendapatkan order berdasarkan tanggal hari ini
+router.get('/today', async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+    
+    const [rows] = await db.query(`
+      SELECT 
+        o.*, 
+        k.no_pintu,
+        s.nama AS supir,
+        g.nama_galian,
+        DATE_FORMAT(o.tanggal_order, '%Y-%m-%d') as tanggal_order
+      FROM orders o
+      LEFT JOIN master_kendaraan k ON o.kendaraan_id = k.id
+      LEFT JOIN master_supir s ON o.supir_id = s.id
+      LEFT JOIN master_galian g ON o.galian_id = g.id
+      WHERE DATE(o.tanggal_order) = ? 
+      ORDER BY o.tanggal_order DESC
+    `, [today]);
+    
+    return success(res, "Data order hari ini berhasil diambil", rows);
+  } catch (err) {
+    return error(res, 500, "Gagal mengambil data order hari ini", err);
+  }
+});
+
+
 // ============================================================================
 // GET ORDER DETAIL
 // ============================================================================

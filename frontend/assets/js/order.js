@@ -27,6 +27,10 @@ const cancelDeleteBtn = document.getElementById('cancelDelete');
 // ============================================================================
 document.addEventListener('DOMContentLoaded', () => {
     loadOrders();
+    // Tunggu loadOrders selesai, lalu filter order hari ini
+    setTimeout(() => {
+        loadOrdersToday();
+    }, 500);
     loadKendaraan();
     loadSupir();
     loadGalian();
@@ -74,7 +78,7 @@ async function loadOrders() {
 
         if (result.status) {
             orderData = result.data;
-            renderTable(orderData);
+            loadOrdersToday();
         } else {
             showError('Gagal memuat data order: ' + (result.message || 'Unknown error'));
             orderTableBody.innerHTML = `<tr><td colspan="15" class="no-data">Gagal memuat data</td></tr>`;
@@ -83,6 +87,27 @@ async function loadOrders() {
         console.error('Error loading orders:', error);
         showError('Terjadi kesalahan saat memuat data order: ' + error.message);
         orderTableBody.innerHTML = `<tr><td colspan="15" class="no-data">Gagal memuat data</td></tr>`;
+    }
+}
+
+// Fungsi baru untuk filter data order hari ini
+function loadOrdersToday() {
+    try {
+        showLoading();
+        
+        // Ambil tanggal hari ini
+        const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+        
+        // Filter data order yang tanggalnya sama dengan hari ini
+        const todayOrders = orderData.filter(order => {
+            const orderDate = order.tanggal_order.split('T')[0]; // Ambil bagian tanggal saja
+            return orderDate === today;
+        });
+        
+        renderTable(todayOrders);
+    } catch (error) {
+        console.error('Error filtering orders:', error);
+        showError('Terjadi kesalahan saat memfilter data order: ' + error.message);
     }
 }
 
