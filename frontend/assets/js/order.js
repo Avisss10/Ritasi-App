@@ -3,8 +3,13 @@ const API_BASE_URL = 'http://localhost:3000/api';
 
 // State Management
 let orderData = [];
+let filteredData = []; // Untuk menyimpan hasil filter/search
 let editingId = null;
 let deleteId = null;
+
+// Pagination State
+let currentPage = 1;
+const itemsPerPage = 10;
 
 // Storage untuk data master
 let masterKendaraan = [];
@@ -26,11 +31,7 @@ const cancelDeleteBtn = document.getElementById('cancelDelete');
 // INIT
 // ============================================================================
 document.addEventListener('DOMContentLoaded', () => {
-    loadOrders();
-    // Tunggu loadOrders selesai, lalu filter order hari ini
-    setTimeout(() => {
-        loadOrdersToday();
-    }, 500);
+    loadOrdersTodayYesterday();
     loadKendaraan();
     loadSupir();
     loadGalian();
@@ -64,10 +65,10 @@ function initEventListeners() {
 // ============================================================================
 // LOAD DATA
 // ============================================================================
-async function loadOrders() {
+async function loadOrdersTodayYesterday() {
     try {
         showLoading();
-        const response = await fetch(`${API_BASE_URL}/order`);
+        const response = await fetch(`${API_BASE_URL}/order/today-yesterday`);
         
         if (!response.ok) {
             const text = await response.text();
@@ -77,37 +78,26 @@ async function loadOrders() {
         const result = await response.json();
 
         if (result.status) {
-            orderData = result.data;
-            loadOrdersToday();
+            orderData = result.data.orders;
+            filteredData = orderData; // Set filtered data awal
+            currentPage = 1; // Reset ke halaman pertama
+            
+            // Tampilkan info tanggal hari ini dan kemarin di console
+            console.log(`📅 Menampilkan data:
+            - Hari Ini: ${formatDate(result.data.today)}
+            - Kemarin: ${formatDate(result.data.yesterday)}
+            - Total Order: ${orderData.length}`);
+            
+            renderTable();
+            renderPagination();
         } else {
             showError('Gagal memuat data order: ' + (result.message || 'Unknown error'));
-            orderTableBody.innerHTML = `<tr><td colspan="15" class="no-data">Gagal memuat data</td></tr>`;
+            orderTableBody.innerHTML = `<tr><td colspan="16" class="no-data">Gagal memuat data</td></tr>`;
         }
     } catch (error) {
         console.error('Error loading orders:', error);
         showError('Terjadi kesalahan saat memuat data order: ' + error.message);
-        orderTableBody.innerHTML = `<tr><td colspan="15" class="no-data">Gagal memuat data</td></tr>`;
-    }
-}
-
-// Fungsi baru untuk filter data order hari ini
-function loadOrdersToday() {
-    try {
-        showLoading();
-        
-        // Ambil tanggal hari ini
-        const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
-        
-        // Filter data order yang tanggalnya sama dengan hari ini
-        const todayOrders = orderData.filter(order => {
-            const orderDate = order.tanggal_order.split('T')[0]; // Ambil bagian tanggal saja
-            return orderDate === today;
-        });
-        
-        renderTable(todayOrders);
-    } catch (error) {
-        console.error('Error filtering orders:', error);
-        showError('Terjadi kesalahan saat memfilter data order: ' + error.message);
+        orderTableBody.innerHTML = `<tr><td colspan="16" class="no-data">Gagal memuat data</td></tr>`;
     }
 }
 
@@ -180,20 +170,136 @@ function populateDatalist(datalistId, data, textKey) {
 }
 
 // ============================================================================
+// PAGINATION FUNCTIONS
+// ============================================================================
+function getPaginatedData() {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredData.slice(startIndex, endIndex);
+}
+
+function getTotalPages() {
+    return Math.ceil(filteredData.length / itemsPerPage);
+}
+
+function goToPage(page) {
+    const totalPages = getTotalPages();
+    if (page < 1 || page > totalPages) return;
+    
+    currentPage = page;
+    renderTable();
+    renderPagination();
+}
+
+function renderPagination() {
+    const totalPages = getTotalPages();
+    const totalItems = filteredData.length;
+    
+    // Cari atau buat pagination container
+    let paginationContainer = document.querySelector('.pagination-container');
+    
+    if (!paginationContainer) {
+        paginationContainer = document.createElement('div');
+        paginationContainer.className = 'pagination-container';
+        
+        // Insert setelah table-wrapper
+        const tableWrapper = document.querySelector('.table-wrapper');
+        tableWrapper.parentNode.insertBefore(paginationContainer, tableWrapper.nextSibling);
+    }
+    
+    if (totalPages <= 1) {
+        paginationContainer.innerHTML = '';
+        return;
+    }
+    
+    // Hitung range data yang ditampilkan
+    const startItem = (currentPage - 1) * itemsPerPage + 1;
+    const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+    
+    let paginationHTML = `
+        <div class="pagination-info">
+            Menampilkan ${startItem}-${endItem} dari ${totalItems} order
+        </div>
+        <div class="pagination-controls">
+            <button class="pagination-btn" onclick="goToPage(1)" ${currentPage === 1 ? 'disabled' : ''}>
+                «
+            </button>
+            <button class="pagination-btn" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+                ‹
+            </button>
+    `;
+    
+    // Generate page numbers
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    
+    // Adjust startPage if we're near the end
+    if (endPage - startPage < maxVisiblePages - 1) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+    
+    // Add first page and ellipsis if needed
+    if (startPage > 1) {
+        paginationHTML += `<button class="pagination-btn" onclick="goToPage(1)">1</button>`;
+        if (startPage > 2) {
+            paginationHTML += `<span class="pagination-ellipsis">...</span>`;
+        }
+    }
+    
+    // Add page numbers
+    for (let i = startPage; i <= endPage; i++) {
+        paginationHTML += `
+            <button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">
+                ${i}
+            </button>
+        `;
+    }
+    
+    // Add last page and ellipsis if needed
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            paginationHTML += `<span class="pagination-ellipsis">...</span>`;
+        }
+        paginationHTML += `<button class="pagination-btn" onclick="goToPage(${totalPages})">${totalPages}</button>`;
+    }
+    
+    paginationHTML += `
+            <button class="pagination-btn" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
+                ›
+            </button>
+            <button class="pagination-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>
+                »
+            </button>
+        </div>
+    `;
+    
+    paginationContainer.innerHTML = paginationHTML;
+}
+
+// ============================================================================
 // RENDER TABLE
 // ============================================================================
-function renderTable(data) {
-    if (data.length === 0) {
+function renderTable() {
+    const paginatedData = getPaginatedData();
+    
+    if (paginatedData.length === 0) {
         orderTableBody.innerHTML = `
-            <tr><td colspan="16" class="no-data">Tidak ada data order</td></tr>
+            <tr><td colspan="16" class="no-data">Tidak ada data order untuk hari ini dan kemarin</td></tr>
         `;
         return;
     }
 
-    orderTableBody.innerHTML = data.map((order, index) => `
+    // Hitung nomor urut berdasarkan halaman
+    const startNumber = (currentPage - 1) * itemsPerPage;
+
+    orderTableBody.innerHTML = paginatedData.map((order, index) => `
         <tr>
-            <td>${index + 1}</td>
-            <td>${formatDate(order.tanggal_order)}</td>
+            <td>${startNumber + index + 1}</td>
+            <td>
+                ${formatDate(order.tanggal_order)}
+                ${order.kategori_waktu ? `<br><span class="badge-waktu badge-${order.kategori_waktu.toLowerCase().replace(' ', '-')}">${order.kategori_waktu}</span>` : ''}
+            </td>
             <td><strong>${order.no_order}</strong></td>
             <td>${order.petugas_order}</td>
             <td>${order.no_pintu || '-'}</td>
@@ -251,7 +357,6 @@ async function handleSubmit(e) {
         return;
     }
 
-    // FIX: Gunakan tanggal langsung tanpa konversi timezone
     const tanggalOrder = document.getElementById('tanggal_order').value;
 
     const formData = {
@@ -270,7 +375,6 @@ async function handleSubmit(e) {
     };
 
     try {
-        // Disable button saat submit
         submitBtn.disabled = true;
         submitBtn.textContent = editingId ? '⏳ Mengupdate...' : '⏳ Menyimpan...';
 
@@ -295,7 +399,7 @@ async function handleSubmit(e) {
         if (result.status) {
             showSuccess(editingId ? 'Order berhasil diupdate' : 'Order berhasil ditambahkan');
             resetForm();
-            await loadOrders();
+            await loadOrdersTodayYesterday();
         } else {
             showError(result.message || 'Gagal menyimpan order');
         }
@@ -303,7 +407,6 @@ async function handleSubmit(e) {
         console.error('Error:', error);
         showError('Terjadi kesalahan saat menyimpan order: ' + error.message);
     } finally {
-        // Re-enable button
         submitBtn.disabled = false;
         submitBtn.textContent = editingId ? '💾 Update Order' : '💾 Simpan Order';
     }
@@ -316,7 +419,6 @@ function resetForm() {
     submitBtn.textContent = '💾 Simpan Order';
     cancelBtn.style.display = 'none';
     setDefaultDate();
-    // Reset hasil akhir
     document.getElementById('hasil_akhir').value = 'Rp 0';
 }
 
@@ -330,7 +432,6 @@ function calculateHasilAkhir() {
     const potongan = parseRupiah(document.getElementById('potongan').value) || 0;
     const hasilAkhir = uangJalan - potongan;
 
-    // Update field hasil akhir
     document.getElementById('hasil_akhir').value = formatRupiah(hasilAkhir);
 }
 
@@ -350,12 +451,11 @@ async function editOrder(id) {
         if (result.status) {
             const order = result.data;
 
-            // FIX: Populate form dengan data order (tanggal sudah format YYYY-MM-DD)
             document.getElementById('tanggal_order').value = order.tanggal_order;
             document.getElementById('no_order').value = order.no_order;
             document.getElementById('petugas_order').value = order.petugas_order;
 
-            // Set kendaraan - find text value from master data
+            // Set kendaraan
             const kendaraanInput = document.getElementById('kendaraan_id');
             const kendaraanHidden = document.getElementById('kendaraan_id_hidden');
             const kendaraanData = masterKendaraan.find(k => k.id === order.kendaraan_id);
@@ -364,7 +464,7 @@ async function editOrder(id) {
                 kendaraanHidden.value = kendaraanData.id;
             }
 
-            // Set supir - find text value from master data
+            // Set supir
             const supirInput = document.getElementById('supir_id');
             const supirHidden = document.getElementById('supir_id_hidden');
             const supirData = masterSupir.find(s => s.id === order.supir_id);
@@ -373,7 +473,7 @@ async function editOrder(id) {
                 supirHidden.value = supirData.id;
             }
 
-            // Set galian - find text value from master data
+            // Set galian
             const galianInput = document.getElementById('galian_id');
             const galianHidden = document.getElementById('galian_id_hidden');
             const galianData = masterGalian.find(g => g.id === order.galian_id);
@@ -389,16 +489,12 @@ async function editOrder(id) {
             document.getElementById('potongan').value = formatRupiah(order.potongan || 0);
             document.getElementById('proyek_input').value = order.proyek_input || '';
 
-            // Update state dan UI
             editingId = id;
             formTitle.textContent = `Edit Order - ${order.no_order}`;
             submitBtn.textContent = '💾 Update Order';
             cancelBtn.style.display = 'inline-block';
 
-            // Scroll ke form
             window.scrollTo({ top: 0, behavior: 'smooth' });
-            
-            // Focus ke field pertama
             document.getElementById('tanggal_order').focus();
         } else {
             showError('Gagal memuat data order: ' + (result.message || 'Unknown error'));
@@ -429,7 +525,7 @@ async function confirmDelete() {
 
         if (result.status) {
             showSuccess('Order berhasil dihapus');
-            await loadOrders();
+            await loadOrdersTodayYesterday();
         } else {
             showError('Gagal menghapus order: ' + (result.message || 'Unknown error'));
         }
@@ -454,7 +550,7 @@ function closeDeleteModal() {
 function handleSearch(e) {
     const keyword = e.target.value.toLowerCase();
     
-    const filtered = orderData.filter(order => {
+    filteredData = orderData.filter(order => {
         return (
             order.no_order.toLowerCase().includes(keyword) ||
             order.petugas_order.toLowerCase().includes(keyword) ||
@@ -462,11 +558,14 @@ function handleSearch(e) {
             (order.supir && order.supir.toLowerCase().includes(keyword)) ||
             order.no_do.toLowerCase().includes(keyword) ||
             (order.nama_galian && order.nama_galian.toLowerCase().includes(keyword)) ||
-            (order.proyek_input && order.proyek_input.toLowerCase().includes(keyword))
+            (order.proyek_input && order.proyek_input.toLowerCase().includes(keyword)) ||
+            (order.kategori_waktu && order.kategori_waktu.toLowerCase().includes(keyword))
         );
     });
 
-    renderTable(filtered);
+    currentPage = 1; // Reset ke halaman pertama saat search
+    renderTable();
+    renderPagination();
 }
 
 // ============================================================================
@@ -475,7 +574,7 @@ function handleSearch(e) {
 function showLoading() {
     orderTableBody.innerHTML = `
         <tr>
-            <td colspan="15" class="loading">
+            <td colspan="16" class="loading">
                 <div class="spinner"></div>
                 Memuat data...
             </td>
@@ -486,8 +585,7 @@ function showLoading() {
 function formatDate(dateString) {
     if (!dateString) return '-';
     
-    // FIX: Handle format YYYY-MM-DD dari backend
-    const date = dateString.split('T')[0]; // Ambil bagian tanggal saja
+    const date = dateString.split('T')[0];
     const [y, m, d] = date.split("-");
     return `${d}/${m}/${y}`;
 }
@@ -519,14 +617,12 @@ function formatKm(km) {
 
 function parseRupiah(rupiahString) {
     if (!rupiahString) return 0;
-    // Remove 'Rp' and dots, replace comma with dot if needed
     const cleaned = rupiahString.replace(/Rp\s?/g, '').replace(/\./g, '').replace(',', '.');
     return parseFloat(cleaned) || 0;
 }
 
 function parseKm(kmString) {
     if (!kmString) return 0;
-    // Remove 'km', dots, and spaces
     const cleaned = kmString.replace(/km\s?/g, '').replace(/\./g, '').trim();
     return parseInt(cleaned) || 0;
 }
@@ -550,12 +646,10 @@ function formatPotonganInput() {
 }
 
 function showSuccess(message) {
-    // Bisa diganti dengan library toast/notification yang lebih bagus
     alert('✅ ' + message);
 }
 
 function showError(message) {
-    // Bisa diganti dengan library toast/notification yang lebih bagus
     alert('❌ ' + message);
 }
 
@@ -563,7 +657,6 @@ function showError(message) {
 // KEYBOARD SHORTCUTS
 // ============================================================================
 document.addEventListener('keydown', (e) => {
-    // ESC key untuk cancel/close modal
     if (e.key === 'Escape') {
         if (deleteModal.classList.contains('active')) {
             closeDeleteModal();
@@ -632,7 +725,6 @@ function filterDatalist(inputValue, datalist, dataArray, textKey, hiddenInput) {
     datalist.innerHTML = '';
 
     if (!inputValue.trim()) {
-        // Jika input kosong, tampilkan semua item (maksimal 50)
         dataArray.slice(0, 50).forEach(item => {
             if (item[textKey] !== undefined) {
                 const option = document.createElement('option');
@@ -644,19 +736,16 @@ function filterDatalist(inputValue, datalist, dataArray, textKey, hiddenInput) {
         return;
     }
 
-    // Filter data berdasarkan input
     const filtered = dataArray.filter(item =>
         item[textKey] && item[textKey].toLowerCase().includes(inputValue.toLowerCase())
     );
 
-    // Populate datalist dengan hasil filter (maksimal 50)
     filtered.slice(0, 50).forEach(item => {
         const option = document.createElement('option');
         option.value = item[textKey];
         datalist.appendChild(option);
     });
 
-    // Set hidden input jika ada exact match
     const exactMatch = filtered.find(item => item[textKey].toLowerCase() === inputValue.toLowerCase());
     hiddenInput.value = exactMatch ? exactMatch.id : '';
 

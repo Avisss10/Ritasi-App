@@ -1,5 +1,5 @@
 // ============================================================================
-// ORDER MODULE (FORM ORDER) - FIXED TIMEZONE
+// ORDER MODULE (FORM ORDER)
 // ============================================================================
 
 import express from "express";
@@ -44,6 +44,50 @@ router.get("/", async (req, res) => {
     return success(res, "Data semua order", rows);
   } catch (err) {
     return error(res, 500, "Gagal mengambil data order", err);
+  }
+});
+
+// ============================================================================
+// GET ORDER HARI INI DAN KEMARIN
+// ============================================================================
+router.get('/today-yesterday', async (req, res) => {
+  try {
+    // Hitung tanggal hari ini
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+    
+    // Hitung tanggal kemarin (today - 1 hari)
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+    
+    const [rows] = await db.query(`
+      SELECT 
+        o.*, 
+        k.no_pintu,
+        s.nama AS supir,
+        g.nama_galian,
+        DATE_FORMAT(o.tanggal_order, '%Y-%m-%d') as tanggal_order,
+        CASE 
+          WHEN DATE(o.tanggal_order) = ? THEN 'Hari Ini'
+          WHEN DATE(o.tanggal_order) = ? THEN 'Kemarin'
+          ELSE 'Lainnya'
+        END as kategori_waktu
+      FROM orders o
+      LEFT JOIN master_kendaraan k ON o.kendaraan_id = k.id
+      LEFT JOIN master_supir s ON o.supir_id = s.id
+      LEFT JOIN master_galian g ON o.galian_id = g.id
+      WHERE DATE(o.tanggal_order) IN (?, ?)
+      ORDER BY o.tanggal_order DESC, o.id DESC
+    `, [todayStr, yesterdayStr, todayStr, yesterdayStr]);
+    
+    return success(res, "Data order hari ini dan kemarin berhasil diambil", {
+      today: todayStr,
+      yesterday: yesterdayStr,
+      orders: rows
+    });
+  } catch (err) {
+    return error(res, 500, "Gagal mengambil data order hari ini dan kemarin", err);
   }
 });
 
