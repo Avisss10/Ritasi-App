@@ -54,7 +54,20 @@ function initEventListeners() {
     document.getElementById('potongan').addEventListener('input', calculateHasilAkhir);
 
     // Format inputs on input
-    document.getElementById('km_awal').addEventListener('input', formatKmInput);
+    document.getElementById('km_awal').addEventListener('blur', () => {
+        const el = document.getElementById('km_awal');
+        if (!el) return;
+        const v = el.value.trim();
+        if (!v) return;
+        if (isLikelyOdoError(v, 1)) {
+            el.value = 'ODO ERROR';
+            return;
+        }
+        if (!/[a-zA-Z]/.test(v)) {
+            const parsed = parseKm(v);
+            if (parsed !== null) el.value = formatNumber(parsed);
+        }
+    });
     document.getElementById('uang_jalan').addEventListener('input', formatRupiahInput);
     document.getElementById('potongan').addEventListener('input', formatPotonganInput);
 
@@ -334,6 +347,9 @@ function getStatusBadge(status) {
     } else if (status === 'ON PROCESS' || statusLower.includes('process')) {
         badgeClass = 'status-on-process';
         badgeText = 'ON PROCESS';
+    } else if (status === 'BATAL' || statusLower.includes('batal') || statusLower.includes('cancel')) {
+        badgeClass = 'status-batal';
+        badgeText = 'BATAL';
     } else {
         badgeClass = 'status-default';
     }
@@ -359,6 +375,12 @@ async function handleSubmit(e) {
 
     const tanggalOrder = document.getElementById('tanggal_order').value;
 
+    const kmParsed = parseKm(document.getElementById('km_awal').value);
+    if (kmParsed === null) {
+    showError('KM Awal wajib diisi (angka atau "odo error")');
+    return;
+    }
+
     const formData = {
         tanggal_order: tanggalOrder,
         no_order: document.getElementById('no_order').value,
@@ -368,7 +390,7 @@ async function handleSubmit(e) {
         galian_id: parseInt(galianId),
         no_do: document.getElementById('no_do').value,
         jam_order: document.getElementById('jam_order').value,
-        km_awal: parseKm(document.getElementById('km_awal').value),
+        km_awal: kmParsed,
         uang_jalan: parseRupiah(document.getElementById('uang_jalan').value),
         potongan: parseRupiah(document.getElementById('potongan').value) || 0,
         proyek_input: document.getElementById('proyek_input').value || null
@@ -484,7 +506,15 @@ async function editOrder(id) {
 
             document.getElementById('no_do').value = order.no_do;
             document.getElementById('jam_order').value = order.jam_order;
-            document.getElementById('km_awal').value = formatKm(order.km_awal);
+            const kmVal = order.km_awal;
+            if (kmVal === null || kmVal === undefined) {
+                document.getElementById('km_awal').value = '';
+            } else if (String(kmVal).trim().toLowerCase() === 'odo error' || isLikelyOdoError(String(kmVal), 1)) {
+                document.getElementById('km_awal').value = 'ODO ERROR';
+            } else {
+                // tampilkan apa adanya (angka akan tetap sebagai string; format otomatis di blur)
+                document.getElementById('km_awal').value = String(kmVal);
+            }
             document.getElementById('uang_jalan').value = formatRupiah(order.uang_jalan);
             document.getElementById('potongan').value = formatRupiah(order.potongan || 0);
             document.getElementById('proyek_input').value = order.proyek_input || '';
@@ -610,27 +640,134 @@ function formatNumber(amount) {
     }).format(amount);
 }
 
-function formatKm(km) {
-    if (km === null || km === undefined) return '0';
-    return formatNumber(km);
-}
-
 function parseRupiah(rupiahString) {
     if (!rupiahString) return 0;
     const cleaned = rupiahString.replace(/Rp\s?/g, '').replace(/\./g, '').replace(',', '.');
     return parseFloat(cleaned) || 0;
 }
 
+// --- Fuzzy helper: Levenshtein distance (fast, small) ---
+function levenshtein(a, b) {
+    if (a === b) return 0;
+    const al = a.length, bl = b.length;
+    if (al === 0) return bl;
+    if (bl === 0) return al;
+    let v0 = new Array(bl + 1), v1 = new Array(bl + 1);
+    for (let j = 0; j <= bl; j++) v0[j] = j;
+    for (let i = 0; i < al; i++) {
+        v1[0] = i + 1;
+        for (let j = 0; j < bl; j++) {
+            const cost = a[i] === b[j] ? 0 : 1;
+            v1[j + 1] = Math.min(v1[j] + 1, v0[j + 1] + 1, v0[j] + cost);
+        }
+        const tmp = v0; v0 = v1; v1 = tmp;
+    }
+    return v0[bl];
+}
+
+// --- Normalize helper for matching "odo error" ---
+function normalizeForOdo(s) {
+    if (s === undefined || s === null) return '';
+    // lowercase, remove non-alphanum, replace common confusions (0->o, 1->l)
+    return String(s)
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '')   // remove spaces/punct
+        .replace(/0/g, 'o')          // zero looks like 'o'
+        .replace(/1/g, 'l');         // optional: 1 looks like l
+}
+
+// --- Decide if input is likely "ODO ERROR" ---
+function isLikelyOdoError(input, threshold = 1) {
+    const target = 'odoerror'; // normalized target
+    const norm = normalizeForOdo(String(input));
+    // exact normalized match
+    if (!norm) return false;
+    if (norm === target) return true;
+    // small distance => treat as match
+    const dist = levenshtein(norm, target);
+    return dist <= threshold;
+}
+
+// --- parseKm: return 'ODO ERROR' | trimmed string | null (if empty) ---
 function parseKm(kmString) {
-    if (!kmString) return 0;
-    const cleaned = kmString.replace(/km\s?/g, '').replace(/\./g, '').trim();
-    return parseInt(cleaned) || 0;
+    if (kmString === undefined || kmString === null) return null;
+    const trimmed = String(kmString).trim();
+    if (!trimmed) return null;
+
+    // If fuzzy-match to odo error -> return canonical uppercase string
+    if (isLikelyOdoError(trimmed, 1)) {
+        return 'ODO ERROR';
+    }
+
+    // Otherwise return the trimmed string as-is (allow text or numeric string)
+    return trimmed;
 }
 
 function formatKmInput() {
     const input = document.getElementById('km_awal');
-    const value = parseKm(input.value);
-    input.value = formatNumber(value);
+    if (!input) return;
+
+    const raw = input.value;
+    if (!raw) {
+        input.value = '';
+        return;
+    }
+
+    const trimmed = raw.trim();
+
+    // Jika fuzzy match ke "odo error" -> normalisasi tampilan ke uppercase
+    if (isLikelyOdoError(trimmed, 1)) {
+        input.value = 'ODO ERROR';
+        return;
+    }
+
+    // Jika mengandung huruf (bukan kasus odo error), biarkan apa adanya
+    if (/[a-zA-Z]/.test(trimmed)) {
+        input.value = trimmed;
+        return;
+    }
+
+    // Lainnya → coba parse angka dan format
+    // Note: parseKm sekarang mengembalikan trimmed string atau 'ODO ERROR'
+    const value = parseKm(trimmed);
+    if (value === null) {
+        input.value = trimmed;
+    } else if (value === 'ODO ERROR') {
+        input.value = 'ODO ERROR';
+    } else {
+        // value is trimmed string (likely digits)
+        const numeric = parseInt(value.toString().replace(/\./g, '').replace(/,/g, ''), 10);
+        if (!isNaN(numeric)) {
+            input.value = formatNumber(numeric);
+        } else {
+            input.value = value;
+        }
+    }
+}
+
+function formatKm(km) {
+    if (km === null || km === undefined) return '-';
+
+    // Jika sudah number, format langsung
+    if (typeof km === 'number') return formatNumber(km);
+
+    const s = String(km).trim();
+    if (!s) return '-';
+
+    // Jika representasi angka (mis. "12345" atau "12.345"), format angka
+    const cleaned = s.replace(/\s?km\s?/gi, '').replace(/\./g, '').replace(/,/g, '').trim();
+    if (/^-?\d+$/.test(cleaned)) {
+        const n = parseInt(cleaned, 10);
+        return formatNumber(n);
+    }
+
+    // Jika 'odo error' (case-insensitive), tampilkan CAPS
+    if (s.toLowerCase() === 'odo error' || isLikelyOdoError(s, 1)) {
+        return 'ODO ERROR';
+    }
+
+    // Selain itu: tampilkan apa adanya (preserve user input)
+    return s;
 }
 
 function formatRupiahInput() {

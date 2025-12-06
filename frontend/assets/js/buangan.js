@@ -258,9 +258,14 @@ function displayOrderResults(orders) {
             <td>${formatKM(order.km_awal)} KM</td>
             <td>${statusBadge}</td>
             <td>
-                <button class="btn btn-warning btn-small" onclick="bukaFormBuangan(${order.id})">
-                    <span class="icon">📋</span> Buangan
-                </button>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-warning btn-small" onclick="bukaFormBuangan(${order.id})">
+                        <span class="icon">📋</span> Buangan
+                    </button>
+                    <button class="btn btn-danger btn-small" onclick="bukaModalBatal(${order.id})">
+                        <span class="icon">⚠️</span> Batal Order
+                    </button>
+                </div>
             </td>
         `;
 
@@ -632,10 +637,10 @@ function editBuangan() {
     currentKmAwalEdit = parseFloat(order.km_awal) || 0;
 
     // Isi form edit dengan data buangan
-    document.getElementById('editNoUrut').value = buangan.no_urut;
-    document.getElementById('editTanggalBongkar').value = buangan.tanggal_bongkar.substring(0, 10);
-    document.getElementById('editJamBongkar').value = buangan.jam_bongkar;
-    document.getElementById('editKmAkhir').value = buangan.km_akhir;
+    document.getElementById('editNoUrut').value = (buangan.no_urut === 0 || buangan.no_urut == null) ? '' : buangan.no_urut;
+    document.getElementById('editTanggalBongkar').value = buangan.tanggal_bongkar ? buangan.tanggal_bongkar.substring(0, 10) : '';
+    document.getElementById('editJamBongkar').value = buangan.jam_bongkar || '';
+    document.getElementById('editKmAkhir').value = (buangan.km_akhir === 0 || buangan.km_akhir == null) ? '' : buangan.km_akhir;
     document.getElementById('editAlihan').checked = buangan.alihan;
     document.getElementById('editGalianAlihan').value = buangan.galian_alihan_id || '';
     document.getElementById('editUangAlihan').value = buangan.uang_alihan || '';
@@ -860,8 +865,6 @@ function displayBuanganList(buanganList) {
     const tbody = document.getElementById('buanganTableBody');
     tbody.innerHTML = '';
 
-    console.log('Displaying buangan list:', buanganList);
-
     if (!Array.isArray(buanganList) || buanganList.length === 0) {
         tbody.innerHTML = `
             <tr>
@@ -876,13 +879,18 @@ function displayBuanganList(buanganList) {
 
     buanganList.forEach(buangan => {
         const tr = document.createElement('tr');
-        
+
         const alihanBadge = buangan.alihan 
             ? '<span class="badge badge-yes">Ya</span>'
             : '<span class="badge badge-no">Tidak</span>';
 
-        // STATUS FIX — selalu COMPLETE jika buangan ada
         const statusBadge = '<span class="badge badge-complete">COMPLETE</span>';
+
+        const noUrutDisplay = (buangan.no_urut === 0 || buangan.no_urut == null) ? '-' : `#${buangan.no_urut}`;
+        const tanggalBongkarDisplay = buangan.tanggal_bongkar ? formatDate(buangan.tanggal_bongkar) : '-';
+        const jamBongkarDisplay = buangan.jam_bongkar ? buangan.jam_bongkar : '-';
+        const kmAkhirDisplay = (buangan.km_akhir === 0 || buangan.km_akhir == null) ? '-' : `${formatKM(buangan.km_akhir)} KM`;
+        const jarakDisplay = (buangan.jarak_km === 0 || buangan.jarak_km == null) ? '-' : `${formatKM(buangan.jarak_km)} KM`;
 
         tr.innerHTML = `
             <td>${buangan.no_order || '-'}</td>
@@ -890,16 +898,12 @@ function displayBuanganList(buanganList) {
             <td>${buangan.no_pintu || '-'}</td>
             <td>${buangan.supir || '-'}</td>
             <td>${buangan.nama_galian || '-'}</td>
-            <td>${formatDate(buangan.tanggal_bongkar)}</td>
-            <td>${buangan.jam_bongkar || '-'}</td>
-            <td>${formatKM(buangan.km_akhir)} KM</td>
-
-            <!-- Tampilkan jarak_km dari backend -->
-            <td>${formatKM(buangan.jarak_km)} KM</td>
-
+            <td>${tanggalBongkarDisplay}</td>
+            <td>${jamBongkarDisplay}</td>
+            <td>${kmAkhirDisplay}</td>
+            <td>${jarakDisplay}</td>
             <td>${alihanBadge}</td>
             <td>${statusBadge}</td>
-
             <td>
                 <button class="btn btn-primary btn-small" onclick="lihatDetailBuangan(${buangan.id})">
                     <span class="icon">👁️</span> Detail
@@ -1101,31 +1105,37 @@ function displayDetailOrder(order) {
 // ============================================================================
 function displayDetailBuangan(buangan) {
     const container = document.getElementById('detailBuanganInfo');
-    
+
     const alihanBadge = buangan.alihan 
         ? '<span class="badge badge-yes">Ya</span>'
         : '<span class="badge badge-no">Tidak</span>';
 
+    const noUrutDisplay = (buangan.no_urut === 0 || buangan.no_urut == null) ? '-' : `#${buangan.no_urut}`;
+    const tanggalBongkarDisplay = buangan.tanggal_bongkar ? formatDate(buangan.tanggal_bongkar) : '-';
+    const jamBongkarDisplay = buangan.jam_bongkar ? buangan.jam_bongkar : '-';
+    const kmAkhirDisplay = (buangan.km_akhir === 0 || buangan.km_akhir == null) ? '-' : `${formatKM(buangan.km_akhir)} KM`;
+    const jarakDisplay = (buangan.jarak_km === 0 || buangan.jarak_km == null) ? '-' : `${formatKM(buangan.jarak_km)} KM`;
+
     let htmlContent = `
         <div class="detail-item">
             <div class="detail-label">No Urut </div>
-            <div class="detail-value">#${buangan.no_urut || '-'}</div>
+            <div class="detail-value">${noUrutDisplay}</div>
         </div>
         <div class="detail-item">
             <div class="detail-label">Tanggal Bongkar</div>
-            <div class="detail-value">${formatDate(buangan.tanggal_bongkar)}</div>
+            <div class="detail-value">${tanggalBongkarDisplay}</div>
         </div>
         <div class="detail-item">
             <div class="detail-label">Jam Bongkar</div>
-            <div class="detail-value">${buangan.jam_bongkar || '-'}</div>
+            <div class="detail-value">${jamBongkarDisplay}</div>
         </div>
         <div class="detail-item">
             <div class="detail-label">KM Akhir</div>
-            <div class="detail-value">${formatKM(buangan.km_akhir)} KM</div>
+            <div class="detail-value">${kmAkhirDisplay}</div>
         </div>
         <div class="detail-item">
             <div class="detail-label">Jarak KM</div>
-            <div class="detail-value">${formatKM(buangan.jarak_km)} KM</div>
+            <div class="detail-value">${jarakDisplay}</div>
         </div>
         <div class="detail-item">
             <div class="detail-label">Buangan Alihan</div>
@@ -1201,6 +1211,68 @@ async function hapusBuangan(id) {
     } catch (error) {
         console.error('Error:', error);
         showToast('Gagal menghapus ritasi: ' + error.message, 'error');
+    }
+}
+
+// ============================================================================
+// MODAL BATAL ORDER
+// ============================================================================
+function bukaModalBatal(orderId) {
+    document.getElementById('batalOrderId').value = orderId;
+    document.getElementById('keteranganBatal').value = '';
+    document.getElementById('modalBatalOrder').style.display = 'flex';
+}
+
+function tutupModalBatal() {
+    document.getElementById('modalBatalOrder').style.display = 'none';
+    document.getElementById('batalOrderId').value = '';
+    document.getElementById('keteranganBatal').value = '';
+}
+
+async function konfirmasiBatalOrder() {
+    const orderId = document.getElementById('batalOrderId').value;
+    const keterangan = document.getElementById('keteranganBatal').value.trim();
+
+    // Validasi keterangan wajib diisi
+    if (!keterangan) {
+        showToast('Keterangan pembatalan wajib diisi!', 'warning');
+        document.getElementById('keteranganBatal').focus();
+        return;
+    }
+
+    try {
+        // ✅ LANGSUNG PANGGIL ENDPOINT DENGAN ORDER_ID
+        // Backend akan handle baik buangan exist atau tidak
+        const response = await fetch(`${API_BASE_URL}/buangan/${orderId}/batal`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                keterangan: keterangan
+            })
+        });
+
+        if (!response.ok) {
+            const errorResult = await response.json();
+            throw new Error(errorResult.message || `HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        showToast('Order berhasil dibatalkan', 'success');
+        
+        // Tutup modal
+        tutupModalBatal();
+
+        // Reload data order yang ditampilkan
+        setTimeout(() => {
+            cariOrder();
+        }, 1000);
+
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Gagal membatalkan order: ' + error.message, 'error');
     }
 }
 

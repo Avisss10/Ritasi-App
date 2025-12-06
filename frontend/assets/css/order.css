@@ -232,6 +232,12 @@ tbody tr:hover {
     box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
 }
 
+.status-batal {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+}
+
 .status-default {
     background: #6b7280;
     color: white;

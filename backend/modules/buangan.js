@@ -297,5 +297,99 @@ router.delete("/:id", async (req, res) => {
 });
 
 // ============================================================================
+// BATAL ORDER
+// ============================================================================
+router.post("/:id/batal", async (req, res) => {
+  const { id } = req.params;
+  const { keterangan } = req.body;
+
+  try {
+    if (!keterangan || keterangan.trim() === '') {
+      return error(res, 400, "Keterangan pembatalan wajib diisi");
+    }
+
+    // cek apakah id merujuk ke buangan.id
+    const [buanganRows] = await db.query(
+      `SELECT order_id FROM buangan WHERE id = ? LIMIT 1`,
+      [id]
+    );
+
+    let orderId;
+
+    if (buanganRows.length > 0) {
+      // id adalah buangan_id -> ambil order_id dan update keterangan di record buangan itu
+      orderId = buanganRows[0].order_id;
+
+      await db.query(
+        `UPDATE buangan SET keterangan = ? WHERE id = ?`,
+        [keterangan, id]
+      );
+    } else {
+      // id kemungkinan adalah order_id
+      orderId = parseInt(id, 10);
+
+      // validasi order exists
+      const [orderRows] = await db.query(
+        `SELECT id FROM orders WHERE id = ? LIMIT 1`,
+        [orderId]
+      );
+
+      if (orderRows.length === 0) {
+        return error(res, 404, `Order ID ${orderId} tidak ditemukan`);
+      }
+
+      // cek apakah sudah ada buangan untuk order ini
+      const [existingBuangan] = await db.query(
+        `SELECT id FROM buangan WHERE order_id = ? LIMIT 1`,
+        [orderId]
+      );
+
+      if (existingBuangan.length > 0) {
+        // jika ada, update keterangan pada baris buangan yang ada
+        await db.query(
+          `UPDATE buangan SET keterangan = ? WHERE order_id = ?`,
+          [keterangan, orderId]
+        );
+      } else {
+        // tidak ada buangan -> insert baris buangan minimal
+        // set tanggal_bongkar = NULL, jam_bongkar = NULL, km_akhir = NULL, jarak_km = NULL, no_urut = NULL
+        await db.query(
+          `INSERT INTO buangan (
+             order_id,
+             tanggal_bongkar,
+             jam_bongkar,
+             km_akhir,
+             jarak_km,
+             alihan,
+             galian_alihan_id,
+             keterangan,
+             uang_alihan,
+             no_urut
+           ) VALUES (
+             ?, NULL, NULL, NULL, NULL, 0, NULL, ?, NULL, NULL
+           )`,
+          [orderId, keterangan]
+        );
+      }
+    }
+
+    // Update order status menjadi BATAL
+    const [result] = await db.query(
+      `UPDATE orders SET status = 'BATAL' WHERE id = ?`,
+      [orderId]
+    );
+
+    if (result.affectedRows === 0) {
+      return error(res, 500, "Gagal membatalkan order");
+    }
+
+    return success(res, "Order berhasil dibatalkan", {
+      order_id: orderId,
+      keterangan: keterangan
+    });
+  } catch (err) {
+    return error(res, 500, "Gagal membatalkan order", err);
+  }
+});
 
 export default router;

@@ -22,6 +22,41 @@ function fixTanggalForMySQL(tanggalInput) {
   return tanggal;
 }
 
+// --- normalize km_awal for storage: if fuzzy-match to odo error → 'ODO ERROR', else keep original ---
+function normalizeKmForStorage(kmValue) {
+  if (kmValue === undefined || kmValue === null) return kmValue;
+  const s = String(kmValue).trim();
+  if (!s) return s;
+
+  // normalize: lowercase, remove non-alphanum, replace confusions
+  const norm = s.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/0/g, 'o').replace(/1/g, 'l');
+  const target = 'odoerror';
+
+  // simple Levenshtein implementation
+  function lev(a, b) {
+    if (a === b) return 0;
+    const al = a.length, bl = b.length;
+    if (al === 0) return bl;
+    if (bl === 0) return al;
+    let v0 = new Array(bl + 1), v1 = new Array(bl + 1);
+    for (let j = 0; j <= bl; j++) v0[j] = j;
+    for (let i = 0; i < al; i++) {
+      v1[0] = i + 1;
+      for (let j = 0; j < bl; j++) {
+        const cost = a[i] === b[j] ? 0 : 1;
+        v1[j + 1] = Math.min(v1[j] + 1, v0[j + 1] + 1, v0[j] + cost);
+      }
+      const tmp = v0; v0 = v1; v1 = tmp;
+    }
+    return v0[bl];
+  }
+
+  if (norm === target) return 'ODO ERROR';
+  const dist = lev(norm, target);
+  if (dist <= 1) return 'ODO ERROR';
+  return kmValue;
+}
+
 // ============================================================================
 // GET ALL ORDERS
 // ============================================================================
@@ -173,10 +208,15 @@ router.post("/", async (req, res) => {
     // FIX: Gunakan tanggal langsung tanpa konversi timezone
     const tanggalFixed = fixTanggalForMySQL(tanggal_order);
 
+    // Validasi: terima km_awal baik angka maupun teks (harus ada)
+    const kmMissing = km_awal === undefined || km_awal === null || (typeof km_awal === 'string' && km_awal.trim() === '');
     if (!tanggal_order || !no_order || !petugas_order || !kendaraan_id ||
-        !supir_id || !galian_id || !no_do || !jam_order || !km_awal || !uang_jalan) {
+        !supir_id || !galian_id || !no_do || !jam_order || kmMissing || uang_jalan === undefined || uang_jalan === null) {
       return error(res, 400, "Semua field wajib diisi");
     }
+
+    // Normalisasi km sebelum disimpan (jika fuzzy-match ke odo error -> 'ODO ERROR')
+    const kmToStore = normalizeKmForStorage(km_awal);
 
     const hasil_akhir = uang_jalan - potongan;
 
@@ -197,13 +237,12 @@ router.post("/", async (req, res) => {
       galian_id,
       no_do,
       jam_order,
-      km_awal,
+      kmToStore,
       uang_jalan,
       potongan,
       hasil_akhir,
       proyek_input
     ]);
-
     return success(res, "Order berhasil dibuat", {
       id: result.insertId,
       hasil_akhir,
@@ -235,9 +274,14 @@ router.put("/:id", async (req, res) => {
     allowedFields.forEach(f => {
       if (req.body[f] !== undefined) {
         // FIX: Jika field tanggal_order, gunakan helper function
-        const value = f === "tanggal_order" 
-          ? fixTanggalForMySQL(req.body[f]) 
-          : req.body[f];
+        let value;
+        if (f === "tanggal_order") {
+          value = fixTanggalForMySQL(req.body[f]);
+        } else if (f === "km_awal") {
+          value = normalizeKmForStorage(req.body[f]);
+        } else {
+          value = req.body[f];
+        }
         
         fields.push(`${f} = ?`);
         values.push(value);
