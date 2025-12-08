@@ -180,38 +180,44 @@ router.post("/", async (req, res) => {
     // Cek apakah km_akhir adalah "ODO ERROR"
     if (typeof km_akhir === 'string' && 
         (km_akhir.toUpperCase() === 'ODO ERROR' || 
-         km_akhir.toUpperCase() === 'ODOERROR' ||
-         km_akhir.toUpperCase() === 'ODO ERR' ||
-         km_akhir.toUpperCase() === 'ODOERR')) {
+        km_akhir.toUpperCase() === 'ODOERROR' ||
+        km_akhir.toUpperCase() === 'ODO ERR' ||
+        km_akhir.toUpperCase() === 'ODOERR')) {
       
       console.log("⚠️ KM Akhir = ODO ERROR");
       final_km_akhir = 'ODO ERROR';
-      final_jarak_km = null;
-    } else {
-      // Validasi km_akhir adalah angka
-      const km_akhir_number = parseFloat(km_akhir);
-      
-      if (isNaN(km_akhir_number)) {
-        return error(res, 400, "KM Akhir harus berupa angka atau 'ODO ERROR'");
-      }
-
-      final_km_akhir = km_akhir_number;
-
-      const km_awal = parseFloat(order[0].km_awal);
-      const jarak_km_calculated = km_akhir_number - km_awal;
-
-      // Respect jarak_km sent by frontend even if zero;
-      // otherwise fall back to calculated value
-      const jarak_from_body = (jarak_km !== undefined && jarak_km !== null && jarak_km !== '')
-        ? parseFloat(jarak_km)
-        : null;
-
-      if (jarak_from_body !== null && !isNaN(jarak_from_body)) {
-        final_jarak_km = jarak_from_body;
+      final_jarak_km = 'ODO ERROR'; 
       } else {
-        final_jarak_km = jarak_km_calculated;
-      }
+        // Validasi km_akhir adalah angka
+        const km_akhir_number = parseFloat(km_akhir);
+        
+        if (isNaN(km_akhir_number)) {
+          return error(res, 400, "KM Akhir harus berupa angka atau 'ODO ERROR'");
+        }
 
+        final_km_akhir = km_akhir_number;
+
+        //  Cek apakah jarak_km dari frontend adalah 'ODO ERROR'
+        if (typeof jarak_km === 'string' && 
+            (jarak_km.toUpperCase() === 'ODO ERROR' || 
+            jarak_km.toUpperCase() === 'ODOERROR' ||
+            jarak_km.toUpperCase() === 'ODO ERR' ||
+            jarak_km.toUpperCase() === 'ODOERR')) {
+          final_jarak_km = 'ODO ERROR';
+        } else {
+          const km_awal = parseFloat(order[0].km_awal);
+          const jarak_km_calculated = km_akhir_number - km_awal;
+
+          const jarak_from_body = (jarak_km !== undefined && jarak_km !== null && jarak_km !== '')
+            ? parseFloat(jarak_km)
+            : null;
+
+          if (jarak_from_body !== null && !isNaN(jarak_from_body)) {
+            final_jarak_km = jarak_from_body;
+          } else {
+            final_jarak_km = jarak_km_calculated;
+          }
+        }
       // Allow negative distances (km_awal > km_akhir). Save as-is.
       if (final_jarak_km < 0) {
         console.warn(`⚠️ Jarak KM negatif (${final_jarak_km}).`);

@@ -5,6 +5,7 @@
 const API_BASE_URL = '/api';
 let currentOrderData = null;
 let currentKmAwal = 0;
+let isKmAwalOdoError = false;
 
 // ============================================================================
 // INITIALIZATION
@@ -317,14 +318,16 @@ async function bukaFormBuangan(orderId) {
         currentOrderData = order;
 
         // Handle KM Awal - jika ODO ERROR, set ke 0 untuk perhitungan
-        if (typeof order.km_awal === 'string' && 
-            (order.km_awal.toUpperCase() === 'ODO ERROR' || 
+        if (typeof order.km_awal === 'string' &&
+            (order.km_awal.toUpperCase() === 'ODO ERROR' ||
             order.km_awal.toUpperCase() === 'ODOERROR' ||
             order.km_awal.toUpperCase() === 'ODO ERR' ||
             order.km_awal.toUpperCase() === 'ODOERR')) {
             currentKmAwal = 0; // Set ke 0 jika ODO ERROR
+            isKmAwalOdoError = true;
         } else {
             currentKmAwal = parseFloat(order.km_awal) || 0;
+            isKmAwalOdoError = false;
         }
 
         // Isi form dengan data order
@@ -436,18 +439,6 @@ function toggleAlihanEdit() {
 function handleKmAkhirInputWithODO(input, jarakInputId) {
     let value = input.value.trim().toUpperCase();
     
-    // Cek apakah user sedang mengetik "ODO ERROR"
-    const odoErrorVariants = [
-        'ODO ERROR',
-        'ODOERROR', 
-        'ODO ERR',
-        'ODOERR',
-        'ODO',
-        'ODOE',
-        'ODOER',
-        'ODOERRO'
-    ];
-    
     // Jika input kosong
     if (value === '') {
         input.value = '';
@@ -455,52 +446,92 @@ function handleKmAkhirInputWithODO(input, jarakInputId) {
         return;
     }
     
-    // Cek apakah sedang mengetik ODO ERROR (auto-correct typo)
-    let matchedVariant = false;
+    // ✅ Cek apakah input adalah "ODO ERROR" (berbagai varian)
+    const odoErrorVariants = [
+        'ODO ERROR',
+        'ODOERROR', 
+        'ODO ERR',
+        'ODOERR',
+        'ODOEROR',
+        'ODOERO',
+        'ODOERRO',
+        'ODDO ERROR',
+        'ODO EROR',
+        'ODO EROOR',
+        'ODDO ERR',
+        'ODDO EROR',
+        'OD ERROR',
+        'OD ERR',
+        'ODOERRR',
+        'ODOEERROR'
+    ];
+    
+    // Cek apakah input match dengan salah satu varian ODO ERROR
+    let isOdoError = false;
     for (let variant of odoErrorVariants) {
-        if (value.startsWith(variant.substring(0, value.length)) && value.length <= variant.length) {
-            matchedVariant = true;
+        if (value === variant) {
+            isOdoError = true;
             break;
         }
     }
     
-    // Jika sudah lengkap "ODO ERROR" atau variannya
-    if (value === 'ODO ERROR' || value === 'ODOERROR' || value === 'ODO ERR' || value === 'ODOERR') {
-        input.value = 'ODO ERROR';
-        document.getElementById(jarakInputId).value = '-';
+    // ✅ Jika input adalah ODO ERROR (varian apapun)
+    if (isOdoError) {
+        input.value = 'ODO ERROR'; // Auto-correct ke format standar
+        document.getElementById(jarakInputId).value = 'ODO ERROR'; // ✅ Set jarak = ODO ERROR
         return;
     }
     
-    // Jika sedang mengetik ODO ERROR, biarkan
-    if (matchedVariant) {
+    // ✅ Cek apakah user sedang mengetik "ODO ERROR" (partial)
+    let isTypingOdo = false;
+    const partialVariants = ['O', 'OD', 'ODD', 'ODDO', 'ODO', 'ODOE', 'ODOER', 'ODOERR', 'ODOERRO'];
+    for (let partial of partialVariants) {
+        if (value === partial) {
+            isTypingOdo = true;
+            break;
+        }
+    }
+    
+    // Jika sedang mengetik ODO, biarkan (jangan hapus alphabet)
+    if (isTypingOdo) {
         input.value = value;
         document.getElementById(jarakInputId).value = '';
         return;
     }
     
-    // Jika bukan ODO ERROR, treat as angka
-    value = input.value.replace(/\D/g, '');
+    // ✅ Jika bukan ODO ERROR dan bukan sedang mengetik ODO, treat as angka
+    const numericValue = input.value.replace(/\D/g, ''); // Hapus non-digit
     
-    if (value === '') {
+    if (numericValue === '') {
         input.value = '';
         document.getElementById(jarakInputId).value = '';
         return;
     }
     
     // Batasi 10 digit
-    if (value.length > 10) {
-        value = value.substring(0, 10);
+    let finalValue = numericValue;
+    if (finalValue.length > 10) {
+        finalValue = finalValue.substring(0, 10);
     }
     
     // Format dengan titik ribuan
-    const number = parseInt(value, 10);
+    const number = parseInt(finalValue, 10);
     input.value = number.toLocaleString('id-ID');
     
-    // Hitung jarak
+    // ✅ Hitung jarak realtime
     const kmAkhir = number;
     const kmAwal = jarakInputId.includes('edit') ? Number(currentKmAwalEdit) : parseFloat(currentKmAwal);
     
-    if (!isNaN(kmAkhir) && !isNaN(kmAwal)) {
+    // Cek apakah KM Awal juga ODO ERROR
+    const isKmAwalOdo = jarakInputId.includes('edit') 
+        ? (typeof currentBuanganDetail?.order?.km_awal === 'string' && 
+           ['ODO ERROR', 'ODOERROR', 'ODO ERR', 'ODOERR'].includes(currentBuanganDetail.order.km_awal.toUpperCase()))
+        : isKmAwalOdoError;
+    
+    if (isKmAwalOdo) {
+        // ✅ Jika KM Awal ODO ERROR, maka jarak juga ODO ERROR
+        document.getElementById(jarakInputId).value = 'ODO ERROR';
+    } else if (!isNaN(kmAkhir) && !isNaN(kmAwal)) {
         const jarak = kmAkhir - kmAwal;
         document.getElementById(jarakInputId).value = formatKM(jarak) + ' KM';
     }
@@ -573,12 +604,12 @@ async function handleFormSubmit(e) {
     let jarakKm = null;
     
     // Cek apakah ODO ERROR
-    if (kmAkhirInput.toUpperCase() === 'ODO ERROR' || 
-        kmAkhirInput.toUpperCase() === 'ODOERROR' || 
+    if (kmAkhirInput.toUpperCase() === 'ODO ERROR' ||
+        kmAkhirInput.toUpperCase() === 'ODOERROR' ||
         kmAkhirInput.toUpperCase() === 'ODO ERR' ||
         kmAkhirInput.toUpperCase() === 'ODOERR') {
         kmAkhir = 'ODO ERROR';
-        jarakKm = null;
+        jarakKm = 'ODO ERROR'; 
     } else {
         kmAkhir = parseKMInput(kmAkhirInput);
         const kmAwal = parseFloat(currentKmAwal);
@@ -1054,7 +1085,13 @@ function displayBuanganList(buanganList) {
             kmAkhirDisplay = `${formatKM(buangan.km_akhir)} KM`;
         }
         
-        const jarakDisplay = (buangan.jarak_km === 0 || buangan.jarak_km == null) ? '-' : `${formatKM(buangan.jarak_km)} KM`;
+        // Handle jarak_km display - bisa angka atau ODO ERROR
+        let jarakDisplay = '-';
+        if (buangan.jarak_km === 'ODO ERROR') {
+            jarakDisplay = 'ODO ERROR';
+        } else if (buangan.jarak_km !== 0 && buangan.jarak_km != null) {
+            jarakDisplay = `${formatKM(buangan.jarak_km)} KM`;
+        }
         const lokasiDisplay = buangan.lokasi_bongkar || '-';
 
         tr.innerHTML = `
@@ -1295,7 +1332,13 @@ function displayDetailBuangan(buangan) {
         kmAkhirDisplay = `${formatKM(buangan.km_akhir)} KM`;
     }
     
-    const jarakDisplay = (buangan.jarak_km === 0 || buangan.jarak_km == null) ? '-' : `${formatKM(buangan.jarak_km)} KM`;
+    // Handle jarak_km display - bisa angka atau ODO ERROR
+    let jarakDisplay = '-';
+    if (buangan.jarak_km === 'ODO ERROR') {
+        jarakDisplay = 'ODO ERROR';
+    } else if (buangan.jarak_km !== 0 && buangan.jarak_km != null) {
+        jarakDisplay = `${formatKM(buangan.jarak_km)} KM`;
+    }
     const lokasiDisplay = buangan.lokasi_bongkar || '-';
 
     let htmlContent = `

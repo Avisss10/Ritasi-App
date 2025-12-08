@@ -1327,8 +1327,22 @@ function formatCurrency(value) {
 }
 
 function formatKilometer(value) {
+    // Handle ODO ERROR
+    if (typeof value === 'string' && 
+        (value.toUpperCase() === 'ODO ERROR' || 
+         value.toUpperCase() === 'ODOERROR' ||
+         value.toUpperCase() === 'ODO ERR' ||
+         value.toUpperCase() === 'ODOERR')) {
+        return 'ODO ERROR';
+    }
+    
     if (!value || value === 0) return '0';
-    return parseInt(value).toLocaleString('id-ID');
+    
+    // Handle numeric values
+    const numValue = parseFloat(value);
+    if (isNaN(numValue)) return '0';
+    
+    return numValue.toLocaleString('id-ID');
 }
 
 function formatDate(dateString) {
