@@ -27,16 +27,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Setup edit form submit
     document.getElementById('editBuanganForm').addEventListener('submit', handleEditFormSubmit);
 
-    // Gabungkan format dan hitung dalam satu fungsi
-    
-    // KM Akhir (Form Tambah)
+    // KM Akhir (Form Tambah) - Support ODO ERROR
     document.getElementById('kmAkhir').addEventListener('input', function(e) {
-        handleKmAkhirInput(e.target);
+        handleKmAkhirInputWithODO(e.target, 'jarakKm');
     });
 
-    // KM Akhir (Form Edit)
+    // KM Akhir (Form Edit) - Support ODO ERROR
     document.getElementById('editKmAkhir').addEventListener('input', function(e) {
-        handleKmAkhirInputEdit(e.target);
+        handleKmAkhirInputWithODO(e.target, 'editJarakKm');
     });
 
     // Uang Alihan - Format saja (Form Tambah)
@@ -245,19 +243,18 @@ function displayOrderResults(orders) {
     orders.forEach(order => {
         const tr = document.createElement('tr');
         
-        const statusBadge = order.status === 'COMPLETE' 
-            ? '<span class="badge badge-complete">COMPLETE</span>'
-            : '<span class="badge badge-pending">ON PROCESS</span>';
+        let statusBadge = '';
+        if (order.status === 'COMPLETE') {
+            statusBadge = '<span class="badge badge-complete">COMPLETE</span>';
+        } else if (order.status === 'BATAL') {
+            statusBadge = '<span class="badge badge-batal">BATAL</span>';
+        } else {
+            statusBadge = '<span class="badge badge-pending">ON PROCESS</span>';
+        }
 
-        tr.innerHTML = `
-            <td>${order.no_order || '-'}</td>
-            <td>${formatDate(order.tanggal_order)}</td>
-            <td>${order.no_pintu || '-'}</td>
-            <td>${order.supir || '-'}</td>
-            <td>${order.galian || '-'}</td>
-            <td>${formatKM(order.km_awal)} KM</td>
-            <td>${statusBadge}</td>
-            <td>
+        const actionButtons = (order.status === 'BATAL' || order.status === 'COMPLETE')
+            ? '-'
+            : `
                 <div style="display: flex; gap: 8px;">
                     <button class="btn btn-warning btn-small" onclick="bukaFormBuangan(${order.id})">
                         <span class="icon">📋</span> Buangan
@@ -266,7 +263,17 @@ function displayOrderResults(orders) {
                         <span class="icon">⚠️</span> Batal Order
                     </button>
                 </div>
-            </td>
+            `;
+
+        tr.innerHTML = `
+            <td>${order.no_order || '-'}</td>
+            <td>${formatDate(order.tanggal_order)}</td>
+            <td>${order.no_pintu || '-'}</td>
+            <td>${order.supir || '-'}</td>
+            <td>${order.galian || '-'}</td>
+            <td>${formatKMAwal(order.km_awal)}</td>
+            <td>${statusBadge}</td>
+            <td>${actionButtons}</td>
         `;
 
         tbody.appendChild(tr);
@@ -286,26 +293,17 @@ async function bukaFormBuangan(orderId) {
         }
         
         const result = await response.json();
-        
         console.log('Response order detail:', result);
 
-        // Handle berbagai format response
+        // Normalisasi format response
         let order = null;
-        
-        // Format 1: {success: true, data: {...}}
         if (result.hasOwnProperty('success') && result.success && result.data) {
             order = result.data;
-        } 
-        // Format 2: {success: true, message: "...", data: {...}}
-        else if (result.data) {
+        } else if (result.data) {
             order = result.data;
-        }
-        // Format 3: Langsung object order
-        else if (result.id) {
+        } else if (result.id) {
             order = result;
-        }
-        // Format 4: Array dengan satu element
-        else if (Array.isArray(result) && result.length > 0) {
+        } else if (Array.isArray(result) && result.length > 0) {
             order = result[0];
         }
         
@@ -317,7 +315,17 @@ async function bukaFormBuangan(orderId) {
         console.log('Order data:', order);
 
         currentOrderData = order;
-        currentKmAwal = parseFloat(order.km_awal) || 0;
+
+        // Handle KM Awal - jika ODO ERROR, set ke 0 untuk perhitungan
+        if (typeof order.km_awal === 'string' && 
+            (order.km_awal.toUpperCase() === 'ODO ERROR' || 
+            order.km_awal.toUpperCase() === 'ODOERROR' ||
+            order.km_awal.toUpperCase() === 'ODO ERR' ||
+            order.km_awal.toUpperCase() === 'ODOERR')) {
+            currentKmAwal = 0; // Set ke 0 jika ODO ERROR
+        } else {
+            currentKmAwal = parseFloat(order.km_awal) || 0;
+        }
 
         // Isi form dengan data order
         document.getElementById('orderId').value = order.id;
@@ -325,48 +333,28 @@ async function bukaFormBuangan(orderId) {
         // Tampilkan info order
         displayOrderInfo(order);
 
-        // Ambil ritasi terakhir untuk mendapatkan no_urut berikutnya
-        try {
-            const buanganResponse = await fetch(`${API_BASE_URL}/buangan`);
-            if (buanganResponse.ok) {
-                const buanganResult = await buanganResponse.json();
-                const buanganData = buanganResult.success ? buanganResult.data : buanganResult;
-                
-                if (Array.isArray(buanganData)) {
-                    const ritasiOrder = buanganData.filter(b => b.order_id === orderId);
-                    const maxNoUrut = ritasiOrder.length > 0 
-                        ? Math.max(...ritasiOrder.map(r => r.no_urut || 0))
-                        : 0;
-                    
-                    document.getElementById('noUrut').value = maxNoUrut + 1;
-                } else {
-                    document.getElementById('noUrut').value = 1;
-                }
-            } else {
-                document.getElementById('noUrut').value = 1;
-            }
-        } catch (err) {
-            console.error('Error getting no_urut:', err);
-            document.getElementById('noUrut').value = 1;
-        }
+        // Jangan lagi menghitung/men-set noUrut secara otomatis.
+        // Biarkan kosong sehingga pengguna dapat mengisikan sendiri.
+        document.getElementById('noUrut').value = '';
 
-        // Reset form fields
+        // Reset field lain (tetap kosongkan default form fields)
+        document.getElementById('noUrut').value = ''; 
         document.getElementById('tanggalBongkar').value = new Date().toISOString().split('T')[0];
         document.getElementById('jamBongkar').value = '';
         document.getElementById('kmAkhir').value = '';
         document.getElementById('jarakKm').value = '';
+        document.getElementById('lokasiBongkar').value = '';
         document.getElementById('alihan').checked = false;
         document.getElementById('galianAlihan').value = '';
         document.getElementById('uangAlihan').value = '';
         document.getElementById('keterangan').value = '';
         document.getElementById('alihanFields').style.display = 'none';
 
-        // Hide search & main table, show form
+        // Show form
         document.getElementById('searchSection').style.display = 'none';
         document.getElementById('mainTableSection').style.display = 'none';
         document.getElementById('formSection').style.display = 'block';
 
-        // Scroll to top
         window.scrollTo({ top: 0, behavior: 'smooth' });
 
     } catch (error) {
@@ -410,7 +398,7 @@ function displayOrderInfo(order) {
             </div>
             <div class="order-info-item">
                 <div class="order-info-label">KM Awal</div>
-                <div class="order-info-value">${formatKM(order.km_awal)} KM</div>
+                <div class="order-info-value">${formatKMAwal(order.km_awal)}</div>
             </div>
         </div>
     `;
@@ -439,6 +427,82 @@ function toggleAlihanEdit() {
     if (!alihan) {
         document.getElementById('editGalianAlihan').value = '';
         document.getElementById('editUangAlihan').value = '';
+    }
+}
+
+// ============================================================================
+// HANDLE KM AKHIR INPUT WITH ODO ERROR SUPPORT
+// ============================================================================
+function handleKmAkhirInputWithODO(input, jarakInputId) {
+    let value = input.value.trim().toUpperCase();
+    
+    // Cek apakah user sedang mengetik "ODO ERROR"
+    const odoErrorVariants = [
+        'ODO ERROR',
+        'ODOERROR', 
+        'ODO ERR',
+        'ODOERR',
+        'ODO',
+        'ODOE',
+        'ODOER',
+        'ODOERRO'
+    ];
+    
+    // Jika input kosong
+    if (value === '') {
+        input.value = '';
+        document.getElementById(jarakInputId).value = '';
+        return;
+    }
+    
+    // Cek apakah sedang mengetik ODO ERROR (auto-correct typo)
+    let matchedVariant = false;
+    for (let variant of odoErrorVariants) {
+        if (value.startsWith(variant.substring(0, value.length)) && value.length <= variant.length) {
+            matchedVariant = true;
+            break;
+        }
+    }
+    
+    // Jika sudah lengkap "ODO ERROR" atau variannya
+    if (value === 'ODO ERROR' || value === 'ODOERROR' || value === 'ODO ERR' || value === 'ODOERR') {
+        input.value = 'ODO ERROR';
+        document.getElementById(jarakInputId).value = '-';
+        return;
+    }
+    
+    // Jika sedang mengetik ODO ERROR, biarkan
+    if (matchedVariant) {
+        input.value = value;
+        document.getElementById(jarakInputId).value = '';
+        return;
+    }
+    
+    // Jika bukan ODO ERROR, treat as angka
+    value = input.value.replace(/\D/g, '');
+    
+    if (value === '') {
+        input.value = '';
+        document.getElementById(jarakInputId).value = '';
+        return;
+    }
+    
+    // Batasi 10 digit
+    if (value.length > 10) {
+        value = value.substring(0, 10);
+    }
+    
+    // Format dengan titik ribuan
+    const number = parseInt(value, 10);
+    input.value = number.toLocaleString('id-ID');
+    
+    // Hitung jarak
+    const kmAkhir = number;
+    const kmAwal = jarakInputId.includes('edit') ? Number(currentKmAwalEdit) : parseFloat(currentKmAwal);
+    
+    if (!isNaN(kmAkhir) && !isNaN(kmAwal)) {
+        const jarak = kmAkhir - kmAwal;
+        document.getElementById(jarakInputId).value = formatKM(jarak) + ' KM';
     }
 }
 
@@ -496,11 +560,45 @@ function hitungJarakEdit() {
 async function handleFormSubmit(e) {
     e.preventDefault();
 
-    const kmAkhir = parseKMInput(document.getElementById('kmAkhir').value);
-    const kmAwal = parseFloat(currentKmAwal);
+    const kmAkhirInput = document.getElementById('kmAkhir').value.trim();
+    const lokasiBongkar = document.getElementById('lokasiBongkar').value.trim();
     
-    // Hitung jarak_km
-    const jarakKm = kmAkhir - kmAwal;
+    // Validasi lokasi buangan wajib diisi
+    if (!lokasiBongkar) {
+        showToast('Lokasi buangan wajib diisi', 'warning');
+        return;
+    }
+    
+    let kmAkhir = null;
+    let jarakKm = null;
+    
+    // Cek apakah ODO ERROR
+    if (kmAkhirInput.toUpperCase() === 'ODO ERROR' || 
+        kmAkhirInput.toUpperCase() === 'ODOERROR' || 
+        kmAkhirInput.toUpperCase() === 'ODO ERR' ||
+        kmAkhirInput.toUpperCase() === 'ODOERR') {
+        kmAkhir = 'ODO ERROR';
+        jarakKm = null;
+    } else {
+        kmAkhir = parseKMInput(kmAkhirInput);
+        const kmAwal = parseFloat(currentKmAwal);
+        
+        if (isNaN(kmAkhir)) {
+            showToast('KM Akhir harus diisi dengan angka valid atau "ODO ERROR"', 'warning');
+            return;
+        }
+        
+        jarakKm = kmAkhir - kmAwal;
+        
+        if (jarakKm <= 0) {
+            showToast('KM Akhir harus lebih besar dari KM Awal (' + kmAwal + ' KM)', 'warning');
+            return;
+        }
+    }
+    
+    // Get galian_alihan_id dari nama
+    const galianAlihanName = document.getElementById('galianAlihan').value;
+    const galianAlihanId = galianAlihanName ? getGalianIdByName(galianAlihanName) : null;
 
     const formData = {
         order_id: parseInt(document.getElementById('orderId').value),
@@ -509,27 +607,18 @@ async function handleFormSubmit(e) {
         jam_bongkar: document.getElementById('jamBongkar').value,
         km_akhir: kmAkhir,
         jarak_km: jarakKm,
+        lokasi_bongkar: lokasiBongkar,
         alihan: document.getElementById('alihan').checked,
-        galian_alihan_id: document.getElementById('galianAlihan').value || null,
-        uang_alihan: document.getElementById('uangAlihan').value 
+        galian_alihan_id: galianAlihanId,
+        uang_alihan: document.getElementById('uangAlihan').value
             ? parseKMInput(document.getElementById('uangAlihan').value)
             : null,
         keterangan: document.getElementById('keterangan').value || null
     };
 
     // Validasi
-    if (isNaN(kmAkhir)) {
-        showToast('KM Akhir harus diisi dengan angka valid', 'warning');
-        return;
-    }
-
-    if (jarakKm <= 0) {
-        showToast('KM Akhir harus lebih besar dari KM Awal (' + kmAwal + ' KM)', 'warning');
-        return;
-    }
-
     if (formData.alihan && !formData.galian_alihan_id) {
-        showToast('Pilih galian alihan jika buangan alihan', 'warning');
+        showToast('Pilih galian alihan jika galian alihan dicentang', 'warning');
         return;
     }
 
@@ -549,7 +638,11 @@ async function handleFormSubmit(e) {
 
         const result = await response.json();
 
-        showToast('Ritasi berhasil disimpan! Jarak: ' + formatKM(jarakKm) + ' KM', 'success');
+        const successMsg = kmAkhir === 'ODO ERROR' 
+            ? 'Ritasi berhasil disimpan! (ODO ERROR)'
+            : 'Ritasi berhasil disimpan! Jarak: ' + formatKM(jarakKm) + ' KM';
+        
+        showToast(successMsg, 'success');
         
         // Reset form dan kembali ke halaman awal
         setTimeout(() => {
@@ -569,28 +662,58 @@ async function handleEditFormSubmit(e) {
     e.preventDefault();
 
     const buanganId = currentBuanganDetail.id;
+    const kmAkhirInput = document.getElementById('editKmAkhir').value.trim();
+    const lokasiBongkar = document.getElementById('editLokasiBongkar').value.trim();
+
+    // Validasi lokasi buangan wajib diisi
+    if (!lokasiBongkar) {
+        showToast('Lokasi buangan wajib diisi', 'warning');
+        return;
+    }
+    
+    let kmAkhir = null;
+    
+    // Cek apakah ODO ERROR
+    if (kmAkhirInput.toUpperCase() === 'ODO ERROR' || 
+        kmAkhirInput.toUpperCase() === 'ODOERROR' || 
+        kmAkhirInput.toUpperCase() === 'ODO ERR' ||
+        kmAkhirInput.toUpperCase() === 'ODOERR') {
+        kmAkhir = 'ODO ERROR';
+    } else {
+        kmAkhir = parseKMInput(kmAkhirInput);
+        
+        if (isNaN(kmAkhir)) {
+            showToast('KM Akhir harus diisi dengan angka valid atau "ODO ERROR"', 'warning');
+            return;
+        }
+        
+        if (kmAkhir <= currentKmAwalEdit) {
+            showToast('KM Akhir harus lebih besar dari KM Awal', 'warning');
+            return;
+        }
+    }
+    
+    // Get galian_alihan_id dari nama
+    const galianAlihanName = document.getElementById('editGalianAlihan').value;
+    const galianAlihanId = galianAlihanName ? getGalianIdByName(galianAlihanName) : null;
     
     const formData = {
         no_urut: parseInt(document.getElementById('editNoUrut').value),
         tanggal_bongkar: document.getElementById('editTanggalBongkar').value,
         jam_bongkar: document.getElementById('editJamBongkar').value,
-        km_akhir: parseKMInput(document.getElementById('editKmAkhir').value),
+        km_akhir: kmAkhir,
+        lokasi_bongkar: lokasiBongkar,
         alihan: document.getElementById('editAlihan').checked,
-        galian_alihan_id: document.getElementById('editGalianAlihan').value || null,
-        uang_alihan: document.getElementById('editUangAlihan').value 
+        galian_alihan_id: galianAlihanId,
+        uang_alihan: document.getElementById('editUangAlihan').value
             ? parseKMInput(document.getElementById('editUangAlihan').value)
             : null,
         keterangan: document.getElementById('editKeterangan').value || null
     };
 
     // Validasi
-    if (formData.km_akhir <= currentKmAwalEdit) {
-        showToast('KM Akhir harus lebih besar dari KM Awal', 'warning');
-        return;
-    }
-
     if (formData.alihan && !formData.galian_alihan_id) {
-        showToast('Pilih galian alihan jika buangan alihan', 'warning');
+        showToast('Pilih galian alihan jika galian alihan dicentang', 'warning');
         return;
     }
 
@@ -634,15 +757,32 @@ function editBuangan() {
     const order = buangan.order;
 
     // Simpan km_awal untuk perhitungan jarak
-    currentKmAwalEdit = parseFloat(order.km_awal) || 0;
+    // Handle KM Awal - jika ODO ERROR, set ke 0 untuk perhitungan
+    if (typeof order.km_awal === 'string' && 
+        (order.km_awal.toUpperCase() === 'ODO ERROR' || 
+        order.km_awal.toUpperCase() === 'ODOERROR' ||
+        order.km_awal.toUpperCase() === 'ODO ERR' ||
+        order.km_awal.toUpperCase() === 'ODOERR')) {
+        currentKmAwalEdit = 0; // Set ke 0 jika ODO ERROR
+    } else {
+        currentKmAwalEdit = parseFloat(order.km_awal) || 0;
+    }
 
     // Isi form edit dengan data buangan
     document.getElementById('editNoUrut').value = (buangan.no_urut === 0 || buangan.no_urut == null) ? '' : buangan.no_urut;
     document.getElementById('editTanggalBongkar').value = buangan.tanggal_bongkar ? buangan.tanggal_bongkar.substring(0, 10) : '';
     document.getElementById('editJamBongkar').value = buangan.jam_bongkar || '';
-    document.getElementById('editKmAkhir').value = (buangan.km_akhir === 0 || buangan.km_akhir == null) ? '' : buangan.km_akhir;
+    
+    // Handle KM Akhir (bisa angka atau ODO ERROR)
+    const kmAkhirValue = (buangan.km_akhir === 0 || buangan.km_akhir == null) ? '' : buangan.km_akhir;
+    document.getElementById('editKmAkhir').value = kmAkhirValue;
+    
+    document.getElementById('editLokasiBongkar').value = buangan.lokasi_bongkar || '';
     document.getElementById('editAlihan').checked = buangan.alihan;
-    document.getElementById('editGalianAlihan').value = buangan.galian_alihan_id || '';
+    
+    // Set galian alihan name (bukan ID)
+    document.getElementById('editGalianAlihan').value = getGalianNameById(buangan.galian_alihan_id);
+    
     document.getElementById('editUangAlihan').value = buangan.uang_alihan || '';
     document.getElementById('editKeterangan').value = buangan.keterangan || '';
 
@@ -701,7 +841,7 @@ function displayOrderInfoEdit(order) {
             </div>
             <div class="order-info-item">
                 <div class="order-info-label">KM Awal</div>
-                <div class="order-info-value">${formatKM(order.km_awal)} KM</div>
+                <div class="order-info-value">${formatKMAwal(order.km_awal)}</div>
             </div>
         </div>
     `;
@@ -764,55 +904,66 @@ async function loadGalianOptions() {
 
         console.log('Galian data to populate:', galianData);
 
-        // Populate dropdown galian alihan di form tambah
-        const selectGalianAlihan = document.getElementById('galianAlihan');
-        if (selectGalianAlihan) {
-            selectGalianAlihan.innerHTML = '<option value="">-- Pilih Galian Alihan --</option>';
+        // Populate datalist untuk form tambah
+        const datalistGalianAlihan = document.getElementById('galianDatalist');
+        if (datalistGalianAlihan) {
+            datalistGalianAlihan.innerHTML = '';
 
             if (Array.isArray(galianData) && galianData.length > 0) {
                 galianData.forEach(galian => {
                     const option = document.createElement('option');
-                    option.value = galian.id;
-                    option.textContent = galian.nama_galian;
-                    selectGalianAlihan.appendChild(option);
+                    option.value = galian.nama_galian;
+                    option.setAttribute('data-id', galian.id);
+                    datalistGalianAlihan.appendChild(option);
                 });
-                console.log(`✅ Loaded ${galianData.length} galian options ke dropdown tambah`);
+                console.log(`✅ Loaded ${galianData.length} galian options ke datalist tambah`);
             } else {
                 console.warn('⚠️ Tidak ada data galian ditemukan');
             }
         }
 
-        // Populate dropdown galian alihan di form edit
-        const selectEditGalianAlihan = document.getElementById('editGalianAlihan');
-        if (selectEditGalianAlihan) {
-            selectEditGalianAlihan.innerHTML = '<option value="">-- Pilih Galian Alihan --</option>';
+        // Populate datalist untuk form edit
+        const datalistEditGalianAlihan = document.getElementById('editGalianDatalist');
+        if (datalistEditGalianAlihan) {
+            datalistEditGalianAlihan.innerHTML = '';
 
             if (Array.isArray(galianData) && galianData.length > 0) {
                 galianData.forEach(galian => {
                     const option = document.createElement('option');
-                    option.value = galian.id;
-                    option.textContent = galian.nama_galian;
-                    selectEditGalianAlihan.appendChild(option);
+                    option.value = galian.nama_galian;
+                    option.setAttribute('data-id', galian.id);
+                    datalistEditGalianAlihan.appendChild(option);
                 });
-                console.log(`✅ Loaded ${galianData.length} galian options ke dropdown edit`);
+                console.log(`✅ Loaded ${galianData.length} galian options ke datalist edit`);
             }
         }
 
+        // Simpan data galian ke global variable untuk lookup ID
+        window.galianMasterData = galianData;
+
     } catch (error) {
         console.error('❌ Error loading galian options:', error);
-        
-        // Tampilkan pesan error di dropdown
-        const selects = [
-            document.getElementById('galianAlihan'),
-            document.getElementById('editGalianAlihan')
-        ];
-        
-        selects.forEach(select => {
-            if (select) {
-                select.innerHTML = '<option value="">Error loading data</option>';
-            }
-        });
     }
+}
+
+// ============================================================================
+// GET GALIAN ID FROM NAME (Helper function)
+// ============================================================================
+function getGalianIdByName(namaGalian) {
+    if (!window.galianMasterData || !namaGalian) return null;
+    
+    const galian = window.galianMasterData.find(g => g.nama_galian === namaGalian);
+    return galian ? galian.id : null;
+}
+
+// ============================================================================
+// GET GALIAN NAME FROM ID (Helper function)
+// ============================================================================
+function getGalianNameById(galianId) {
+    if (!window.galianMasterData || !galianId) return '';
+    
+    const galian = window.galianMasterData.find(g => g.id == galianId);
+    return galian ? galian.nama_galian : '';
 }
 
 // ============================================================================
@@ -868,7 +1019,7 @@ function displayBuanganList(buanganList) {
     if (!Array.isArray(buanganList) || buanganList.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="11" class="empty-state">
+                <td colspan="13" class="empty-state">
                     <div class="empty-state-icon">📦</div>
                     <div class="empty-state-text">Belum ada data buangan</div>
                 </td>
@@ -884,13 +1035,27 @@ function displayBuanganList(buanganList) {
             ? '<span class="badge badge-yes">Ya</span>'
             : '<span class="badge badge-no">Tidak</span>';
 
-        const statusBadge = '<span class="badge badge-complete">COMPLETE</span>';
+        let statusBadge = '';
+        if (buangan.status === 'BATAL') {
+            statusBadge = '<span class="badge badge-batal">BATAL</span>';
+        } else {
+            statusBadge = '<span class="badge badge-complete">COMPLETE</span>';
+        }
 
         const noUrutDisplay = (buangan.no_urut === 0 || buangan.no_urut == null) ? '-' : `#${buangan.no_urut}`;
         const tanggalBongkarDisplay = buangan.tanggal_bongkar ? formatDate(buangan.tanggal_bongkar) : '-';
         const jamBongkarDisplay = buangan.jam_bongkar ? buangan.jam_bongkar : '-';
-        const kmAkhirDisplay = (buangan.km_akhir === 0 || buangan.km_akhir == null) ? '-' : `${formatKM(buangan.km_akhir)} KM`;
+        
+        // Handle KM Akhir (bisa angka atau ODO ERROR)
+        let kmAkhirDisplay = '-';
+        if (buangan.km_akhir === 'ODO ERROR') {
+            kmAkhirDisplay = 'ODO ERROR';
+        } else if (buangan.km_akhir !== 0 && buangan.km_akhir != null) {
+            kmAkhirDisplay = `${formatKM(buangan.km_akhir)} KM`;
+        }
+        
         const jarakDisplay = (buangan.jarak_km === 0 || buangan.jarak_km == null) ? '-' : `${formatKM(buangan.jarak_km)} KM`;
+        const lokasiDisplay = buangan.lokasi_bongkar || '-';
 
         tr.innerHTML = `
             <td>${buangan.no_order || '-'}</td>
@@ -902,6 +1067,7 @@ function displayBuanganList(buanganList) {
             <td>${jamBongkarDisplay}</td>
             <td>${kmAkhirDisplay}</td>
             <td>${jarakDisplay}</td>
+            <td>${lokasiDisplay}</td>
             <td>${alihanBadge}</td>
             <td>${statusBadge}</td>
             <td>
@@ -1044,9 +1210,12 @@ function batalEdit() {
 function displayDetailOrder(order) {
     const container = document.getElementById('detailOrderInfo');
     
-    const statusBadge = order.status === 'COMPLETE' 
+    // Tampilkan Proyek dan hanya tampilkan badge untuk COMPLETE atau BATAL.
+    const statusBadge = order.status === 'COMPLETE'
         ? '<span class="badge badge-complete">COMPLETE</span>'
-        : '<span class="badge badge-pending">ON PROCESS</span>';
+        : (order.status === 'BATAL'
+            ? '<span class="badge badge-batal">BATAL</span>'
+            : '-');
 
     container.innerHTML = `
         <div class="detail-item">
@@ -1074,12 +1243,16 @@ function displayDetailOrder(order) {
             <div class="detail-value">${order.galian || order.nama_galian || '-'}</div>
         </div>
         <div class="detail-item">
+            <div class="detail-label">Proyek</div>
+            <div class="detail-value">${order.proyek_input || '-'}</div>
+        </div>
+        <div class="detail-item">
             <div class="detail-label">No DO</div>
             <div class="detail-value">${order.no_do || '-'}</div>
         </div>
         <div class="detail-item">
             <div class="detail-label">KM Awal</div>
-            <div class="detail-value">${formatKM(order.km_awal)} KM</div>
+            <div class="detail-value">${formatKMAwal(order.km_awal)}</div>
         </div>
         <div class="detail-item">
             <div class="detail-label">Uang Jalan</div>
@@ -1113,12 +1286,21 @@ function displayDetailBuangan(buangan) {
     const noUrutDisplay = (buangan.no_urut === 0 || buangan.no_urut == null) ? '-' : `#${buangan.no_urut}`;
     const tanggalBongkarDisplay = buangan.tanggal_bongkar ? formatDate(buangan.tanggal_bongkar) : '-';
     const jamBongkarDisplay = buangan.jam_bongkar ? buangan.jam_bongkar : '-';
-    const kmAkhirDisplay = (buangan.km_akhir === 0 || buangan.km_akhir == null) ? '-' : `${formatKM(buangan.km_akhir)} KM`;
+    
+    // Handle KM Akhir (bisa angka atau ODO ERROR)
+    let kmAkhirDisplay = '-';
+    if (buangan.km_akhir === 'ODO ERROR') {
+        kmAkhirDisplay = 'ODO ERROR';
+    } else if (buangan.km_akhir !== 0 && buangan.km_akhir != null) {
+        kmAkhirDisplay = `${formatKM(buangan.km_akhir)} KM`;
+    }
+    
     const jarakDisplay = (buangan.jarak_km === 0 || buangan.jarak_km == null) ? '-' : `${formatKM(buangan.jarak_km)} KM`;
+    const lokasiDisplay = buangan.lokasi_bongkar || '-';
 
     let htmlContent = `
         <div class="detail-item">
-            <div class="detail-label">No Urut </div>
+            <div class="detail-label">No Urut</div>
             <div class="detail-value">${noUrutDisplay}</div>
         </div>
         <div class="detail-item">
@@ -1137,8 +1319,12 @@ function displayDetailBuangan(buangan) {
             <div class="detail-label">Jarak KM</div>
             <div class="detail-value">${jarakDisplay}</div>
         </div>
+        <div class="detail-item" style="grid-column: 1 / -1;">
+            <div class="detail-label">Lokasi Buangan</div>
+            <div class="detail-value">${lokasiDisplay}</div>
+        </div>
         <div class="detail-item">
-            <div class="detail-label">Buangan Alihan</div>
+            <div class="detail-label">Galian Alihan</div>
             <div class="detail-value">${alihanBadge}</div>
         </div>
     `;
@@ -1146,7 +1332,7 @@ function displayDetailBuangan(buangan) {
     if (buangan.alihan) {
         htmlContent += `
             <div class="detail-item">
-                <div class="detail-label">Galian Alihan</div>
+                <div class="detail-label">Nama Galian Alihan</div>
                 <div class="detail-value">${buangan.galian_alihan || '-'}</div>
             </div>
             <div class="detail-item">
@@ -1313,70 +1499,6 @@ function formatNumberInput(input) {
     input.value = number.toLocaleString('id-ID');
 }
 
-// Handle KM Akhir Input + Hitung Jarak (Form Tambah)
-function handleKmAkhirInput(input) {
-    // Hapus semua karakter selain angka
-    let value = input.value.replace(/\D/g, '');
-    
-    if (value === '') {
-        input.value = '';
-        document.getElementById('jarakKm').value = '';
-        return;
-    }
-    
-    // Batasi 10 digit
-    if (value.length > 10) {
-        value = value.substring(0, 10);
-    }
-    
-    // Format dengan titik ribuan
-    const number = parseInt(value, 10);
-    input.value = number.toLocaleString('id-ID');
-    
-    // Hitung jarak
-    const kmAkhir = number;
-    const kmAwal = parseFloat(currentKmAwal);
-    
-    if (!isNaN(kmAkhir) && !isNaN(kmAwal)) {
-        const jarak = kmAkhir - kmAwal;
-        document.getElementById('jarakKm').value = formatKM(jarak) + ' KM';
-    }
-}
-
-// Handle KM Akhir Input + Hitung Jarak (Form Edit)
-function handleKmAkhirInputEdit(input) {
-    // Hapus semua karakter selain angka
-    let value = input.value.replace(/\D/g, '');
-    
-    if (value === '') {
-        input.value = '';
-        document.getElementById('editJarakKm').value = '';
-        return;
-    }
-    
-    // Batasi 10 digit
-    if (value.length > 10) {
-        value = value.substring(0, 10);
-    }
-    
-    // Format dengan titik ribuan
-    const number = parseInt(value, 10);
-    input.value = number.toLocaleString('id-ID');
-    
-    // Hitung jarak
-    const kmAkhir = number;
-    const kmAwal = Number(currentKmAwalEdit);
-    
-    if (!isNaN(kmAkhir) && !isNaN(kmAwal)) {
-        const jarak = kmAkhir - kmAwal;
-        if (jarak >= 0) {
-            document.getElementById('editJarakKm').value = formatKM(jarak) + ' KM';
-        } else {
-            document.getElementById('editJarakKm').value = '';
-        }
-    }
-}
-
 function formatCurrency(amount) {
     if (!amount) return 'Rp 0';
     
@@ -1404,6 +1526,30 @@ function formatKM(km) {
         minimumFractionDigits: 0,
         maximumFractionDigits: 2 
     });
+}
+
+// Format KM Awal - Handle ODO ERROR
+function formatKMAwal(kmAwal) {
+    // Jika null, undefined, atau kosong
+    if (!kmAwal && kmAwal !== 0) return '-';
+    
+    // Cek apakah string "ODO ERROR"
+    if (typeof kmAwal === 'string' && 
+        (kmAwal.toUpperCase() === 'ODO ERROR' || 
+         kmAwal.toUpperCase() === 'ODOERROR' ||
+         kmAwal.toUpperCase() === 'ODO ERR' ||
+         kmAwal.toUpperCase() === 'ODOERR')) {
+        return 'ODO ERROR';
+    }
+    
+    // Jika angka, format dengan titik ribuan + satuan KM
+    const kmValue = parseFloat(kmAwal);
+    if (isNaN(kmValue)) return '-';
+    
+    return kmValue.toLocaleString('id-ID', { 
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2 
+    }) + ' KM';
 }
 
 // Parse input KM - hilangkan titik sebelum parsing
