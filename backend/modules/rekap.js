@@ -79,7 +79,6 @@ function buildFiltersBuangan(req, allowedFields) {
   };
 }
 
-// Helper: Build WHERE clause for gabungan
 function buildFiltersGabungan(req, allowedFields) {
   const conditions = [];
   const values = [];
@@ -90,6 +89,15 @@ function buildFiltersGabungan(req, allowedFields) {
       if (key === 'proyek_input') {
         conditions.push(`LOWER(o.${key}) LIKE LOWER(?)`);
         values.push(`${value}%`);
+      } else if (key === 'lokasi_bongkar') {
+        conditions.push(`LOWER(b.${key}) LIKE LOWER(?)`);
+        values.push(`${value}%`);
+      } else if (key === 'galian_alihan_id') {
+        conditions.push(`b.${key} = ?`);
+        values.push(value);
+      } else if (key === 'alihan') {
+        conditions.push(`b.${key} = ?`);
+        values.push(value);
       } else {
         conditions.push(`o.${key} = ?`);
         values.push(value);
@@ -97,15 +105,28 @@ function buildFiltersGabungan(req, allowedFields) {
     }
   }
 
-  if (req.query.tanggal_dari && req.query.tanggal_sampai) {
+  // Tanggal Order Range
+  if (req.query.tanggal_order_dari && req.query.tanggal_order_sampai) {
     conditions.push(`o.tanggal_order BETWEEN ? AND ?`);
-    values.push(req.query.tanggal_dari, req.query.tanggal_sampai);
-  } else if (req.query.tanggal_dari) {
+    values.push(req.query.tanggal_order_dari, req.query.tanggal_order_sampai);
+  } else if (req.query.tanggal_order_dari) {
     conditions.push(`o.tanggal_order >= ?`);
-    values.push(req.query.tanggal_dari);
-  } else if (req.query.tanggal_sampai) {
+    values.push(req.query.tanggal_order_dari);
+  } else if (req.query.tanggal_order_sampai) {
     conditions.push(`o.tanggal_order <= ?`);
-    values.push(req.query.tanggal_sampai);
+    values.push(req.query.tanggal_order_sampai);
+  }
+
+  // Tanggal Bongkar Range
+  if (req.query.tanggal_bongkar_dari && req.query.tanggal_bongkar_sampai) {
+    conditions.push(`b.tanggal_bongkar BETWEEN ? AND ?`);
+    values.push(req.query.tanggal_bongkar_dari, req.query.tanggal_bongkar_sampai);
+  } else if (req.query.tanggal_bongkar_dari) {
+    conditions.push(`b.tanggal_bongkar >= ?`);
+    values.push(req.query.tanggal_bongkar_dari);
+  } else if (req.query.tanggal_bongkar_sampai) {
+    conditions.push(`b.tanggal_bongkar <= ?`);
+    values.push(req.query.tanggal_bongkar_sampai);
   }
 
   return {
@@ -113,6 +134,62 @@ function buildFiltersGabungan(req, allowedFields) {
     values
   };
 }
+
+// ============================================================================
+// REKAP GABUNGAN + FILTER (COMBINED ORDER AND BUANGAN)
+// ============================================================================
+router.get("/gabungan", async (req, res) => {
+  try {
+    const { where, values } = buildFiltersGabungan(req, [
+      "proyek_input",
+      "lokasi_bongkar",
+      "kendaraan_id",
+      "galian_id",
+      "galian_alihan_id",
+      "alihan",
+      "status"
+    ]);
+
+    const sql = `
+      SELECT
+        o.id AS no,
+        o.tanggal_order,
+        o.petugas_order,
+        g.nama_galian AS galian,
+        g2.nama_galian AS galian_alihan,
+        o.no_do,
+        k.no_pintu AS kendaraan,
+        s.nama AS supir,
+        o.jam_order,
+        o.km_awal,
+        b.tanggal_bongkar,
+        b.jam_bongkar,
+        b.km_akhir,
+        b.jarak_km,
+        o.uang_jalan,
+        o.potongan,
+        o.proyek_input AS proyek,
+        b.lokasi_bongkar,
+        b.uang_alihan,
+        b.keterangan,
+        o.status
+      FROM orders o
+      LEFT JOIN buangan b ON o.id = b.order_id
+      LEFT JOIN master_kendaraan k ON o.kendaraan_id = k.id
+      LEFT JOIN master_supir s ON o.supir_id = s.id
+      LEFT JOIN master_galian g ON o.galian_id = g.id
+      LEFT JOIN master_galian g2 ON b.galian_alihan_id = g2.id
+      ${where}
+      ORDER BY o.id DESC, b.id DESC
+    `;
+
+    const rows = await db.query(sql, values);
+    return success(res, "Berhasil mengambil rekap gabungan", rows[0]);
+  } catch (err) {
+    console.error("Error in /rekap/gabungan:", err);
+    return error(res, 500, "Gagal mengambil rekap gabungan", err);
+  }
+});
 
 // Helper: Generate filter info for exports
 function generateFilterInfo(req, type) {
@@ -284,11 +361,13 @@ router.get("/order", async (req, res) => {
         o.potongan,
         o.hasil_akhir,
         o.proyek_input,
-        o.status
+        o.status,
+        b.keterangan AS keterangan_buangan
       FROM orders o
       LEFT JOIN master_kendaraan k ON o.kendaraan_id = k.id
       LEFT JOIN master_supir s ON o.supir_id = s.id
       LEFT JOIN master_galian g ON o.galian_id = g.id
+      LEFT JOIN buangan b ON o.id = b.order_id
       ${where}
       ORDER BY o.id DESC
     `;
@@ -298,6 +377,89 @@ router.get("/order", async (req, res) => {
   } catch (err) {
     console.error("Error in /rekap/order:", err);
     return error(res, 500, "Gagal mengambil rekap order", err);
+  }
+});
+
+// ============================================================================
+// REKAP ORDER - GET SINGLE ORDER BY ID
+// ============================================================================
+router.get("/order/:id", async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    
+    const sql = `
+      SELECT
+        o.id,
+        o.tanggal_order,
+        o.no_order,
+        o.petugas_order,
+        o.kendaraan_id,
+        k.no_pintu AS kendaraan_nama,
+        o.supir_id,
+        s.nama AS supir_nama,
+        o.galian_id,
+        g.nama_galian AS galian_nama,
+        o.no_do,
+        o.jam_order,
+        o.km_awal,
+        o.uang_jalan,
+        o.potongan,
+        o.hasil_akhir,
+        o.proyek_input,
+        o.status
+      FROM orders o
+      LEFT JOIN master_kendaraan k ON o.kendaraan_id = k.id
+      LEFT JOIN master_supir s ON o.supir_id = s.id
+      LEFT JOIN master_galian g ON o.galian_id = g.id
+      WHERE o.id = ?
+    `;
+
+    const rows = await db.query(sql, [orderId]);
+    
+    if (!rows[0] || rows[0].length === 0) {
+      return error(res, 404, "Order tidak ditemukan");
+    }
+    
+    return success(res, "Berhasil mengambil detail order", rows[0][0]);
+  } catch (err) {
+    console.error("Error in /rekap/order/:id:", err);
+    return error(res, 500, "Gagal mengambil detail order", err);
+  }
+});
+
+// ============================================================================
+// REKAP ORDER - GET BUANGAN BY ORDER ID
+// ============================================================================
+router.get("/buangan/by-order/:orderId", async (req, res) => {
+  try {
+    const orderId = req.params.orderId;
+    
+    const sql = `
+      SELECT
+        b.id,
+        b.order_id,
+        b.tanggal_bongkar,
+        b.jam_bongkar,
+        b.lokasi_bongkar,
+        b.km_akhir,
+        b.jarak_km,
+        b.alihan,
+        b.galian_alihan_id,
+        g.nama_galian AS galian_alihan_nama,
+        b.keterangan,
+        b.uang_alihan,
+        b.no_urut
+      FROM buangan b
+      LEFT JOIN master_galian g ON b.galian_alihan_id = g.id
+      WHERE b.order_id = ?
+      ORDER BY b.no_urut ASC
+    `;
+
+    const rows = await db.query(sql, [orderId]);
+    return success(res, "Berhasil mengambil data buangan", rows[0]);
+  } catch (err) {
+    console.error("Error in /rekap/buangan/by-order/:orderId:", err);
+    return error(res, 500, "Gagal mengambil data buangan", err);
   }
 });
 
@@ -686,6 +848,30 @@ router.get("/gabungan/export/excel", async (req, res) => {
   } catch (err) {
     console.error("Error in /rekap/gabungan/export/excel:", err);
     return error(res, 500, "Gagal export Excel", err);
+  }
+});
+
+// ============================================================================
+// GET USED GALIAN ALIHAN (Only galian that are actually used in alihan)
+// ============================================================================
+router.get("/galian-alihan-used", async (req, res) => {
+  try {
+    const sql = `
+      SELECT DISTINCT 
+        g.id,
+        g.nama_galian
+      FROM buangan b
+      INNER JOIN master_galian g ON b.galian_alihan_id = g.id
+      WHERE b.alihan = 1
+        AND b.galian_alihan_id IS NOT NULL
+      ORDER BY g.nama_galian ASC
+    `;
+
+    const rows = await db.query(sql);
+    return success(res, "Berhasil mengambil galian alihan yang digunakan", rows[0]);
+  } catch (err) {
+    console.error("Error in /rekap/galian-alihan-used:", err);
+    return error(res, 500, "Gagal mengambil galian alihan yang digunakan", err);
   }
 });
 

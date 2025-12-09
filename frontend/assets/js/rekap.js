@@ -93,6 +93,62 @@ function toggleDateRangeBuangan() {
     }
 }
 
+// Toggle untuk date range order gabungan
+function toggleDateRangeOrderGabungan() {
+    const filterType = document.getElementById('filter-tanggal-type-gabungan').value;
+    const dateRangeDiv = document.getElementById('date-range-order-gabungan');
+    const dariInput = document.getElementById('filter-tanggal-order-dari-gabungan');
+    const sampaiInput = document.getElementById('filter-tanggal-order-sampai-gabungan');
+    
+    if (filterType === 'manual') {
+        dateRangeDiv.classList.add('show');
+        dariInput.value = '';
+        sampaiInput.value = '';
+    } else {
+        dateRangeDiv.classList.remove('show');
+        
+        if (filterType === 'hari-ini') {
+            const today = getToday();
+            dariInput.value = today;
+            sampaiInput.value = today;
+        } else if (filterType === '7-hari') {
+            dariInput.value = get7DaysAgo();
+            sampaiInput.value = getToday();
+        } else if (filterType === 'semua') {
+            dariInput.value = '';
+            sampaiInput.value = '';
+        }
+    }
+}
+
+// Toggle untuk date range bongkar gabungan
+function toggleDateRangeBongkarGabungan() {
+    const filterType = document.getElementById('filter-tanggal-bongkar-type-gabungan').value;
+    const dateRangeDiv = document.getElementById('date-range-bongkar-gabungan');
+    const dariInput = document.getElementById('filter-tanggal-bongkar-dari-gabungan');
+    const sampaiInput = document.getElementById('filter-tanggal-bongkar-sampai-gabungan');
+    
+    if (filterType === 'manual') {
+        dateRangeDiv.classList.add('show');
+        dariInput.value = '';
+        sampaiInput.value = '';
+    } else {
+        dateRangeDiv.classList.remove('show');
+        
+        if (filterType === 'hari-ini') {
+            const today = getToday();
+            dariInput.value = today;
+            sampaiInput.value = today;
+        } else if (filterType === '7-hari') {
+            dariInput.value = get7DaysAgo();
+            sampaiInput.value = getToday();
+        } else if (filterType === 'semua') {
+            dariInput.value = '';
+            sampaiInput.value = '';
+        }
+    }
+}
+
 function toggleDateRangeGabungan() {
     const filterType = document.getElementById('filter-tanggal-type-gabungan').value;
     const dateRangeDiv = document.getElementById('date-range-gabungan');
@@ -117,6 +173,62 @@ function toggleDateRangeGabungan() {
             dariInput.value = '';
             sampaiInput.value = '';
         }
+    }
+}
+
+function toggleGalianAlihanFilter() {
+    const alihanSelect = document.getElementById('filter-alihan-gabungan');
+    const galianAlihanDiv = document.getElementById('galian-alihan-filter-gabungan');
+    const galianAlihanInput = document.getElementById('filter-galian-alihan-gabungan');
+    const galianAlihanIdInput = document.getElementById('filter-galian-alihan-gabungan-id');
+    
+    if (alihanSelect.value === '1') {
+        // Show galian alihan filter and load used galian only
+        galianAlihanDiv.classList.add('show');
+        loadUsedGalianAlihan();
+    } else {
+        // Hide and clear
+        galianAlihanDiv.classList.remove('show');
+        galianAlihanInput.value = '';
+        galianAlihanIdInput.value = '';
+        // Clear the datalist
+        const datalist = document.getElementById('datalist-galian-alihan-gabungan');
+        if (datalist) datalist.innerHTML = '';
+    }
+}
+
+async function loadUsedGalianAlihan() {
+    try {
+        const url = `${API_URL}/rekap/galian-alihan-used`;
+        console.log('📡 Fetching Used Galian Alihan:', url);
+        
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        debugLog('Used Galian Alihan Response', result);
+        
+        let data = null;
+        if (result && result.success && Array.isArray(result.data)) {
+            data = result.data;
+        } else if (Array.isArray(result)) {
+            data = result;
+        } else if (result && Array.isArray(result.rows)) {
+            data = result.rows;
+        }
+        
+        if (data && Array.isArray(data) && data.length > 0) {
+            console.log(`✅ Loaded ${data.length} used galian alihan records`);
+            populateDatalist('datalist-galian-alihan-gabungan', data, 'nama_galian');
+        } else {
+            console.warn('⚠️ No used galian alihan found');
+            const datalist = document.getElementById('datalist-galian-alihan-gabungan');
+            if (datalist) datalist.innerHTML = '<option value="">Tidak ada galian alihan yang digunakan</option>';
+        }
+    } catch (err) {
+        console.error('❌ Error loading used galian alihan:', err.message);
     }
 }
 
@@ -269,6 +381,38 @@ function setupAutocompleteListeners() {
             }, typingDelay);
         });
     }
+
+    // Galian Alihan autocomplete untuk gabungan
+    const galianAlihanGabunganInput = document.getElementById('filter-galian-alihan-gabungan');
+    if (galianAlihanGabunganInput) {
+        galianAlihanGabunganInput.addEventListener('input', function() {
+            filterDatalist(this.value, masterGalian, 'datalist-galian-alihan-gabungan', 'nama_galian');
+        });
+
+        galianAlihanGabunganInput.addEventListener('change', function() {
+            const selectedItem = masterGalian.find(g => g.nama_galian === this.value);
+            if (selectedItem) {
+                document.getElementById('filter-galian-alihan-gabungan-id').value = selectedItem.id;
+                console.log('Galian Alihan (Gabungan) terpilih:', selectedItem);
+            } else {
+                document.getElementById('filter-galian-alihan-gabungan-id').value = '';
+            }
+        });
+    }
+
+    // Real-time search untuk lokasi bongkar gabungan
+    const lokasiBongkarGabunganInput = document.getElementById('filter-lokasi-bongkar-gabungan');
+    if (lokasiBongkarGabunganInput) {
+        let typingTimer;
+        const typingDelay = 500;
+
+        lokasiBongkarGabunganInput.addEventListener('input', () => {
+            clearTimeout(typingTimer);
+            typingTimer = setTimeout(() => {
+                loadRekapGabungan();
+            }, typingDelay);
+        });
+    }
 }
 
 // ============================================================================
@@ -321,6 +465,14 @@ async function loadMasterData() {
     }
     if (masterGalian.length > 0) {
         populateDatalist('datalist-galian-gabungan', masterGalian, 'nama_galian');
+    }
+    // Populate datalist untuk gabungan
+    if (masterKendaraan.length > 0) {
+        populateDatalist('datalist-kendaraan-gabungan', masterKendaraan, 'no_pintu');
+    }
+    if (masterGalian.length > 0) {
+        populateDatalist('datalist-galian-gabungan', masterGalian, 'nama_galian');
+        populateDatalist('datalist-galian-alihan-gabungan', masterGalian, 'nama_galian'); // TAMBAHKAN BARIS INI
     }
 
     console.log('✅ Master data loading completed\n');
@@ -465,7 +617,7 @@ function populateDatalist(datalistId, data, textKey) {
 // ============================================================================
 async function loadRekapOrder() {
     const tbody = document.getElementById('tbody-order');
-    tbody.innerHTML = '<tr><td colspan="15" class="text-center loading">Memuat data...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="17" class="text-center loading">Memuat data...</td></tr>';
 
     try {
         const params = new URLSearchParams();
@@ -543,6 +695,8 @@ async function loadRekapOrder() {
                     statusStyle = 'background: #28a745; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
                 } else if (status === 'ON PROCESS' || status === 'ON_PROCESS') {
                     statusStyle = 'background: #ffc107; color: #000; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
+                } else if (status === 'BATAL') {
+                    statusStyle = 'background: #dc3545; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
                 } else {
                     statusStyle = 'background: #6c757d; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
                 }
@@ -568,6 +722,7 @@ async function loadRekapOrder() {
                         <td>${formatCurrency(row.potongan)}</td>
                         <td>${formatCurrency(row.hasil_akhir)}</td>
                         <td>${row.proyek_input || '-'}</td>
+                        <td>${row.keterangan_buangan || '-'}</td>
                         <td><span style="${statusStyle}">${row.status || '-'}</span></td>
                         <td>${actionButton}</td>
                     </tr>
@@ -578,14 +733,14 @@ async function loadRekapOrder() {
             displayOrderSummary(totalUangJalan, totalPotongan, totalHasilAkhir);
         } else {
             console.log('ℹ️ No order data found');
-            tbody.innerHTML = '<tr><td colspan="15" class="text-center">Tidak ada data order</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="17" class="text-center">Tidak ada data order</td></tr>';
             // Clear summary when no data
             const summaryDiv = document.getElementById('summary-order');
             if (summaryDiv) summaryDiv.innerHTML = '';
         }
     } catch (err) {
         console.error('❌ Error loading rekap order:', err);
-        tbody.innerHTML = `<tr><td colspan="15" class="text-center" style="color: red;">Error: ${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="17" class="text-center" style="color: red;">Error: ${err.message}</td></tr>`;
     }
 }
 
@@ -718,12 +873,17 @@ async function loadRekapGabungan() {
         const params = new URLSearchParams();
 
         const filters = {
-            tanggal_dari: document.getElementById('filter-tanggal-dari-gabungan').value,
-            tanggal_sampai: document.getElementById('filter-tanggal-sampai-gabungan').value,
+            tanggal_order_dari: document.getElementById('filter-tanggal-order-dari-gabungan').value,
+            tanggal_order_sampai: document.getElementById('filter-tanggal-order-sampai-gabungan').value,
+            tanggal_bongkar_dari: document.getElementById('filter-tanggal-bongkar-dari-gabungan').value,
+            tanggal_bongkar_sampai: document.getElementById('filter-tanggal-bongkar-sampai-gabungan').value,
             proyek_input: document.getElementById('filter-proyek-gabungan').value.trim(),
+            lokasi_bongkar: document.getElementById('filter-lokasi-bongkar-gabungan').value.trim(),
             status: document.getElementById('filter-status-gabungan').value,
             kendaraan_id: document.getElementById('filter-kendaraan-gabungan-id').value,
-            galian_id: document.getElementById('filter-galian-gabungan-id').value
+            galian_id: document.getElementById('filter-galian-gabungan-id').value,
+            alihan: document.getElementById('filter-alihan-gabungan').value,
+            galian_alihan_id: document.getElementById('filter-galian-alihan-gabungan-id').value
         };
 
         Object.keys(filters).forEach(key => {
@@ -774,15 +934,15 @@ async function loadRekapGabungan() {
             // Calculate totals
             let totalUangJalan = 0;
             let totalPotongan = 0;
-            let totalHasilAkhir = 0;
             let totalUangAlihan = 0;
 
             data.forEach(row => {
                 totalUangJalan += parseFloat(row.uang_jalan || 0);
                 totalPotongan += parseFloat(row.potongan || 0);
-                totalHasilAkhir += parseFloat(row.hasil_akhir || 0);
                 totalUangAlihan += parseFloat(row.uang_alihan || 0);
             });
+
+            const grandTotal = totalUangJalan - totalPotongan;
 
             tbody.innerHTML = data.map((row, index) => {
                 let statusStyle = '';
@@ -791,40 +951,44 @@ async function loadRekapGabungan() {
                     statusStyle = 'background: #28a745; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
                 } else if (status === 'ON PROCESS' || status === 'ON_PROCESS') {
                     statusStyle = 'background: #ffc107; color: #000; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
+                } else if (status === 'BATAL') {
+                    statusStyle = 'background: #dc3545; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
                 } else {
                     statusStyle = 'background: #6c757d; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
                 }
+
+                const total = (parseFloat(row.uang_jalan || 0) - parseFloat(row.potongan || 0));
 
                 return `
                     <tr>
                         <td>${index + 1}</td>
                         <td>${formatDate(row.tanggal_order)}</td>
-                        <td>${formatDate(row.tanggal_bongkar)}</td>
-                        <td>${row.jam_order || '-'}</td>
-                        <td>${row.jam_bongkar || '-'}</td>
-                        <td>${row.no_order || '-'}</td>
-                        <td>${row.kendaraan || '-'}</td>
+                        <td>${row.petugas_order || '-'}</td>
                         <td>${row.galian || '-'}</td>
+                        <td>${row.galian_alihan || '-'}</td>
                         <td>${row.no_do || '-'}</td>
+                        <td>${row.kendaraan || '-'}</td>
+                        <td>${row.supir || '-'}</td>
+                        <td>${row.jam_order || '-'}</td>
                         <td>${formatKilometer(row.km_awal)}</td>
+                        <td>${formatDate(row.tanggal_bongkar)}</td>
+                        <td>${row.jam_bongkar || '-'}</td>
                         <td>${formatKilometer(row.km_akhir)}</td>
                         <td>${formatKilometer(row.jarak_km)}</td>
                         <td>${formatCurrency(row.uang_jalan)}</td>
                         <td>${formatCurrency(row.potongan)}</td>
-                        <td>${formatCurrency(row.hasil_akhir)}</td>
-                        <td>${row.alihan ? 'Ya' : 'Tidak'}</td>
-                        <td>${row.galian_alihan || '-'}</td>
-                        <td>${row.keterangan || '-'}</td>
-                        <td>${formatCurrency(row.uang_alihan)}</td>
-                        <td>${row.no_urut || '-'}</td>
+                        <td>${formatCurrency(total)}</td>
                         <td>${row.proyek || '-'}</td>
+                        <td>${row.lokasi_bongkar || '-'}</td>
+                        <td>${formatCurrency(row.uang_alihan)}</td>
+                        <td>${row.keterangan || '-'}</td>
                         <td><span style="${statusStyle}">${row.status || '-'}</span></td>
                     </tr>
                 `;
             }).join('');
 
             // Display summary for Gabungan
-            displayGabunganSummary(totalUangJalan, totalPotongan, totalHasilAkhir, totalUangAlihan);
+            displayGabunganSummary(totalUangJalan, totalPotongan, grandTotal, totalUangAlihan);
         } else {
             console.log('ℹ️ No gabungan data found');
             tbody.innerHTML = '<tr><td colspan="22" class="text-center">Tidak ada data gabungan</td></tr>';
@@ -852,15 +1016,24 @@ function resetFilterBuangan() {
 function resetFilterGabungan() {
     console.log('🔄 Resetting Gabungan filters...');
     document.getElementById('filter-tanggal-type-gabungan').value = 'semua';
-    document.getElementById('filter-tanggal-dari-gabungan').value = '';
-    document.getElementById('filter-tanggal-sampai-gabungan').value = '';
+    document.getElementById('filter-tanggal-order-dari-gabungan').value = '';
+    document.getElementById('filter-tanggal-order-sampai-gabungan').value = '';
+    document.getElementById('filter-tanggal-bongkar-type-gabungan').value = 'semua';
+    document.getElementById('filter-tanggal-bongkar-dari-gabungan').value = '';
+    document.getElementById('filter-tanggal-bongkar-sampai-gabungan').value = '';
     document.getElementById('filter-proyek-gabungan').value = '';
+    document.getElementById('filter-lokasi-bongkar-gabungan').value = '';
     document.getElementById('filter-status-gabungan').value = '';
     document.getElementById('filter-kendaraan-gabungan').value = '';
     document.getElementById('filter-kendaraan-gabungan-id').value = '';
     document.getElementById('filter-galian-gabungan').value = '';
     document.getElementById('filter-galian-gabungan-id').value = '';
-    document.getElementById('date-range-gabungan').classList.remove('show');
+    document.getElementById('filter-alihan-gabungan').value = '';
+    document.getElementById('filter-galian-alihan-gabungan').value = '';
+    document.getElementById('filter-galian-alihan-gabungan-id').value = '';
+    document.getElementById('date-range-order-gabungan').classList.remove('show');
+    document.getElementById('date-range-bongkar-gabungan').classList.remove('show');
+    document.getElementById('galian-alihan-filter-gabungan').classList.remove('show');
     loadRekapGabungan();
 }
 
@@ -1014,94 +1187,64 @@ async function showOrderDetail(orderId) {
         modal.style.display = 'block';
 
         // Load order data
-        const orderResponse = await fetch(`${API_URL}/rekap/order?id=${orderId}`);
+        const orderResponse = await fetch(`${API_URL}/rekap/order/${orderId}`);
         if (!orderResponse.ok) {
             throw new Error(`Failed to fetch order: ${orderResponse.status}`);
         }
         const orderResult = await orderResponse.json();
         
+        console.log('Order API Response:', orderResult);
+        
         // Handle different response structures
         let orderData = null;
         if (orderResult.data) {
             orderData = Array.isArray(orderResult.data) 
-                ? orderResult.data.find(order => order.id == orderId)
+                ? orderResult.data[0]
                 : orderResult.data;
+        } else if (orderResult.success && orderResult.order) {
+            orderData = orderResult.order;
         } else if (Array.isArray(orderResult)) {
-            orderData = orderResult.find(order => order.id == orderId);
+            orderData = orderResult[0];
         }
         
         if (!orderData) {
             throw new Error('Order data not found');
         }
 
-        // Load buangan data (backend mungkin mengembalikan array tanpa field order_id)
-        const buanganResponse = await fetch(`${API_URL}/rekap/buangan`);
+        console.log('Extracted order data:', orderData);
+
+        // Load buangan data untuk order ini
+        const buanganResponse = await fetch(`${API_URL}/rekap/buangan/by-order/${orderId}`);
         if (!buanganResponse.ok) {
             throw new Error(`Failed to fetch buangan: ${buanganResponse.status}`);
         }
         const buanganResult = await buanganResponse.json();
         
+        console.log('Buangan API Response:', buanganResult);
+        
         // Normalize buangan array
         let buanganData = [];
         if (buanganResult.data) {
-            buanganData = Array.isArray(buanganResult.data) ? buanganResult.data : [];
+            buanganData = Array.isArray(buanganResult.data) ? buanganResult.data : [buanganResult.data];
         } else if (Array.isArray(buanganResult)) {
             buanganData = buanganResult;
         }
 
-        // 🔍 Cari key penghubung otomatis dan filter buangan yang terhubung ke order ini
-        const candidateKeys = ['order_id','orderId','id_order','no_order','noOrder','order_no','order'];
-        let matchKey = null;
-        if (buanganData.length > 0) {
-            for (const k of candidateKeys) {
-                if (buanganData.some(b => b[k] !== undefined)) {
-                    matchKey = k;
-                    break;
-                }
-            }
-        }
-
-        // Tentukan nilai order untuk dicocokkan
-        const orderMatchCandidates = [
-            orderData.id,
-            orderData.order_id,
-            orderData.no_order,
-            orderData.noOrder,
-            orderData.no_do,
-            orderData.no
-        ].filter(v => v !== undefined && v !== null);
-
-        let filteredBuangan = [];
-        if (matchKey) {
-            // cocokkan berdasarkan key yang ditemukan di buangan
-            filteredBuangan = buanganData.filter(b => {
-                return orderMatchCandidates.some(ov => String(ov) === String(b[matchKey]));
-            });
-        } else {
-            // fallback: coba cocokkan no_order (umum dipakai)
-            filteredBuangan = buanganData.filter(b => String(b.no_order) === String(orderData.no_order || orderData.noOrder || orderData.id));
-        }
-
-        console.log('=== BUANGAN MATCH DEBUG ===');
-        console.log('Order ID:', orderId);
-        console.log('Detected matchKey:', matchKey);
-        console.log('Order match candidates:', orderMatchCandidates);
-        console.log('Total buangan fetched:', buanganData.length);
-        console.log('Filtered buangan count:', filteredBuangan.length);
-        if (filteredBuangan.length > 0) console.log('Matched buangan example:', filteredBuangan[0]);
-        console.log('==========================');
+        console.log('Extracted buangan data:', buanganData);
+        console.log('Buangan count:', buanganData.length);
 
         // Populate order info
         populateOrderInfo(orderData);
 
-        // Tampilkan hanya buangan yang terhubung (ambil pertama kalau memang satu)
+        // Populate buangan cards
         const container = document.getElementById('buangan-cards');
-        if (filteredBuangan.length > 0) {
-            // jika ingin menampilkan semua yang terhubung: loop dan panggil populateBuanganCards untuk tiap item
-            // untuk 1 order = 1 buangan ambil index 0
-            populateBuanganCards(filteredBuangan[0], orderData);
+        if (buanganData.length > 0) {
+            container.innerHTML = '';
+            buanganData.forEach(buangan => {
+                populateBuanganCard(buangan, orderData, container);
+            });
         } else {
-            container.innerHTML = '<p class="no-data">Tidak ada data buangan yang terhubung ke order ini</p>';
+            container.innerHTML = '<p class="no-data">Tidak ada data buangan untuk order ini</p>';
         }
 
         // Setup modal close event
@@ -1123,14 +1266,8 @@ async function showOrderDetail(orderId) {
     }
 }
 
-function populateBuanganCards(buangan, orderData) {
-    const container = document.getElementById('buangan-cards');
-    container.innerHTML = '';
-
-    if (!buangan) {
-        container.innerHTML = '<p class="no-data">Tidak ada data buangan untuk order ini</p>';
-        return;
-    }
+function populateBuanganCard(buangan, orderData, container) {
+    if (!buangan) return;
 
     const card = document.createElement('div');
     card.className = 'buangan-card';
@@ -1142,8 +1279,16 @@ function populateBuanganCards(buangan, orderData) {
         </div>
         <div class="card-body">
             <div class="card-row">
+                <span class="label">Tanggal Bongkar:</span>
+                <span class="value">${formatDate(buangan.tanggal_bongkar)}</span>
+            </div>
+            <div class="card-row">
                 <span class="label">Jam Bongkar:</span>
                 <span class="value">${buangan.jam_bongkar || '-'}</span>
+            </div>
+            <div class="card-row">
+                <span class="label">Lokasi Bongkar:</span>
+                <span class="value">${buangan.lokasi_bongkar || '-'}</span>
             </div>
             <div class="card-row">
                 <span class="label">KM Akhir:</span>
@@ -1287,37 +1432,36 @@ function displayBuanganSummary(totalUangAlihan) {
     `;
 }
 
-function displayGabunganSummary(totalUangJalan, totalPotongan, totalHasilAkhir, totalUangAlihan) {
+function displayGabunganSummary(totalUangJalan, totalPotongan, grandTotal, totalUangAlihan) {
     const summaryDiv = document.getElementById('summary-gabungan');
     if (!summaryDiv) return;
-
-    const grandTotal = totalHasilAkhir + totalUangAlihan;
 
     summaryDiv.innerHTML = `
         <div class="summary-section">
             <div class="summary-title">📊 Ringkasan Gabungan</div>
-            <div class="summary-grid">
-                <div class="summary-item">
-                    <span class="label">Total Uang Jalan:</span>
-                    <span class="value">${formatCurrency(totalUangJalan)}</span>
+            <div class="summary-grid-custom">
+                <div class="summary-row-top">
+                    <div class="summary-item">
+                        <span class="label">Total Uang Jalan:</span>
+                        <span class="value">${formatCurrency(totalUangJalan)}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="label">Total Potongan:</span>
+                        <span class="value">${formatCurrency(totalPotongan)}</span>
+                    </div>
                 </div>
-                <div class="summary-item">
-                    <span class="label">Total Potongan:</span>
-                    <span class="value">${formatCurrency(totalPotongan)}</span>
+                <div class="summary-item grand-total">
+                    <span class="label">Grand Total (Uang Jalan - Potongan):</span>
+                    <span class="value">${formatCurrency(grandTotal)}</span>
                 </div>
                 <div class="summary-item">
                     <span class="label">Total Uang Alihan:</span>
                     <span class="value">${formatCurrency(totalUangAlihan)}</span>
                 </div>
-                <div class="summary-item grand-total">
-                    <span class="label">Grand Total:</span>
-                    <span class="value">${formatCurrency(grandTotal)}</span>
-                </div>
             </div>
         </div>
     `;
 }
-
 // ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================

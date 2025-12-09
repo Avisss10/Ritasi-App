@@ -48,6 +48,7 @@
                             <option value="">Semua Status</option>
                             <option value="COMPLETE">Complete</option>
                             <option value="ON_PROCESS">On Process</option>
+                            <option value="BATAL">Batal</option>
                         </select>
                     </div>
 
@@ -93,7 +94,7 @@
                 </div>
             </div>
 
-            <!-- Table -->
+            <!-- Table Order -->
             <div class="table-wrapper">
                 <table>
                     <thead>
@@ -112,16 +113,16 @@
                             <th>Potongan</th>
                             <th>Hasil Akhir</th>
                             <th>Proyek</th>
+                            <th>Keterangan</th>
                             <th>Status</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="tbody-order">
-                        <tr><td colspan="16" class="text-center">Memuat data...</td></tr>
+                        <tr><td colspan="17" class="text-center">Memuat data...</td></tr>
                     </tbody>
                 </table>
             </div>
-
             <!-- Summary Section -->
             <div id="summary-order"></div>
         </div>
@@ -213,31 +214,8 @@
             <div class="filter-section">
                 <h3>🔍 Filter Data Gabungan</h3>
                 
-                <div class="filter-grid">
-                    <div class="filter-item">
-                        <label>Pilih Periode:</label>
-                        <select id="filter-tanggal-type-gabungan" onchange="toggleDateRangeGabungan()">
-                            <option value="semua">Semua Data</option>
-                            <option value="hari-ini">Hari Ini</option>
-                            <option value="7-hari">7 Hari Terakhir</option>
-                            <option value="manual">Pilih Tanggal Manual</option>
-                        </select>
-                    </div>
-
-                    <div class="filter-item">
-                        <label>Proyek:</label>
-                        <input type="text" id="filter-proyek-gabungan" placeholder="Cari proyek...">
-                    </div>
-
-                    <div class="filter-item">
-                        <label>Status:</label>
-                        <select id="filter-status-gabungan">
-                            <option value="">Semua Status</option>
-                            <option value="COMPLETE">Complete</option>
-                            <option value="ON_PROCESS">On Process</option>
-                        </select>
-                    </div>
-
+                <!-- Filter Utama -->
+                <div class="filter-grid filter-grid-3col">
                     <div class="filter-item">
                         <label>Kendaraan:</label>
                         <input type="text" id="filter-kendaraan-gabungan" list="datalist-kendaraan-gabungan" placeholder="Pilih kendaraan...">
@@ -251,17 +229,105 @@
                         <input type="hidden" id="filter-galian-gabungan-id">
                         <datalist id="datalist-galian-gabungan"></datalist>
                     </div>
+
+                    <div class="filter-item">
+                        <label>Alihan:</label>
+                        <select id="filter-alihan-gabungan" onchange="toggleGalianAlihanFilter()">
+                            <option value="">Semua</option>
+                            <option value="1">Ya</option>
+                            <option value="0">Tidak</option>
+                        </select>
+                    </div>
                 </div>
 
-                <!-- Manual Date Range -->
-                <div id="date-range-gabungan" class="date-range-inputs">
+                <!-- Galian Alihan Filter (Hidden by default) -->
+                <div id="galian-alihan-filter-gabungan" class="galian-alihan-filter">
                     <div class="filter-item">
-                        <label>Tanggal Dari:</label>
-                        <input type="date" id="filter-tanggal-dari-gabungan">
+                        <label>Galian Alihan:</label>
+                        <input type="text" id="filter-galian-alihan-gabungan" list="datalist-galian-alihan-gabungan" placeholder="Pilih galian alihan...">
+                        <input type="hidden" id="filter-galian-alihan-gabungan-id">
+                        <datalist id="datalist-galian-alihan-gabungan"></datalist>
+                    </div>
+                </div>
+
+                <!-- Filter Lokasi -->
+                <div class="filter-grid filter-grid-3col">
+                    <div class="filter-item">
+                        <label>Proyek:</label>
+                        <input type="text" id="filter-proyek-gabungan" placeholder="Cari proyek...">
+                    </div>
+
+                    <div class="filter-item">
+                        <label>Buangan (Lokasi):</label>
+                        <input type="text" id="filter-lokasi-bongkar-gabungan" placeholder="Cari lokasi bongkar...">
+                    </div>
+
+                    <div class="filter-item">
+                        <label>Status:</label>
+                        <select id="filter-status-gabungan">
+                            <option value="">Semua Status</option>
+                            <option value="COMPLETE">Complete</option>
+                            <option value="ON_PROCESS">On Process</option>
+                            <option value="BATAL">Batal</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Filter Tanggal Order -->
+                <div class="filter-section-subtitle">
+                    <h4>📅 Filter Periode Tanggal Order</h4>
+                </div>
+                
+                <div class="filter-grid filter-grid-date">
+                    <div class="filter-item">
+                        <label>Periode Tanggal Order:</label>
+                        <select id="filter-tanggal-type-gabungan" onchange="toggleDateRangeOrderGabungan()">
+                            <option value="semua">Semua Data</option>
+                            <option value="hari-ini">Hari Ini</option>
+                            <option value="7-hari">7 Hari Terakhir</option>
+                            <option value="manual">Pilih Manual</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Manual Date Range for Order -->
+                <div id="date-range-order-gabungan" class="date-range-inputs">
+                    <div class="filter-item">
+                        <label>Tanggal Order Dari:</label>
+                        <input type="date" id="filter-tanggal-order-dari-gabungan">
                     </div>
                     <div class="filter-item">
-                        <label>Tanggal Sampai:</label>
-                        <input type="date" id="filter-tanggal-sampai-gabungan">
+                        <label>Tanggal Order Sampai:</label>
+                        <input type="date" id="filter-tanggal-order-sampai-gabungan">
+                    </div>
+                </div>
+
+                <!-- Filter Tanggal Bongkar -->
+                <div class="filter-section-subtitle">
+                    <h4>📦 Filter Periode Tanggal Bongkar</h4>
+                </div>
+
+                <div class="filter-grid filter-grid-date">
+                    <div class="filter-item">
+                        <label>Periode Tanggal Bongkar:</label>
+                        <select id="filter-tanggal-bongkar-type-gabungan" onchange="toggleDateRangeBongkarGabungan()">
+                            <option value="semua">Semua Data</option>
+                            <option value="hari-ini">Hari Ini</option>
+                            <option value="7-hari">7 Hari Terakhir</option>
+                            <option value="manual">Pilih Manual</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Manual Date Range for Bongkar -->
+                <div id="date-range-bongkar-gabungan" class="date-range-inputs">
+                    <div class="filter-item">
+                        <label>Tanggal Bongkar Dari:</label>
+                        <input type="date" id="filter-tanggal-bongkar-dari-gabungan">
+                    </div>
+                    <div class="filter-item">
+                        <label>Tanggal Bongkar Sampai:</label>
+                        <input type="date" id="filter-tanggal-bongkar-sampai-gabungan">
                     </div>
                 </div>
 
@@ -280,25 +346,25 @@
                         <tr>
                             <th>No</th>
                             <th>Tgl Order</th>
-                            <th>Tgl Bongkar</th>
-                            <th>Jam Order</th>
-                            <th>Jam Bongkar</th>
-                            <th>No Order</th>
-                            <th>Kendaraan</th>
+                            <th>Petugas</th>
                             <th>Galian</th>
+                            <th>Galian Alihan</th>
                             <th>No DO</th>
+                            <th>Kendaraan</th>
+                            <th>Supir</th>
+                            <th>Jam Order</th>
                             <th>KM Awal</th>
+                            <th>Tgl Bongkar</th>
+                            <th>Jam Bongkar</th>
                             <th>KM Akhir</th>
                             <th>Jarak KM</th>
                             <th>Uang Jalan</th>
                             <th>Potongan</th>
-                            <th>Hasil Akhir</th>
-                            <th>Alihan</th>
-                            <th>Galian Alihan</th>
-                            <th>Keterangan</th>
-                            <th>Uang Alihan</th>
-                            <th>No Urut</th>
+                            <th>Total</th>
                             <th>Proyek</th>
+                            <th>Buangan</th>
+                            <th>Uang Alihan</th>
+                            <th>Keterangan</th>
                             <th>Status</th>
                         </tr>
                     </thead>
@@ -311,7 +377,6 @@
             <!-- Summary Section -->
             <div id="summary-gabungan"></div>
         </div>
-    </div>
 
     <!-- Modal untuk Detail Order -->
     <div id="order-detail-modal" class="modal">
