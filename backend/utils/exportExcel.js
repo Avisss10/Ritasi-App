@@ -12,32 +12,31 @@ export async function generateExcel(filename, headers, rows, filterInfo, res) {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet("Data");
 
-  // Set workbook properties
   workbook.creator = "Sistem Rekap";
   workbook.created = new Date();
   
   let currentRow = 1;
 
-  // ============================================================================
-  // HEADER SECTION - Title and Export Info
-  // ============================================================================
-  
-  // Main Title
-  worksheet.mergeCells(`A${currentRow}:${String.fromCharCode(64 + headers.length)}${currentRow}`);
+  // ======================================================================
+  // TITLE
+  // ======================================================================
+  const lastColLetter = String.fromCharCode(64 + headers.length);
+  worksheet.mergeCells(`A${currentRow}:${lastColLetter}${currentRow}`);
   const titleCell = worksheet.getCell(`A${currentRow}`);
   titleCell.value = filterInfo.title || filename;
-  titleCell.font = { size: 18, bold: true, color: { argb: "FFFFFFFF" } };
-  titleCell.fill = {
-    type: "pattern",
-    pattern: "solid",
-    fgColor: { argb: "FF1F4788" }
-  };
+  titleCell.font = { size: 18, bold: true };
   titleCell.alignment = { vertical: "middle", horizontal: "center" };
+  titleCell.border = {
+    top: { style: "medium" },
+    left: { style: "medium" },
+    bottom: { style: "medium" },
+    right: { style: "medium" }
+  };
   worksheet.getRow(currentRow).height = 40;
   currentRow++;
 
-  // Export Information
-  worksheet.mergeCells(`A${currentRow}:${String.fromCharCode(64 + headers.length)}${currentRow}`);
+  // Export info
+  worksheet.mergeCells(`A${currentRow}:${lastColLetter}${currentRow}`);
   const exportInfoCell = worksheet.getCell(`A${currentRow}`);
   exportInfoCell.value = `Diekspor pada: ${new Date().toLocaleString("id-ID", {
     day: "2-digit",
@@ -46,127 +45,151 @@ export async function generateExcel(filename, headers, rows, filterInfo, res) {
     hour: "2-digit",
     minute: "2-digit"
   })}`;
-  exportInfoCell.font = { size: 11, italic: true, color: { argb: "FF666666" } };
+  exportInfoCell.font = { size: 10, italic: true };
   exportInfoCell.alignment = { horizontal: "center", vertical: "middle" };
   worksheet.getRow(currentRow).height = 22;
   currentRow++;
 
-  // ============================================================================
-  // FILTER INFORMATION SECTION
-  // ============================================================================
+  // ======================================================================
+  // FILTER INFO
+  // ======================================================================
   if (filterInfo.filters && Object.keys(filterInfo.filters).length > 0) {
-    currentRow++; // Empty row
-
-    // Filter Section Title
-    worksheet.mergeCells(`A${currentRow}:${String.fromCharCode(64 + headers.length)}${currentRow}`);
+    currentRow++;
+    worksheet.mergeCells(`A${currentRow}:${lastColLetter}${currentRow}`);
     const filterTitleCell = worksheet.getCell(`A${currentRow}`);
     filterTitleCell.value = "FILTER YANG DITERAPKAN";
-    filterTitleCell.font = { size: 13, bold: true, color: { argb: "FFFFFFFF" } };
-    filterTitleCell.fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "FF4472C4" }
-    };
+    filterTitleCell.font = { size: 12, bold: true };
     filterTitleCell.alignment = { vertical: "middle", horizontal: "center" };
+    filterTitleCell.border = {
+      top: { style: "medium" },
+      left: { style: "medium" },
+      bottom: { style: "thin" },
+      right: { style: "medium" }
+    };
     worksheet.getRow(currentRow).height = 28;
     currentRow++;
 
-    // Filter Details
     Object.entries(filterInfo.filters).forEach(([key, value]) => {
       worksheet.mergeCells(`A${currentRow}:B${currentRow}`);
       const labelCell = worksheet.getCell(`A${currentRow}`);
       labelCell.value = key;
-      labelCell.font = { bold: true, size: 11, color: { argb: "FF000000" } };
-      labelCell.fill = {
-        type: "pattern",
-        pattern: "solid",
-        fgColor: { argb: "FFD9E1F2" }
-      };
+      labelCell.font = { bold: true, size: 10 };
       labelCell.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
       labelCell.border = {
-        top: { style: "thin", color: { argb: "FF8EA9DB" } },
-        left: { style: "thin", color: { argb: "FF8EA9DB" } },
-        bottom: { style: "thin", color: { argb: "FF8EA9DB" } },
-        right: { style: "thin", color: { argb: "FF8EA9DB" } }
+        top: { style: "thin" },
+        left: { style: "medium" },
+        bottom: { style: "thin" },
+        right: { style: "thin" }
       };
 
-      worksheet.mergeCells(`C${currentRow}:${String.fromCharCode(64 + headers.length)}${currentRow}`);
+      worksheet.mergeCells(`C${currentRow}:${lastColLetter}${currentRow}`);
       const valueCell = worksheet.getCell(`C${currentRow}`);
       valueCell.value = value;
-      valueCell.font = { size: 11, color: { argb: "FF000000" } };
+      valueCell.font = { size: 10 };
       valueCell.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
       valueCell.border = {
-        top: { style: "thin", color: { argb: "FF8EA9DB" } },
-        left: { style: "thin", color: { argb: "FF8EA9DB" } },
-        bottom: { style: "thin", color: { argb: "FF8EA9DB" } },
-        right: { style: "thin", color: { argb: "FF8EA9DB" } }
+        top: { style: "thin" },
+        left: { style: "thin" },
+        bottom: { style: "thin" },
+        right: { style: "medium" }
       };
 
-      worksheet.getRow(currentRow).height = 24;
+      worksheet.getRow(currentRow).height = 22;
       currentRow++;
     });
+
+    // Bottom border for filter section
+    const lastFilterRow = currentRow - 1;
+    for (let i = 1; i <= headers.length; i++) {
+      const cell = worksheet.getCell(lastFilterRow, i);
+      cell.border = {
+        ...cell.border,
+        bottom: { style: "medium" }
+      };
+    }
   }
 
-  currentRow++; // Empty row before summary
+  currentRow++;
 
-  // ============================================================================
-  // DATA SUMMARY (RECORD COUNT)
-  // ============================================================================
-  worksheet.mergeCells(`A${currentRow}:${String.fromCharCode(64 + headers.length)}${currentRow}`);
+  // ======================================================================
+  // TOTAL COUNT
+  // ======================================================================
+  worksheet.mergeCells(`A${currentRow}:${lastColLetter}${currentRow}`);
   const summaryCell = worksheet.getCell(`A${currentRow}`);
   summaryCell.value = `Total Data: ${rows.length} record${rows.length !== 1 ? 's' : ''}`;
-  summaryCell.font = { size: 12, bold: true, color: { argb: "FF000000" } };
+  summaryCell.font = { size: 11, bold: true };
   summaryCell.alignment = { horizontal: "center", vertical: "middle" };
-  summaryCell.fill = {
-    type: "pattern",
-    pattern: "solid",
-    fgColor: { argb: "FFFCE4D6" }
+  summaryCell.border = {
+    top: { style: "thin" },
+    left: { style: "thin" },
+    bottom: { style: "thin" },
+    right: { style: "thin" }
   };
   worksheet.getRow(currentRow).height = 25;
   currentRow++;
 
-  currentRow++; // Empty row before data
+  currentRow++;
 
-  // ============================================================================
-  // DATA TABLE SECTION
-  // ============================================================================
-
-  // Table Headers
+  // ======================================================================
+  // TABLE HEADERS
+  // ======================================================================
   const headerRow = worksheet.getRow(currentRow);
   headers.forEach((header, index) => {
     const cell = headerRow.getCell(index + 1);
     cell.value = header.label;
-    cell.font = { bold: true, size: 11, color: { argb: "FFFFFFFF" } };
-    cell.fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "FF1F4788" }
-    };
+    cell.font = { bold: true, size: 10 };
     cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
     cell.border = {
-      top: { style: "medium", color: { argb: "FF000000" } },
-      left: { style: "thin", color: { argb: "FF000000" } },
-      bottom: { style: "medium", color: { argb: "FF000000" } },
-      right: { style: "thin", color: { argb: "FF000000" } }
+      top: { style: "medium" },
+      left: { style: "thin" },
+      bottom: { style: "medium" },
+      right: { style: "thin" }
     };
   });
-  headerRow.height = 35;
+  headerRow.height = 30;
   currentRow++;
 
-  // Set column widths - Larger for better visibility
+  // Set column widths
   headers.forEach((header, index) => {
-    worksheet.getColumn(index + 1).width = (header.width || 20) * 0.15; // Convert to Excel width units
+    const w = header.width || 20;
+    worksheet.getColumn(index + 1).width = Math.max(8, Math.round(w * 0.18 * 10) / 10);
   });
 
-  // Data Rows
+  // ======================================================================
+  // DATA ROWS
+  // ======================================================================
   rows.forEach((row, rowIndex) => {
     const dataRow = worksheet.getRow(currentRow);
-    
     headers.forEach((header, colIndex) => {
       const cell = dataRow.getCell(colIndex + 1);
       let value = row[header.key];
 
-      // Format values based on type
+      // Add row number
+      if (header.key === "row_number") {
+        value = rowIndex + 1;
+      }
+
+      // Fallback mapping
+      if ((header.key === "keterangan_buangan" || header.key === "keterangan") && row.keterangan_buangan) {
+        value = row.keterangan_buangan;
+      }
+      if ((header.key === "supir" || header.key === "supir_nama") && row.supir_nama) {
+        value = row.supir_nama;
+      }
+      if ((header.key === "kendaraan" || header.key === "kendaraan_nama") && row.kendaraan_nama) {
+        value = row.kendaraan_nama;
+      }
+      if ((header.key === "proyek" || header.key === "proyek_input") && row.proyek_input) {
+        value = row.proyek_input;
+      }
+      if ((header.key === "galian" || header.key === "galian_nama") && row.galian_nama) {
+        value = row.galian_nama;
+      }
+      if ((header.key === "galian_alihan" || header.key === "galian_alihan_nama") && row.galian_alihan_nama) {
+        value = row.galian_alihan_nama;
+      }
+
+      // Formatting
       if (header.key.includes("tanggal") && value) {
         const date = new Date(value);
         if (!isNaN(date.getTime())) {
@@ -177,13 +200,17 @@ export async function generateExcel(filename, headers, rows, filterInfo, res) {
           });
         }
       } else if (
-        (header.key.includes("uang") || 
+        // FIX: Tambahkan pengecualian untuk "buangan" dan "lokasi_bongkar"
+        (header.key === "uang_jalan" || 
+         header.key === "uang_alihan" || 
          header.key.includes("hasil") || 
-         header.key.includes("potongan")) && 
+         header.key.includes("potongan") ||
+         header.key === "total") && 
         value !== null && 
-        value !== undefined
+        value !== undefined && 
+        value !== ""
       ) {
-        cell.value = parseFloat(value) || 0;
+        cell.value = Number(value) || 0;
         cell.numFmt = '"Rp "#,##0';
       } else if (header.key === "alihan") {
         value = value ? "Ya" : "Tidak";
@@ -192,155 +219,124 @@ export async function generateExcel(filename, headers, rows, filterInfo, res) {
       }
 
       if (cell.numFmt !== '"Rp "#,##0') {
-        cell.value = value || "-";
+        cell.value = value !== undefined && value !== null && value !== "" ? value : "-";
       }
 
-      // Styling
-      cell.font = { size: 10, color: { argb: "FF000000" } };
+      cell.font = { size: 9 };
+      
+      // FIX: Alignment - tambahkan pengecualian untuk "buangan" dan "lokasi_bongkar"
+      const isMoneyColumn = header.key === "uang_jalan" || 
+                           header.key === "uang_alihan" || 
+                           header.key.includes("hasil") || 
+                           header.key.includes("potongan") ||
+                           header.key === "total";
+      
+      const isCenterColumn = header.key.includes("km") || 
+                            header.key.includes("jarak") || 
+                            header.key === "row_number" || 
+                            header.key === "no_urut" || 
+                            header.key === "alihan" || 
+                            header.key === "no" || 
+                            header.key === "id";
+      
       cell.alignment = { 
         vertical: "middle", 
-        horizontal: header.key.includes("uang") || 
-                    header.key.includes("hasil") || 
-                    header.key.includes("potongan") ? "right" :
-                    (header.key.includes("km") ||
-                     header.key.includes("jarak") ||
-                     header.key === "no_urut" ||
-                     header.key === "alihan") ? "center" : "left",
-        indent: (header.key.includes("uang") || 
-                 header.key.includes("hasil") || 
-                 header.key.includes("potongan")) ? 0 : 1,
-        wrapText: false
-      };
-
-      // Alternating row colors
-      cell.fill = {
-        type: "pattern",
-        pattern: "solid",
-        fgColor: { argb: rowIndex % 2 === 0 ? "FFFFFFFF" : "FFF8F8F8" }
+        horizontal: isMoneyColumn ? "right" : (isCenterColumn ? "center" : "left"),
+        indent: (isMoneyColumn || isCenterColumn) ? 0 : 1,
+        wrapText: true
       };
 
       cell.border = {
-        top: { style: "thin", color: { argb: "FFDDDDDD" } },
-        left: { style: "thin", color: { argb: "FFDDDDDD" } },
-        bottom: { style: "thin", color: { argb: "FFDDDDDD" } },
-        right: { style: "thin", color: { argb: "FFDDDDDD" } }
+        top: { style: "thin" },
+        left: { style: "thin" },
+        bottom: { style: "thin" },
+        right: { style: "thin" }
       };
 
-      // Status color coding
-      if (header.key === "status" && value) {
-        if (value === "COMPLETE") {
-          cell.font = { bold: true, size: 10, color: { argb: "FF008000" } };
-        } else if (value === "ON PROCESS" || value === "ON_PROCESS") {
-          cell.font = { bold: true, size: 10, color: { argb: "FFFF8C00" } };
+      if (header.key === "status" && cell.value) {
+        const raw = String(cell.value).toUpperCase();
+        if (raw === "COMPLETE") {
+          cell.font = { bold: true, size: 9, color: { argb: "FF008000" } };
+        } else if (raw === "ON PROCESS" || raw === "ON_PROCESS") {
+          cell.font = { bold: true, size: 9, color: { argb: "FFFF8C00" } };
+        } else if (raw === "BATAL") {
+          cell.font = { bold: true, size: 9, color: { argb: "FFDC3545" } };
         }
       }
     });
 
-    dataRow.height = 24;
+    dataRow.height = 22;
     currentRow++;
   });
 
-  // ============================================================================
-  // FINANCIAL SUMMARY SECTION (AT THE END)
-  // ============================================================================
+  // ======================================================================
+  // SUMMARY (financial)
+  // ======================================================================
   const summary = calculateSummary(rows, filterInfo.title || filename);
 
   if (summary && Object.keys(summary).length > 0) {
-    currentRow += 2; // Empty rows before summary
+    currentRow += 2;
 
-    // Summary Title
-    worksheet.mergeCells(`A${currentRow}:${String.fromCharCode(64 + headers.length)}${currentRow}`);
+    worksheet.mergeCells(`A${currentRow}:${lastColLetter}${currentRow}`);
     const summaryTitleCell = worksheet.getCell(`A${currentRow}`);
     summaryTitleCell.value = "RINGKASAN KEUANGAN";
-    summaryTitleCell.font = { size: 14, bold: true, color: { argb: "FFFFFFFF" } };
-    summaryTitleCell.fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "FF1F4788" }
-    };
+    summaryTitleCell.font = { size: 12, bold: true };
     summaryTitleCell.alignment = { vertical: "middle", horizontal: "center" };
-    worksheet.getRow(currentRow).height = 30;
+    summaryTitleCell.border = {
+      top: { style: "medium" },
+      left: { style: "medium" },
+      bottom: { style: "medium" },
+      right: { style: "medium" }
+    };
+    worksheet.getRow(currentRow).height = 28;
     currentRow++;
 
-    // Summary Details
     Object.entries(summary).forEach(([key, value]) => {
-      const isGrandTotal = key === "Grand Total";
-
-      // Calculate column span for centering
+      const isGrandTotal = key.includes("Grand Total");
       const midCol = Math.floor(headers.length / 2);
-      const startCol = midCol - 2;
-      const endCol = midCol + 3;
+      const startCol = Math.max(1, midCol - 2);
+      const endCol = Math.min(headers.length, midCol + 3);
 
-      worksheet.mergeCells(`${String.fromCharCode(64 + startCol)}${currentRow}:${String.fromCharCode(64 + midCol)}${currentRow}`);
-      const labelCell = worksheet.getCell(`${String.fromCharCode(64 + startCol)}${currentRow}`);
+      const startLetter = String.fromCharCode(64 + startCol);
+      const midLetter = String.fromCharCode(64 + midCol);
+      const endLetter = String.fromCharCode(64 + endCol);
+
+      worksheet.mergeCells(`${startLetter}${currentRow}:${midLetter}${currentRow}`);
+      const labelCell = worksheet.getCell(`${startLetter}${currentRow}`);
       labelCell.value = key;
-      labelCell.font = { 
-        bold: true, 
-        size: isGrandTotal ? 13 : 11, 
-        color: { argb: isGrandTotal ? "FFFFFFFF" : "FF000000" } 
-      };
-      labelCell.fill = {
-        type: "pattern",
-        pattern: "solid",
-        fgColor: { argb: isGrandTotal ? "FF1F4788" : "FFE7E6E6" }
-      };
+      labelCell.font = { bold: true, size: isGrandTotal ? 11 : 10 };
       labelCell.alignment = { vertical: "middle", horizontal: "left", indent: 2 };
       labelCell.border = {
-        top: { style: isGrandTotal ? "medium" : "thin", color: { argb: "FF000000" } },
-        left: { style: "medium", color: { argb: "FF000000" } },
-        bottom: { style: isGrandTotal ? "medium" : "thin", color: { argb: "FF000000" } },
-        right: { style: "thin", color: { argb: "FF000000" } }
+        top: { style: isGrandTotal ? "medium" : "thin" },
+        left: { style: "medium" },
+        bottom: { style: isGrandTotal ? "medium" : "thin" },
+        right: { style: "thin" }
       };
 
-      worksheet.mergeCells(`${String.fromCharCode(64 + midCol + 1)}${currentRow}:${String.fromCharCode(64 + endCol)}${currentRow}`);
+      worksheet.mergeCells(`${String.fromCharCode(64 + midCol + 1)}${currentRow}:${endLetter}${currentRow}`);
       const valueCell = worksheet.getCell(`${String.fromCharCode(64 + midCol + 1)}${currentRow}`);
-      valueCell.value = value;
-      valueCell.font = { 
-        size: isGrandTotal ? 13 : 11, 
-        bold: isGrandTotal,
-        color: { argb: isGrandTotal ? "FFFFFFFF" : "FF000000" } 
-      };
-      valueCell.fill = {
-        type: "pattern",
-        pattern: "solid",
-        fgColor: { argb: isGrandTotal ? "FF1F4788" : "FFFFFFFF" }
-      };
+      
+      // Set numeric value with currency format
+      valueCell.value = Number(value) || 0;
+      valueCell.numFmt = '"Rp "#,##0';
+      
+      valueCell.font = { size: isGrandTotal ? 11 : 10, bold: isGrandTotal };
       valueCell.alignment = { vertical: "middle", horizontal: "right", indent: 2 };
       valueCell.border = {
-        top: { style: isGrandTotal ? "medium" : "thin", color: { argb: "FF000000" } },
-        left: { style: "thin", color: { argb: "FF000000" } },
-        bottom: { style: isGrandTotal ? "medium" : "thin", color: { argb: "FF000000" } },
-        right: { style: "medium", color: { argb: "FF000000" } }
+        top: { style: isGrandTotal ? "medium" : "thin" },
+        left: { style: "thin" },
+        bottom: { style: isGrandTotal ? "medium" : "thin" },
+        right: { style: "medium" }
       };
 
-      worksheet.getRow(currentRow).height = isGrandTotal ? 32 : 26;
+      worksheet.getRow(currentRow).height = isGrandTotal ? 30 : 24;
       currentRow++;
     });
   }
 
-  // ============================================================================
-  // FOOTER SECTION
-  // ============================================================================
-  currentRow += 2; // Empty rows
-
-  worksheet.mergeCells(`A${currentRow}:${String.fromCharCode(64 + headers.length)}${currentRow}`);
-  const footerCell = worksheet.getCell(`A${currentRow}`);
-  footerCell.value = `Generated by Sistem Rekap - ${new Date().getFullYear()}`;
-  footerCell.font = { size: 9, italic: true, color: { argb: "FF999999" } };
-  footerCell.alignment = { horizontal: "center", vertical: "middle" };
-  worksheet.getRow(currentRow).height = 20;
-
-  // ============================================================================
-  // SEND RESPONSE
-  // ============================================================================
-  res.setHeader(
-    "Content-Type",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-  );
-  res.setHeader(
-    "Content-Disposition",
-    `attachment; filename="${filterInfo.filename || filename}.xlsx"`
-  );
+  // SEND
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="${filterInfo.filename || filename}.xlsx"`);
 
   await workbook.xlsx.write(res);
   res.end();
@@ -350,13 +346,13 @@ export async function generateExcel(filename, headers, rows, filterInfo, res) {
  * Calculate summary based on report type
  * @param {Array} rows - Data rows
  * @param {string} title - Report title
- * @returns {Object} Summary object
+ * @returns {Object} Summary object with numeric values
  */
 function calculateSummary(rows, title) {
   if (!rows || rows.length === 0) return {};
 
   const summary = {};
-  const titleLower = title.toLowerCase();
+  const titleLower = (title || "").toLowerCase();
 
   // Rekap Order
   if (titleLower.includes("order") && !titleLower.includes("gabungan")) {
@@ -365,43 +361,41 @@ function calculateSummary(rows, title) {
     let totalHasilAkhir = 0;
 
     rows.forEach(row => {
-      totalUangJalan += parseFloat(row.uang_jalan || 0);
-      totalPotongan += parseFloat(row.potongan || 0);
-      totalHasilAkhir += parseFloat(row.hasil_akhir || 0);
+      totalUangJalan += Number(row.uang_jalan || 0);
+      totalPotongan += Number(row.potongan || 0);
+      totalHasilAkhir += Number(row.hasil_akhir || 0);
     });
 
-    summary["Total Uang Jalan"] = `Rp ${totalUangJalan.toLocaleString("id-ID")}`;
-    summary["Total Potongan"] = `Rp ${totalPotongan.toLocaleString("id-ID")}`;
-    summary["Grand Total"] = `Rp ${totalHasilAkhir.toLocaleString("id-ID")}`;
+    summary["Total Uang Jalan"] = totalUangJalan;
+    summary["Total Potongan"] = totalPotongan;
+    summary["Grand Total"] = totalHasilAkhir;
   }
   // Rekap Buangan
   else if (titleLower.includes("buangan")) {
     let totalUangAlihan = 0;
-
     rows.forEach(row => {
-      totalUangAlihan += parseFloat(row.uang_alihan || 0);
+      totalUangAlihan += Number(row.uang_alihan || 0);
     });
-
-    summary["Grand Total"] = `Rp ${totalUangAlihan.toLocaleString("id-ID")}`;
+    summary["Total Uang Alihan"] = totalUangAlihan;
   }
   // Rekap Gabungan
   else if (titleLower.includes("gabungan")) {
     let totalUangJalan = 0;
     let totalPotongan = 0;
-    let totalHasilAkhir = 0;
     let totalUangAlihan = 0;
 
     rows.forEach(row => {
-      totalUangJalan += parseFloat(row.uang_jalan || 0);
-      totalPotongan += parseFloat(row.potongan || 0);
-      totalHasilAkhir += parseFloat(row.hasil_akhir || 0);
-      totalUangAlihan += parseFloat(row.uang_alihan || 0);
+      totalUangJalan += Number(row.uang_jalan || 0);
+      totalPotongan += Number(row.potongan || 0);
+      totalUangAlihan += Number(row.uang_alihan || 0);
     });
 
-    summary["Total Uang Jalan"] = `Rp ${totalUangJalan.toLocaleString("id-ID")}`;
-    summary["Total Potongan"] = `Rp ${totalPotongan.toLocaleString("id-ID")}`;
-    summary["Total Uang Alihan"] = `Rp ${totalUangAlihan.toLocaleString("id-ID")}`;
-    summary["Grand Total"] = `Rp ${(totalHasilAkhir + totalUangAlihan).toLocaleString("id-ID")}`;
+    const grandTotal = totalUangJalan - totalPotongan;
+
+    summary["Total Uang Jalan"] = totalUangJalan;
+    summary["Total Potongan"] = totalPotongan;
+    summary["Grand Total (UJ - Potongan)"] = grandTotal;
+    summary["Total Uang Alihan"] = totalUangAlihan;
   }
 
   return summary;

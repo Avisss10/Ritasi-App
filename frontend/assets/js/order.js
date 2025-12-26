@@ -81,7 +81,7 @@ function initEventListeners() {
 async function loadOrdersTodayYesterday() {
     try {
         showLoading();
-        const response = await fetch(`${API_BASE_URL}/order/today-yesterday`);
+        const response = await fetch(`${API_BASE_URL}/order`);
         
         if (!response.ok) {
             const text = await response.text();
@@ -91,15 +91,12 @@ async function loadOrdersTodayYesterday() {
         const result = await response.json();
 
         if (result.status) {
-            orderData = result.data.orders;
+            orderData = result.data;
             filteredData = orderData; // Set filtered data awal
             currentPage = 1; // Reset ke halaman pertama
             
-            // Tampilkan info tanggal hari ini dan kemarin di console
-            console.log(`📅 Menampilkan data:
-            - Hari Ini: ${formatDate(result.data.today)}
-            - Kemarin: ${formatDate(result.data.yesterday)}
-            - Total Order: ${orderData.length}`);
+            // Tampilkan info total order di console
+            console.log(`📅 Menampilkan semua data order: ${orderData.length} order`);
             
             renderTable();
             renderPagination();

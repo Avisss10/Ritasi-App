@@ -149,33 +149,6 @@ function toggleDateRangeBongkarGabungan() {
     }
 }
 
-function toggleDateRangeGabungan() {
-    const filterType = document.getElementById('filter-tanggal-type-gabungan').value;
-    const dateRangeDiv = document.getElementById('date-range-gabungan');
-    const dariInput = document.getElementById('filter-tanggal-dari-gabungan');
-    const sampaiInput = document.getElementById('filter-tanggal-sampai-gabungan');
-    
-    if (filterType === 'manual') {
-        dateRangeDiv.classList.add('show');
-        dariInput.value = '';
-        sampaiInput.value = '';
-    } else {
-        dateRangeDiv.classList.remove('show');
-        
-        if (filterType === 'hari-ini') {
-            const today = getToday();
-            dariInput.value = today;
-            sampaiInput.value = today;
-        } else if (filterType === '7-hari') {
-            dariInput.value = get7DaysAgo();
-            sampaiInput.value = getToday();
-        } else if (filterType === 'semua') {
-            dariInput.value = '';
-            sampaiInput.value = '';
-        }
-    }
-}
-
 function toggleGalianAlihanFilter() {
     const alihanSelect = document.getElementById('filter-alihan-gabungan');
     const galianAlihanDiv = document.getElementById('galian-alihan-filter-gabungan');
@@ -183,15 +156,12 @@ function toggleGalianAlihanFilter() {
     const galianAlihanIdInput = document.getElementById('filter-galian-alihan-gabungan-id');
     
     if (alihanSelect.value === '1') {
-        // Show galian alihan filter and load used galian only
         galianAlihanDiv.classList.add('show');
         loadUsedGalianAlihan();
     } else {
-        // Hide and clear
         galianAlihanDiv.classList.remove('show');
         galianAlihanInput.value = '';
         galianAlihanIdInput.value = '';
-        // Clear the datalist
         const datalist = document.getElementById('datalist-galian-alihan-gabungan');
         if (datalist) datalist.innerHTML = '';
     }
@@ -246,18 +216,15 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.classList.add('active');
             document.getElementById(`${tabName}-tab`).classList.add('active');
             
-            // Load data for buangan tab when switching to it
             if (tabName === 'buangan') {
                 loadRekapBuangan();
             }
-            // TAMBAHKAN INI - Load data for gabungan tab
             if (tabName === 'gabungan') {
                 loadRekapGabungan();
             }
         });
     });
     
-    // Real-time search untuk proyek input
     const proyekInput = document.getElementById('filter-proyek-order');
     if (proyekInput) {
         let typingTimer;
@@ -271,7 +238,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Setup autocomplete event listeners
     setupAutocompleteListeners();
 });
 
@@ -290,7 +256,6 @@ function setupAutocompleteListeners() {
             const selectedItem = masterKendaraan.find(k => k.no_pintu === this.value);
             if (selectedItem) {
                 document.getElementById('filter-kendaraan-order-id').value = selectedItem.id;
-                console.log('Kendaraan terpilih:', selectedItem);
             } else {
                 document.getElementById('filter-kendaraan-order-id').value = '';
             }
@@ -308,7 +273,6 @@ function setupAutocompleteListeners() {
             const selectedItem = masterSupir.find(s => s.nama === this.value);
             if (selectedItem) {
                 document.getElementById('filter-supir-order-id').value = selectedItem.id;
-                console.log('Supir terpilih:', selectedItem);
             } else {
                 document.getElementById('filter-supir-order-id').value = '';
             }
@@ -326,14 +290,13 @@ function setupAutocompleteListeners() {
             const selectedItem = masterGalian.find(g => g.nama_galian === this.value);
             if (selectedItem) {
                 document.getElementById('filter-galian-order-id').value = selectedItem.id;
-                console.log('Galian terpilih:', selectedItem);
             } else {
                 document.getElementById('filter-galian-order-id').value = '';
             }
         });
     }
 
-    // === GABUNGAN AUTOCOMPLETE ===
+    // GABUNGAN AUTOCOMPLETE
     const kendaraanGabunganInput = document.getElementById('filter-kendaraan-gabungan');
     if (kendaraanGabunganInput) {
         kendaraanGabunganInput.addEventListener('input', function() {
@@ -344,7 +307,6 @@ function setupAutocompleteListeners() {
             const selectedItem = masterKendaraan.find(k => k.no_pintu === this.value);
             if (selectedItem) {
                 document.getElementById('filter-kendaraan-gabungan-id').value = selectedItem.id;
-                console.log('Kendaraan (Gabungan) terpilih:', selectedItem);
             } else {
                 document.getElementById('filter-kendaraan-gabungan-id').value = '';
             }
@@ -361,14 +323,12 @@ function setupAutocompleteListeners() {
             const selectedItem = masterGalian.find(g => g.nama_galian === this.value);
             if (selectedItem) {
                 document.getElementById('filter-galian-gabungan-id').value = selectedItem.id;
-                console.log('Galian (Gabungan) terpilih:', selectedItem);
             } else {
                 document.getElementById('filter-galian-gabungan-id').value = '';
             }
         });
     }
 
-    // Real-time search untuk proyek gabungan
     const proyekGabunganInput = document.getElementById('filter-proyek-gabungan');
     if (proyekGabunganInput) {
         let typingTimer;
@@ -382,7 +342,6 @@ function setupAutocompleteListeners() {
         });
     }
 
-    // Galian Alihan autocomplete untuk gabungan
     const galianAlihanGabunganInput = document.getElementById('filter-galian-alihan-gabungan');
     if (galianAlihanGabunganInput) {
         galianAlihanGabunganInput.addEventListener('input', function() {
@@ -393,14 +352,12 @@ function setupAutocompleteListeners() {
             const selectedItem = masterGalian.find(g => g.nama_galian === this.value);
             if (selectedItem) {
                 document.getElementById('filter-galian-alihan-gabungan-id').value = selectedItem.id;
-                console.log('Galian Alihan (Gabungan) terpilih:', selectedItem);
             } else {
                 document.getElementById('filter-galian-alihan-gabungan-id').value = '';
             }
         });
     }
 
-    // Real-time search untuk lokasi bongkar gabungan
     const lokasiBongkarGabunganInput = document.getElementById('filter-lokasi-bongkar-gabungan');
     if (lokasiBongkarGabunganInput) {
         let typingTimer;
@@ -425,7 +382,6 @@ function filterDatalist(searchTerm, dataArray, datalistId, displayKey) {
     datalist.innerHTML = '';
     
     if (!searchTerm || searchTerm.length < 1) {
-        // Tampilkan semua jika input kosong atau kurang dari 1 karakter
         dataArray.slice(0, 50).forEach(item => {
             const option = document.createElement('option');
             option.value = item[displayKey];
@@ -434,13 +390,11 @@ function filterDatalist(searchTerm, dataArray, datalistId, displayKey) {
         return;
     }
     
-    // Filter berdasarkan search term
     const filtered = dataArray.filter(item => 
         item[displayKey] && 
         item[displayKey].toString().toLowerCase().includes(searchTerm.toLowerCase())
     );
     
-    // Tampilkan maksimal 50 hasil
     filtered.slice(0, 50).forEach(item => {
         const option = document.createElement('option');
         option.value = item[displayKey];
@@ -458,21 +412,12 @@ async function loadMasterData() {
     await loadSupir();
     await loadGalian();
 
-    // TAMBAHKAN INI:
-    // Populate datalist untuk gabungan
     if (masterKendaraan.length > 0) {
         populateDatalist('datalist-kendaraan-gabungan', masterKendaraan, 'no_pintu');
     }
     if (masterGalian.length > 0) {
         populateDatalist('datalist-galian-gabungan', masterGalian, 'nama_galian');
-    }
-    // Populate datalist untuk gabungan
-    if (masterKendaraan.length > 0) {
-        populateDatalist('datalist-kendaraan-gabungan', masterKendaraan, 'no_pintu');
-    }
-    if (masterGalian.length > 0) {
-        populateDatalist('datalist-galian-gabungan', masterGalian, 'nama_galian');
-        populateDatalist('datalist-galian-alihan-gabungan', masterGalian, 'nama_galian'); // TAMBAHKAN BARIS INI
+        populateDatalist('datalist-galian-alihan-gabungan', masterGalian, 'nama_galian');
     }
 
     console.log('✅ Master data loading completed\n');
@@ -600,7 +545,6 @@ function populateDatalist(datalistId, data, textKey) {
         return;
     }
     
-    // Populate dengan maksimal 50 item pertama
     data.slice(0, 50).forEach(item => {
         if (item[textKey] !== undefined) {
             const option = document.createElement('option');
@@ -677,7 +621,6 @@ async function loadRekapOrder() {
         if (data && Array.isArray(data) && data.length > 0) {
             console.log(`✅ Displaying ${data.length} order records`);
 
-            // Calculate totals
             let totalUangJalan = 0;
             let totalPotongan = 0;
             let totalHasilAkhir = 0;
@@ -702,8 +645,8 @@ async function loadRekapOrder() {
                 }
 
                 const isComplete = (row.status || '').toUpperCase() === 'COMPLETE';
-                const actionButton = isComplete ?
-                    `<button class="btn btn-info btn-sm" onclick="showOrderDetail(${row.id})">Detail</button>` :
+                const actionButton = (isComplete && row.id) ?
+                    `<button class="btn btn-info btn-sm" onclick="showOrderDetail('${row.id}')">Detail</button>` :
                     '-';
 
                 return `
@@ -729,12 +672,10 @@ async function loadRekapOrder() {
                 `;
             }).join('');
 
-            // Display summary for Order
             displayOrderSummary(totalUangJalan, totalPotongan, totalHasilAkhir);
         } else {
             console.log('ℹ️ No order data found');
             tbody.innerHTML = '<tr><td colspan="17" class="text-center">Tidak ada data order</td></tr>';
-            // Clear summary when no data
             const summaryDiv = document.getElementById('summary-order');
             if (summaryDiv) summaryDiv.innerHTML = '';
         }
@@ -762,11 +703,11 @@ function resetFilterOrder() {
 }
 
 // ============================================================================
-// REKAP BUANGAN
+// REKAP BUANGAN (DENGAN KOLOM BUANGAN/LOKASI_BONGKAR)
 // ============================================================================
 async function loadRekapBuangan() {
     const tbody = document.getElementById('tbody-buangan');
-    tbody.innerHTML = '<tr><td colspan="12" class="text-center loading">Memuat data...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="13" class="text-center loading">Memuat data...</td></tr>';
 
     try {
         const params = new URLSearchParams();
@@ -823,12 +764,7 @@ async function loadRekapBuangan() {
         if (data && Array.isArray(data) && data.length > 0) {
             console.log(`✅ Displaying ${data.length} buangan records`);
 
-            // Calculate totals
             let totalUangAlihan = 0;
-
-            data.forEach(row => {
-                totalUangAlihan += parseFloat(row.uang_alihan || 0);
-            });
 
             tbody.innerHTML = data.map((row, index) => `
                 <tr>
@@ -839,6 +775,7 @@ async function loadRekapBuangan() {
                     <td>${row.jam_bongkar || '-'}</td>
                     <td>${formatKilometer(row.km_akhir)}</td>
                     <td>${formatKilometer(row.jarak_km)}</td>
+                    <td>${row.lokasi_bongkar || '-'}</td>
                     <td>${row.alihan ? 'Ya' : 'Tidak'}</td>
                     <td>${row.galian_alihan_nama || '-'}</td>
                     <td>${row.keterangan || '-'}</td>
@@ -847,27 +784,40 @@ async function loadRekapBuangan() {
                 </tr>
             `).join('');
 
-            // Display summary for Buangan
+            data.forEach(row => {
+                totalUangAlihan += parseFloat(row.uang_alihan || 0);
+            });
+
             displayBuanganSummary(totalUangAlihan);
         } else {
             console.log('ℹ️ No buangan data found');
-            tbody.innerHTML = '<tr><td colspan="12" class="text-center">Tidak ada data buangan</td></tr>';
-            // Clear summary when no data
+            tbody.innerHTML = '<tr><td colspan="13" class="text-center">Tidak ada data buangan</td></tr>';
             const summaryDiv = document.getElementById('summary-buangan');
             if (summaryDiv) summaryDiv.innerHTML = '';
         }
     } catch (err) {
         console.error('❌ Error loading rekap buangan:', err);
-        tbody.innerHTML = `<tr><td colspan="12" class="text-center" style="color: red;">Error: ${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="13" class="text-center" style="color: red;">Error: ${err.message}</td></tr>`;
     }
 }
 
+function resetFilterBuangan() {
+    console.log('🔄 Resetting Buangan filters...');
+    document.getElementById('filter-tanggal-type-buangan').value = 'semua';
+    document.getElementById('filter-tanggal-dari-buangan').value = '';
+    document.getElementById('filter-tanggal-sampai-buangan').value = '';
+    document.getElementById('filter-no-order').value = '';
+    document.getElementById('filter-alihan').value = '';
+    document.getElementById('date-range-buangan').classList.remove('show');
+    loadRekapBuangan();
+}
+
 // ============================================================================
-// REKAP GABUNGAN
+// REKAP GABUNGAN (DENGAN KOLOM BUANGAN/LOKASI_BONGKAR)
 // ============================================================================
 async function loadRekapGabungan() {
     const tbody = document.getElementById('tbody-gabungan');
-    tbody.innerHTML = '<tr><td colspan="22" class="text-center loading">Memuat data...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="23" class="text-center loading">Memuat data...</td></tr>';
 
     try {
         const params = new URLSearchParams();
@@ -931,7 +881,6 @@ async function loadRekapGabungan() {
         if (data && Array.isArray(data) && data.length > 0) {
             console.log(`✅ Displaying ${data.length} gabungan records`);
 
-            // Calculate totals
             let totalUangJalan = 0;
             let totalPotongan = 0;
             let totalUangAlihan = 0;
@@ -962,8 +911,9 @@ async function loadRekapGabungan() {
                 return `
                     <tr>
                         <td>${index + 1}</td>
+                        <td>${row.no_order || '-'}</td>
                         <td>${formatDate(row.tanggal_order)}</td>
-                        <td>${row.petugas_order || '-'}</td>
+                        <td>${row.petugas || '-'}</td>
                         <td>${row.galian || '-'}</td>
                         <td>${row.galian_alihan || '-'}</td>
                         <td>${row.no_do || '-'}</td>
@@ -979,7 +929,7 @@ async function loadRekapGabungan() {
                         <td>${formatCurrency(row.potongan)}</td>
                         <td>${formatCurrency(total)}</td>
                         <td>${row.proyek || '-'}</td>
-                        <td>${row.lokasi_bongkar || '-'}</td>
+                        <td>${row.buangan || '-'}</td>
                         <td>${formatCurrency(row.uang_alihan)}</td>
                         <td>${row.keterangan || '-'}</td>
                         <td><span style="${statusStyle}">${row.status || '-'}</span></td>
@@ -987,30 +937,17 @@ async function loadRekapGabungan() {
                 `;
             }).join('');
 
-            // Display summary for Gabungan
             displayGabunganSummary(totalUangJalan, totalPotongan, grandTotal, totalUangAlihan);
         } else {
             console.log('ℹ️ No gabungan data found');
-            tbody.innerHTML = '<tr><td colspan="22" class="text-center">Tidak ada data gabungan</td></tr>';
-            // Clear summary when no data
+            tbody.innerHTML = '<tr><td colspan="23" class="text-center">Tidak ada data gabungan</td></tr>';
             const summaryDiv = document.getElementById('summary-gabungan');
             if (summaryDiv) summaryDiv.innerHTML = '';
         }
     } catch (err) {
         console.error('❌ Error loading rekap gabungan:', err);
-        tbody.innerHTML = `<tr><td colspan="22" class="text-center" style="color: red;">Error: ${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="23" class="text-center" style="color: red;">Error: ${err.message}</td></tr>`;
     }
-}
-
-function resetFilterBuangan() {
-    console.log('🔄 Resetting Buangan filters...');
-    document.getElementById('filter-tanggal-type-buangan').value = 'semua';
-    document.getElementById('filter-tanggal-dari-buangan').value = '';
-    document.getElementById('filter-tanggal-sampai-buangan').value = '';
-    document.getElementById('filter-no-order').value = '';
-    document.getElementById('filter-alihan').value = '';
-    document.getElementById('date-range-buangan').classList.remove('show');
-    loadRekapBuangan();
 }
 
 function resetFilterGabungan() {
@@ -1037,7 +974,6 @@ function resetFilterGabungan() {
     loadRekapGabungan();
 }
 
-
 // ============================================================================
 // EXPORT FUNCTIONS
 // ============================================================================
@@ -1049,13 +985,13 @@ async function exportToExcel(type) {
         if (type === 'order') {
             endpoint = '/rekap/order/export/excel';
             const filters = {
-                tanggal_dari: document.getElementById('filter-tanggal-dari-order').value,
-                tanggal_sampai: document.getElementById('filter-tanggal-sampai-order').value,
-                proyek_input: document.getElementById('filter-proyek-order').value,
-                status: document.getElementById('filter-status-order').value,
-                kendaraan_id: document.getElementById('filter-kendaraan-order-id').value,
-                supir_id: document.getElementById('filter-supir-order-id').value,
-                galian_id: document.getElementById('filter-galian-order-id').value
+                tanggal_dari: document.getElementById('filter-tanggal-dari-order')?.value || "",
+                tanggal_sampai: document.getElementById('filter-tanggal-sampai-order')?.value || "",
+                proyek_input: document.getElementById('filter-proyek-order')?.value || "",
+                status: document.getElementById('filter-status-order')?.value || "",
+                kendaraan_id: document.getElementById('filter-kendaraan-order-id')?.value || "",
+                supir_id: document.getElementById('filter-supir-order-id')?.value || "",
+                galian_id: document.getElementById('filter-galian-order-id')?.value || ""
             };
             Object.keys(filters).forEach(key => {
                 if (filters[key]) params.append(key, filters[key]);
@@ -1063,9 +999,9 @@ async function exportToExcel(type) {
         } else if (type === 'buangan') {
             endpoint = '/rekap/buangan/export/excel';
             const filters = {
-                tanggal_dari: document.getElementById('filter-tanggal-dari-buangan').value,
-                tanggal_sampai: document.getElementById('filter-tanggal-sampai-buangan').value,
-                no_order: document.getElementById('filter-no-order').value
+                tanggal_dari: document.getElementById('filter-tanggal-dari-buangan')?.value || "",
+                tanggal_sampai: document.getElementById('filter-tanggal-sampai-buangan')?.value || "",
+                no_order: document.getElementById('filter-no-order')?.value || ""
             };
             Object.keys(filters).forEach(key => {
                 if (filters[key]) params.append(key, filters[key]);
@@ -1073,12 +1009,12 @@ async function exportToExcel(type) {
         } else if (type === 'gabungan') {
             endpoint = '/rekap/gabungan/export/excel';
             const filters = {
-                tanggal_dari: document.getElementById('filter-tanggal-dari-gabungan').value,
-                tanggal_sampai: document.getElementById('filter-tanggal-sampai-gabungan').value,
-                proyek_input: document.getElementById('filter-proyek-gabungan').value,
-                status: document.getElementById('filter-status-gabungan').value,
-                kendaraan_id: document.getElementById('filter-kendaraan-gabungan-id').value,
-                galian_id: document.getElementById('filter-galian-gabungan-id').value
+                tanggal_dari: document.getElementById('filter-tanggal-dari-gabungan')?.value || "",
+                tanggal_sampai: document.getElementById('filter-tanggal-sampai-gabungan')?.value || "",
+                proyek_input: document.getElementById('filter-proyek-gabungan')?.value || "",
+                status: document.getElementById('filter-status-gabungan')?.value || "",
+                kendaraan_id: document.getElementById('filter-kendaraan-gabungan-id')?.value || "",
+                galian_id: document.getElementById('filter-galian-gabungan-id')?.value || ""
             };
             Object.keys(filters).forEach(key => {
                 if (filters[key]) params.append(key, filters[key]);
@@ -1116,13 +1052,13 @@ async function exportToPDF(type) {
         if (type === 'order') {
             endpoint = '/rekap/order/export/pdf';
             const filters = {
-                tanggal_dari: document.getElementById('filter-tanggal-dari-order').value,
-                tanggal_sampai: document.getElementById('filter-tanggal-sampai-order').value,
-                proyek_input: document.getElementById('filter-proyek-order').value,
-                status: document.getElementById('filter-status-order').value,
-                kendaraan_id: document.getElementById('filter-kendaraan-order-id').value,
-                supir_id: document.getElementById('filter-supir-order-id').value,
-                galian_id: document.getElementById('filter-galian-order-id').value
+                tanggal_dari: document.getElementById('filter-tanggal-dari-order')?.value || "",
+                tanggal_sampai: document.getElementById('filter-tanggal-sampai-order')?.value || "",
+                proyek_input: document.getElementById('filter-proyek-order')?.value || "",
+                status: document.getElementById('filter-status-order')?.value || "",
+                kendaraan_id: document.getElementById('filter-kendaraan-order-id')?.value || "",
+                supir_id: document.getElementById('filter-supir-order-id')?.value || "",
+                galian_id: document.getElementById('filter-galian-order-id')?.value || ""
             };
             Object.keys(filters).forEach(key => {
                 if (filters[key]) params.append(key, filters[key]);
@@ -1130,9 +1066,9 @@ async function exportToPDF(type) {
         } else if (type === 'buangan') {
             endpoint = '/rekap/buangan/export/pdf';
             const filters = {
-                tanggal_dari: document.getElementById('filter-tanggal-dari-buangan').value,
-                tanggal_sampai: document.getElementById('filter-tanggal-sampai-buangan').value,
-                no_order: document.getElementById('filter-no-order').value
+                tanggal_dari: document.getElementById('filter-tanggal-dari-buangan')?.value || "",
+                tanggal_sampai: document.getElementById('filter-tanggal-sampai-buangan')?.value || "",
+                no_order: document.getElementById('filter-no-order')?.value || ""
             };
             Object.keys(filters).forEach(key => {
                 if (filters[key]) params.append(key, filters[key]);
@@ -1140,12 +1076,12 @@ async function exportToPDF(type) {
         } else if (type === 'gabungan') {
             endpoint = '/rekap/gabungan/export/pdf';
             const filters = {
-                tanggal_dari: document.getElementById('filter-tanggal-dari-gabungan').value,
-                tanggal_sampai: document.getElementById('filter-tanggal-sampai-gabungan').value,
-                proyek_input: document.getElementById('filter-proyek-gabungan').value,
-                status: document.getElementById('filter-status-gabungan').value,
-                kendaraan_id: document.getElementById('filter-kendaraan-gabungan-id').value,
-                galian_id: document.getElementById('filter-galian-gabungan-id').value
+                tanggal_dari: document.getElementById('filter-tanggal-dari-gabungan')?.value || "",
+                tanggal_sampai: document.getElementById('filter-tanggal-sampai-gabungan')?.value || "",
+                proyek_input: document.getElementById('filter-proyek-gabungan')?.value || "",
+                status: document.getElementById('filter-status-gabungan')?.value || "",
+                kendaraan_id: document.getElementById('filter-kendaraan-gabungan-id')?.value || "",
+                galian_id: document.getElementById('filter-galian-gabungan-id')?.value || ""
             };
             Object.keys(filters).forEach(key => {
                 if (filters[key]) params.append(key, filters[key]);
@@ -1176,17 +1112,15 @@ async function exportToPDF(type) {
 }
 
 // ============================================================================
-// ORDER DETAIL MODAL FUNCTIONS
+// ORDER DETAIL MODAL FUNCTIONS (DENGAN LOKASI BONGKAR)
 // ============================================================================
 async function showOrderDetail(orderId) {
     try {
         console.log('📋 Showing order detail for ID:', orderId);
 
-        // Show modal
         const modal = document.getElementById('order-detail-modal');
         modal.style.display = 'block';
 
-        // Load order data
         const orderResponse = await fetch(`${API_URL}/rekap/order/${orderId}`);
         if (!orderResponse.ok) {
             throw new Error(`Failed to fetch order: ${orderResponse.status}`);
@@ -1195,7 +1129,6 @@ async function showOrderDetail(orderId) {
         
         console.log('Order API Response:', orderResult);
         
-        // Handle different response structures
         let orderData = null;
         if (orderResult.data) {
             orderData = Array.isArray(orderResult.data) 
@@ -1213,7 +1146,6 @@ async function showOrderDetail(orderId) {
 
         console.log('Extracted order data:', orderData);
 
-        // Load buangan data untuk order ini
         const buanganResponse = await fetch(`${API_URL}/rekap/buangan/by-order/${orderId}`);
         if (!buanganResponse.ok) {
             throw new Error(`Failed to fetch buangan: ${buanganResponse.status}`);
@@ -1222,7 +1154,6 @@ async function showOrderDetail(orderId) {
         
         console.log('Buangan API Response:', buanganResult);
         
-        // Normalize buangan array
         let buanganData = [];
         if (buanganResult.data) {
             buanganData = Array.isArray(buanganResult.data) ? buanganResult.data : [buanganResult.data];
@@ -1233,10 +1164,8 @@ async function showOrderDetail(orderId) {
         console.log('Extracted buangan data:', buanganData);
         console.log('Buangan count:', buanganData.length);
 
-        // Populate order info
         populateOrderInfo(orderData);
 
-        // Populate buangan cards
         const container = document.getElementById('buangan-cards');
         if (buanganData.length > 0) {
             container.innerHTML = '';
@@ -1247,13 +1176,11 @@ async function showOrderDetail(orderId) {
             container.innerHTML = '<p class="no-data">Tidak ada data buangan untuk order ini</p>';
         }
 
-        // Setup modal close event
         const closeBtn = modal.querySelector('.modal-close');
         closeBtn.onclick = () => {
             modal.style.display = 'none';
         };
 
-        // Close modal when clicking outside
         window.onclick = (event) => {
             if (event.target === modal) {
                 modal.style.display = 'none';
@@ -1287,7 +1214,7 @@ function populateBuanganCard(buangan, orderData, container) {
                 <span class="value">${buangan.jam_bongkar || '-'}</span>
             </div>
             <div class="card-row">
-                <span class="label">Lokasi Bongkar:</span>
+                <span class="label">Buangan (Lokasi):</span>
                 <span class="value">${buangan.lokasi_bongkar || '-'}</span>
             </div>
             <div class="card-row">
@@ -1353,37 +1280,6 @@ function populateOrderInfo(orderData) {
         grid.appendChild(div);
     });
 }
-function populateOrderInfo(orderData) {
-    const grid = document.getElementById('order-info-grid');
-    grid.innerHTML = '';
-
-    const infoItems = [
-        { label: 'No Order', value: orderData.no_order || '-' },
-        { label: 'Tanggal Order', value: formatDate(orderData.tanggal_order) },
-        { label: 'Petugas', value: orderData.petugas_order || '-' },
-        { label: 'Kendaraan', value: orderData.kendaraan_nama || orderData.no_pintu || '-' },
-        { label: 'Supir', value: orderData.supir_nama || '-' },
-        { label: 'Galian', value: orderData.galian_nama || '-' },
-        { label: 'No DO', value: orderData.no_do || '-' },
-        { label: 'Jam Order', value: orderData.jam_order || '-' },
-        { label: 'KM Awal', value: formatKilometer(orderData.km_awal) },
-        { label: 'Uang Jalan', value: formatCurrency(orderData.uang_jalan) },
-        { label: 'Potongan', value: formatCurrency(orderData.potongan) },
-        { label: 'Hasil Akhir', value: formatCurrency(orderData.hasil_akhir) },
-        { label: 'Proyek', value: orderData.proyek_input || '-' },
-        { label: 'Status', value: orderData.status || '-' }
-    ];
-
-    infoItems.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'info-item';
-        div.innerHTML = `
-            <strong>${item.label}:</strong> ${item.value}
-        `;
-        grid.appendChild(div);
-    });
-}
-
 
 // ============================================================================
 // SUMMARY DISPLAY FUNCTIONS
@@ -1462,6 +1358,7 @@ function displayGabunganSummary(totalUangJalan, totalPotongan, grandTotal, total
         </div>
     `;
 }
+
 // ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
@@ -1471,7 +1368,6 @@ function formatCurrency(value) {
 }
 
 function formatKilometer(value) {
-    // Handle ODO ERROR
     if (typeof value === 'string' && 
         (value.toUpperCase() === 'ODO ERROR' || 
          value.toUpperCase() === 'ODOERROR' ||
@@ -1482,7 +1378,6 @@ function formatKilometer(value) {
     
     if (!value || value === 0) return '0';
     
-    // Handle numeric values
     const numValue = parseFloat(value);
     if (isNaN(numValue)) return '0';
     

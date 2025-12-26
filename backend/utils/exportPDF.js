@@ -1,6 +1,95 @@
 import PDFDocument from "pdfkit";
 
 /**
+ * Generate descriptive filename based on filter info
+ * @param {string} baseName - Base filename
+ * @param {Object} filterInfo - Filter information
+ * @returns {string} Formatted filename
+ */
+function generateFilename(baseName, filterInfo) {
+  let filename = baseName;
+  const filterParts = [];
+  
+  if (filterInfo.filters) {
+    // Prioritize date range filters first
+    if (filterInfo.filters["Periode"]) {
+      const period = filterInfo.filters["Periode"];
+      const cleanPeriod = period
+        .replace(/s\/d/g, '_sd_')
+        .replace(/\//g, '-')
+        .replace(/\s+/g, '_');
+      filterParts.push(`Periode_${cleanPeriod}`);
+    }
+    
+    if (filterInfo.filters["Periode Order"]) {
+      const period = filterInfo.filters["Periode Order"];
+      const cleanPeriod = period
+        .replace(/s\/d/g, '_sd_')
+        .replace(/\//g, '-')
+        .replace(/\s+/g, '_');
+      filterParts.push(`Order_${cleanPeriod}`);
+    }
+    
+    if (filterInfo.filters["Periode Bongkar"]) {
+      const period = filterInfo.filters["Periode Bongkar"];
+      const cleanPeriod = period
+        .replace(/s\/d/g, '_sd_')
+        .replace(/\//g, '-')
+        .replace(/\s+/g, '_');
+      filterParts.push(`Bongkar_${cleanPeriod}`);
+    }
+    
+    // Add other important filters (limit to 3 most relevant)
+    const priorityFilters = ["Proyek", "Lokasi Bongkar", "Kendaraan", "Supir", "Galian", "Status", "Galian Alihan"];
+    let addedCount = 0;
+    
+    priorityFilters.forEach(filterKey => {
+      if (addedCount < 3 && filterInfo.filters[filterKey]) {
+        const value = filterInfo.filters[filterKey];
+        const cleanValue = value
+          .replace(/[<>:"/\\|?*]/g, '')
+          .replace(/\s+/g, '_')
+          .substring(0, 20);
+        filterParts.push(`${filterKey.replace(/\s+/g, '_')}_${cleanValue}`);
+        addedCount++;
+      }
+    });
+  }
+  
+  // Combine all parts
+  if (filterParts.length > 0) {
+    const filterString = filterParts.join('_').substring(0, 80);
+    filename = `${baseName}_${filterString}`;
+  }
+  
+  // Add timestamp for uniqueness
+  const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  filename = `${filename}_${timestamp}`;
+  
+  return filename.replace(/\s+/g, '_');
+}
+
+// Helper: Format nilai KM - dengan format biasa, 0 tetap 0
+function formatKM(value) {
+  if (value === null || value === undefined || value === "") {
+    return "0";
+  }
+  const numValue = Number(value);
+  if (isNaN(numValue)) {
+    return value;
+  }
+  return numValue.toLocaleString("id-ID");
+}
+
+// Helper: Format teks agar tidak ada titik-titik jika tidak muat
+function formatText(value, maxLength) {
+  if (!value) return "";
+  const strValue = String(value);
+  if (strValue.length <= maxLength) return strValue;
+  return strValue.substring(0, maxLength);
+}
+
+/**
  * Generate PDF file with professional formatting and summary
  * @param {string} title - Document title
  * @param {Array} rows - Data rows
@@ -8,10 +97,14 @@ import PDFDocument from "pdfkit";
  * @param {Object} res - Express response object
  */
 export function generatePDF(title, rows, filterInfo, res) {
+  const isGabungan = title.includes("GABUNGAN");
+  const isOrder = title.includes("ORDER") && !isGabungan;
+  const isBuangan = title.includes("BUANGAN");
+  
   const doc = new PDFDocument({
     margin: 20,
     size: "A4",
-    layout: "landscape",
+    layout: isGabungan ? "landscape" : "portrait",
     info: {
       Title: title,
       Author: "Sistem Rekap",
@@ -21,9 +114,12 @@ export function generatePDF(title, rows, filterInfo, res) {
   });
 
   res.setHeader("Content-Type", "application/pdf");
+  
+  // Generate descriptive filename
+  const exportFilename = generateFilename(filterInfo.filename || title, filterInfo);
   res.setHeader(
     "Content-Disposition",
-    `attachment; filename="${filterInfo.filename || title}.pdf"`
+    `attachment; filename="${exportFilename}.pdf"`
   );
 
   doc.pipe(res);
@@ -31,27 +127,24 @@ export function generatePDF(title, rows, filterInfo, res) {
   const pageWidth = doc.page.width - 40;
   const leftMargin = 20;
 
-  // ============================================================================
-  // HEADER SECTION
-  // ============================================================================
-  
+  // ======================================================================
+  // HEADER
+  // ======================================================================
   let yPosition = 20;
 
-  // Main Title
   doc
-    .fontSize(18)
+    .fontSize(16)
     .fillColor("#000000")
     .font("Helvetica-Bold")
-    .text(filterInfo.title || title, leftMargin, yPosition, {
+    .text(title, leftMargin, yPosition, {
       width: pageWidth,
       align: "center"
     });
 
-  yPosition += 28;
+  yPosition += 25;
 
-  // Export timestamp
   doc
-    .fontSize(10)
+    .fontSize(9)
     .fillColor("#666666")
     .font("Helvetica")
     .text(
@@ -70,9 +163,8 @@ export function generatePDF(title, rows, filterInfo, res) {
       }
     );
 
-  yPosition += 20;
+  yPosition += 15;
 
-  // Line separator
   doc
     .moveTo(leftMargin, yPosition)
     .lineTo(leftMargin + pageWidth, yPosition)
@@ -82,48 +174,56 @@ export function generatePDF(title, rows, filterInfo, res) {
 
   yPosition += 15;
 
-  // ============================================================================
-  // FILTER INFORMATION SECTION
-  // ============================================================================
-  if (filterInfo.filters && Object.keys(filterInfo.filters).length > 0) {
+  // ======================================================================
+  // FILTER INFO
+  // ======================================================================
+  if (filterInfo && filterInfo.filters && Object.keys(filterInfo.filters).length > 0) {
     doc
-      .fontSize(11)
+      .fontSize(10)
       .fillColor("#000000")
       .font("Helvetica-Bold")
-      .text("FILTER YANG DITERAPKAN", leftMargin, yPosition);
+      .text("FILTER YANG DITERAPKAN:", leftMargin, yPosition);
 
-    yPosition += 18;
+    yPosition += 15;
 
-    Object.entries(filterInfo.filters).forEach(([key, value]) => {
-      doc
-        .fontSize(10)
-        .fillColor("#000000")
-        .font("Helvetica-Bold")
-        .text(`${key}:`, leftMargin + 10, yPosition, { continued: true })
-        .font("Helvetica")
-        .text(` ${value}`);
-      
-      yPosition += 16;
+    const filters = Object.entries(filterInfo.filters);
+    const colWidth = pageWidth / 2 - 10;
+    
+    filters.forEach(([key, value], index) => {
+      if (value !== undefined && value !== null && value !== '') {
+        const col = index % 2;
+        const row = Math.floor(index / 2);
+        const xPos = leftMargin + 10 + (col * colWidth);
+        const yPos = yPosition + (row * 14);
+        
+        doc
+          .fontSize(9)
+          .fillColor("#000000")
+          .font("Helvetica-Bold")
+          .text(`${key}:`, xPos, yPos, { continued: true })
+          .font("Helvetica")
+          .text(` ${value}`);
+      }
     });
 
-    yPosition += 8;
+    const filterRows = Math.ceil(filters.length / 2);
+    yPosition += (filterRows * 14) + 10;
 
-    // Line separator
     doc
       .moveTo(leftMargin, yPosition)
       .lineTo(leftMargin + pageWidth, yPosition)
-      .lineWidth(1)
+      .lineWidth(0.8)
       .strokeColor("#CCCCCC")
       .stroke();
 
-    yPosition += 15;
+    yPosition += 10;
   }
 
-  // ============================================================================
-  // DATA SUMMARY (RECORD COUNT)
-  // ============================================================================
+  // ======================================================================
+  // SUMMARY COUNT
+  // ======================================================================
   doc
-    .fontSize(10)
+    .fontSize(9)
     .fillColor("#000000")
     .font("Helvetica-Bold")
     .text(
@@ -136,12 +236,11 @@ export function generatePDF(title, rows, filterInfo, res) {
       }
     );
 
-  yPosition += 20;
+  yPosition += 15;
 
-  // ============================================================================
-  // DATA TABLE SECTION
-  // ============================================================================
-  
+  // ======================================================================
+  // DATA TABLE - SEMUA DATA CENTER
+  // ======================================================================
   if (rows.length === 0) {
     doc
       .fontSize(12)
@@ -152,320 +251,380 @@ export function generatePDF(title, rows, filterInfo, res) {
         align: "center"
       });
   } else {
-    // Determine columns
-    const allColumns = Object.keys(rows[0]);
-    
-    // Define column configurations - REMOVED unused columns
-    const columnConfig = {
-      // Order columns
-      "no_order": { width: 250, label: "No Order" },
-      "tanggal_order": { width: 250, label: "Tanggal Order" },
-      "petugas_order": { width: 280, label: "Petugas" },
-      "petugas": { width: 280, label: "Petugas" },
-      "kendaraan": { width: 270, label: "Kendaraan" },
-      "kendaraan_nama": { width: 270, label: "Kendaraan" },
-      "supir": { width: 270, label: "Supir" },
-      "supir_nama": { width: 270, label: "Supir" },
-      "galian": { width: 280, label: "Galian" },
-      "galian_nama": { width: 280, label: "Galian" },
-      "no_do": { width: 245, label: "No DO" },
-      "jam_order": { width: 250, label: "Jam Order" },
-      "km_awal": { width: 300, label: "KM Awal" },
-      "uang_jalan": { width: 350, label: "Uang Jalan" },
-      "potongan": { width: 350, label: "Potongan" },
-      "hasil_akhir": { width: 350, label: "Hasil Akhir" },
-      "proyek_input": { width: 300, label: "Proyek" },
-      "proyek": { width: 300, label: "Proyek" },
-      "status": { width: 300, label: "Status" },
+    let columns = [];
+    let columnConfig = {};
 
-      // Buangan columns
-      "tanggal_bongkar": { width: 250, label: "Tgl Bongkar" },
-      "jam_bongkar": { width: 250, label: "Jam Bongkar" },
-      "km_akhir": { width: 300, label: "KM Akhir" },
-      "jarak_km": { width: 300, label: "Jarak KM" },
-      "alihan": { width: 300, label: "Alihan" },
-      "galian_alihan": { width: 280, label: "Galian Alihan" },
-      "galian_alihan_nama": { width: 280, label: "Galian Alihan" },
-      "keterangan": { width: 400, label: "Keterangan" },
-      "uang_alihan": { width: 350, label: "Uang Alihan" },
-      "no_urut": { width: 220, label: "No Urut" }
-    };
+    if (isGabungan) {
+      columns = [
+        "no", "no_order", "tanggal_order", "petugas", "galian", 
+        "galian_alihan", "no_do", "kendaraan", "supir", "jam_order",
+        "km_awal", "tanggal_bongkar", "jam_bongkar", "km_akhir", 
+        "jarak_km", "uang_jalan", "potongan", "total", "proyek",
+        "buangan", "uang_alihan", "keterangan", "status"
+      ];
+      
+      columnConfig = {
+        "no": { width: 25, label: "No" },
+        "no_order": { width: 40, label: "No Order" },
+        "tanggal_order": { width: 45, label: "Tgl Order" },
+        "petugas": { width: 40, label: "Petugas" },
+        "galian": { width: 40, label: "Galian" },
+        "galian_alihan": { width: 45, label: "Galian Alihan" },
+        "no_do": { width: 35, label: "No DO" },
+        "kendaraan": { width: 40, label: "Kendaraan" },
+        "supir": { width: 40, label: "Supir" },
+        "jam_order": { width: 35, label: "Jam Order" },
+        "km_awal": { width: 35, label: "KM Awal" },
+        "tanggal_bongkar": { width: 45, label: "Tgl Bongkar" },
+        "jam_bongkar": { width: 35, label: "Jam Bongkar" },
+        "km_akhir": { width: 35, label: "KM Akhir" },
+        "jarak_km": { width: 35, label: "Jarak KM" },
+        "uang_jalan": { width: 45, label: "Uang Jalan" },
+        "potongan": { width: 40, label: "Potongan" },
+        "total": { width: 45, label: "Total" },
+        "proyek": { width: 50, label: "Proyek" },
+        "buangan": { width: 50, label: "Buangan (Lokasi)" },
+        "uang_alihan": { width: 45, label: "Uang Alihan" },
+        "keterangan": { width: 60, label: "Keterangan" },
+        "status": { width: 35, label: "Status" }
+      };
+      
+    } else if (isOrder) {
+      columns = Object.keys(rows[0]).filter(key => !key.toLowerCase().includes('id'));
+      
+      if (!columns.includes("no") && !columns.includes("no_urut")) {
+        columns.unshift("row_number");
+      }
+      
+      columnConfig = {
+        "row_number": { width: 30, label: "No" },
+        "no": { width: 35, label: "No" },
+        "no_urut": { width: 35, label: "No" },
+        "tanggal_order": { width: 55, label: "Tgl Order" },
+        "no_order": { width: 60, label: "No Order" },
+        "petugas_order": { width: 55, label: "Petugas" },
+        "kendaraan_nama": { width: 55, label: "Kendaraan" },
+        "kendaraan": { width: 55, label: "Kendaraan" },
+        "supir_nama": { width: 55, label: "Supir" },
+        "supir": { width: 55, label: "Supir" },
+        "galian_nama": { width: 60, label: "Galian" },
+        "galian": { width: 60, label: "Galian" },
+        "no_do": { width: 45, label: "No DO" },
+        "jam_order": { width: 40, label: "Jam Order" },
+        "km_awal": { width: 40, label: "KM Awal" },
+        "uang_jalan": { width: 50, label: "Uang Jalan" },
+        "potongan": { width: 45, label: "Potongan" },
+        "hasil_akhir": { width: 50, label: "Hasil Akhir" },
+        "proyek_input": { width: 55, label: "Proyek" },
+        "proyek": { width: 55, label: "Proyek" },
+        "status": { width: 45, label: "Status" },
+        "keterangan_buangan": { width: 60, label: "Keterangan" }
+      };
+      
+    } else if (isBuangan) {
+      columns = Object.keys(rows[0]).filter(key => !key.toLowerCase().includes('id'));
+      
+      if (!columns.includes("no") && !columns.includes("no_urut")) {
+        columns.unshift("row_number");
+      }
+      
+      columnConfig = {
+        "row_number": { width: 30, label: "No" },
+        "no": { width: 35, label: "No" },
+        "no_urut": { width: 35, label: "No" },
+        "tanggal_order": { width: 55, label: "Tgl Order" },
+        "no_order": { width: 60, label: "No Order" },
+        "tanggal_bongkar": { width: 55, label: "Tgl Bongkar" },
+        "jam_bongkar": { width: 40, label: "Jam Bongkar" },
+        "km_akhir": { width: 40, label: "KM Akhir" },
+        "jarak_km": { width: 35, label: "Jarak" },
+        "lokasi_bongkar": { width: 65, label: "Buangan (Lokasi)" },
+        "alihan": { width: 35, label: "Alihan" },
+        "galian_alihan_nama": { width: 65, label: "Galian Alihan" },
+        "galian_alihan": { width: 65, label: "Galian Alihan" },
+        "keterangan": { width: 60, label: "Keterangan" },
+        "uang_alihan": { width: 50, label: "Uang Alihan" },
+        "urut_buangan": { width: 35, label: "No Urut" }
+      };
+    }
 
-    // Get columns to display (exclude internal IDs)
-    const columns = allColumns.filter(key => {
-      // Exclude ID columns
-      if (key.endsWith("_id") || key === "id" || key === "no") return false;
-      // Exclude unused columns
-      if (key === "total_ritasi" || key === "total_tonase" || 
-          key === "nilai_bayaran" || key === "order_id" ||
-          key === "jam_buang") return false;
-      return true;
-    });
-
-    // Calculate total width and adjust if needed
+    // Compute total width and scaling
     const totalWidth = columns.reduce((sum, col) => {
-      return sum + (columnConfig[col]?.width || 70);
+      return sum + (columnConfig[col]?.width || 60);
     }, 0);
 
-    // Scale widths if total exceeds page width
     const scale = totalWidth > pageWidth ? pageWidth / totalWidth : 1;
 
-    // Function to draw table header
     const drawTableHeader = (y) => {
       let xPos = leftMargin;
-      
       doc
-        .fontSize(9)
+        .fontSize(7)
         .fillColor("#FFFFFF")
         .font("Helvetica-Bold");
 
-      // Draw header background
       doc
-        .rect(leftMargin, y, pageWidth, 30)
+        .rect(leftMargin, y, pageWidth, 22)
         .fillColor("#1F4788")
         .fill();
 
       doc.fillColor("#FFFFFF");
 
       columns.forEach((col) => {
-        const config = columnConfig[col] || { width: 70, label: col };
+        const config = columnConfig[col] || { width: 60, label: col };
         const width = config.width * scale;
-        const label = config.label;
+        const label = config.label || col;
+
+        // Wrap text untuk label panjang - CENTER
+        const maxCharsPerLine = Math.floor(width / 3.5);
+        let lines = [];
+        let currentLine = '';
         
-        doc.text(label, xPos + 4, y + 8, {
-          width: width - 8,
-          align: "center",
-          lineBreak: false,
-          ellipsis: true
+        const words = label.split(' ');
+        for (const word of words) {
+          if ((currentLine + word).length <= maxCharsPerLine || !currentLine) {
+            currentLine += (currentLine ? ' ' : '') + word;
+          } else {
+            lines.push(currentLine);
+            currentLine = word;
+          }
+        }
+        if (currentLine) {
+          lines.push(currentLine);
+        }
+        
+        // Jika terlalu banyak baris, potong
+        if (lines.length > 2) {
+          lines = [lines[0], lines[1] + '...'];
+        }
+        
+        const lineHeight = 6;
+        const startY = y + 5;
+        
+        lines.forEach((line, index) => {
+          doc.text(line, xPos + 2, startY + (index * lineHeight), {
+            width: width - 4,
+            align: "center",
+            lineBreak: false
+          });
         });
-        
+
         xPos += width;
       });
 
-      const headerBottom = y + 30;
+      const headerBottom = y + 22;
       doc
         .moveTo(leftMargin, headerBottom)
         .lineTo(leftMargin + pageWidth, headerBottom)
-        .lineWidth(1.5)
+        .lineWidth(1)
         .strokeColor("#000000")
         .stroke();
 
-      return headerBottom + 4;
+      return headerBottom + 2;
     };
 
-    // Draw initial header
     yPosition = drawTableHeader(yPosition);
+    doc.fontSize(6).font("Helvetica");
 
-    // Table rows
-    doc.fontSize(8.5).font("Helvetica");
+    const rowHeight = isGabungan ? 24 : 22;
 
     rows.forEach((row, rowIndex) => {
-      const rowHeight = 35; // Increased to allow text wrapping
-
-      // Check if need new page
-      if (yPosition + rowHeight > doc.page.height - 80) {
-        doc.addPage();
+      // Check if we need a new page
+      if (yPosition + rowHeight > doc.page.height - 60) {
+        doc.addPage({
+          margin: 20,
+          size: "A4",
+          layout: isGabungan ? "landscape" : "portrait"
+        });
         yPosition = 20;
         yPosition = drawTableHeader(yPosition);
-        doc.fontSize(8.5).font("Helvetica");
+        doc.fontSize(6).font("Helvetica");
       }
 
       let xPos = leftMargin;
 
-      // Alternating row background
+      // Alternating row colors
       if (rowIndex % 2 === 1) {
         doc
           .rect(leftMargin, yPosition, pageWidth, rowHeight)
-          .fillColor("#F5F5F5")
+          .fillColor("#F8F9FA")
           .fill();
       }
 
-      // Row data
       columns.forEach((col) => {
-        const config = columnConfig[col] || { width: 70 };
+        const config = columnConfig[col] || { width: 60 };
         const width = config.width * scale;
         let value = row[col];
 
-        // Format values
-        if (col.includes("tanggal") && value) {
-          const date = new Date(value);
-          if (!isNaN(date.getTime())) {
-            value = date.toLocaleDateString("id-ID", {
-              day: "2-digit",
-              month: "2-digit",
-              year: "numeric"
-            });
+        // Special formatting
+        if ((col.includes("tanggal") || col === "tanggal_order" || col === "tanggal_bongkar") && value) {
+          try {
+            const date = new Date(value);
+            if (!isNaN(date.getTime())) {
+              value = date.toLocaleDateString("id-ID", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric"
+              });
+            }
+          } catch (e) {
+            value = value;
+          }
+        } else if ((col.includes("jam") || col === "jam_order" || col === "jam_bongkar") && value) {
+          if (typeof value === 'string') {
+            const timeParts = value.split(':');
+            if (timeParts.length >= 2) {
+              value = `${timeParts[0].padStart(2, '0')}:${timeParts[1].padStart(2, '0')}`;
+            }
           }
         } else if (
-          (col.includes("uang") ||
-           col.includes("hasil") ||
-           col.includes("potongan")) &&
+          (col === "uang_jalan" || 
+           col === "uang_alihan" || 
+           col.includes("hasil") || 
+           col.includes("potongan") || 
+           col === "total") &&
+          value !== null &&
+          value !== undefined &&
+          value !== ""
+        ) {
+          const numValue = Number(value) || 0;
+          if (numValue === 0) {
+            value = "Rp 0";
+          } else {
+            value = "Rp " + numValue.toLocaleString("id-ID");
+          }
+        } else if (
+          (col.includes("km_awal") || col.includes("km_akhir") || col.includes("jarak_km")) &&
           value !== null &&
           value !== undefined
         ) {
-          const numValue = parseInt(value);
-          value = "Rp " + numValue.toLocaleString("id-ID");
-        } else if (
-          (col.includes("km") || col.includes("jarak")) &&
-          value !== null &&
-          value !== undefined &&
-          value !== 0
-        ) {
-          const numValue = parseInt(value);
-          value = numValue.toLocaleString("id-ID");
+          value = formatKM(value);
         } else if (col === "alihan") {
-          value = value ? "Ya" : "Tidak";
+          value = value == 1 || value === true || value === '1' ? "Ya" : "Tidak";
         } else if (col === "status") {
           value = (value || "").toUpperCase();
+          if (value === "COMPLET E") value = "COMPLETE";
         }
 
-        // Text color and font based on status
+        // Styling by status
         let textColor = "#000000";
         let fontStyle = "Helvetica";
         if (col === "status" && value) {
-          if (value === "COMPLETE") {
+          const statusValue = value.toUpperCase();
+          if (statusValue === "COMPLETE") {
             textColor = "#008000";
             fontStyle = "Helvetica-Bold";
-          } else if (value === "ON PROCESS" || value === "ON_PROCESS") {
+          } else if (statusValue === "ON PROCESS" || statusValue === "ON_PROCESS") {
             textColor = "#FF8C00";
+            fontStyle = "Helvetica-Bold";
+          } else if (statusValue === "BATAL") {
+            textColor = "#DC3545";
             fontStyle = "Helvetica-Bold";
           }
         }
 
-        // Determine alignment
-        const align = (col.includes("uang") ||
-                       col.includes("hasil") ||
-                       col.includes("potongan") ||
-                       col.includes("km") ||
-                       col.includes("jarak")) ? "right" :
-                      (col === "no_urut" || col === "alihan") ? "center" : "left";
+        // Format value untuk ditampilkan
+        let displayValue = value !== undefined && value !== null && value !== "" ? String(value) : "-";
+        
+        // Potong teks jika terlalu panjang (tanpa titik-titik)
+        const maxChars = Math.floor(width / 3);
+        if (displayValue.length > maxChars) {
+          displayValue = formatText(displayValue, maxChars);
+        }
 
         doc
           .fillColor(textColor)
           .font(fontStyle)
-          .text(value || "-", xPos + 4, yPosition + 6, {
-            width: width - 8,
-            height: rowHeight - 6,
-            align: align,
-            lineBreak: true,
-            ellipsis: false
-          });
+          .text(
+            displayValue, 
+            xPos + 2, 
+            yPosition + 5, 
+            {
+              width: width - 4,
+              height: rowHeight - 8,
+              align: "center",
+              lineBreak: false
+            }
+          );
 
         xPos += width;
       });
 
       yPosition += rowHeight;
-    });
 
-    // ============================================================================
-    // FINANCIAL SUMMARY SECTION (AT THE END)
-    // ============================================================================
-    const summary = calculateSummary(rows, title);
-
-    if (summary && Object.keys(summary).length > 0) {
-      yPosition += 25;
-
-      // Check if need new page for summary
-      if (yPosition + 120 > doc.page.height - 40) {
-        doc.addPage();
-        yPosition = 20;
-      }
-
-      // Line separator before summary
+      // Gambar garis horizontal antar baris
       doc
         .moveTo(leftMargin, yPosition)
         .lineTo(leftMargin + pageWidth, yPosition)
-        .lineWidth(1.5)
-        .strokeColor("#000000")
+        .lineWidth(0.2)
+        .strokeColor("#DDDDDD")
         .stroke();
+    });
+
+    // ======================================================================
+    // SUMMARY (financial)
+    // ======================================================================
+    const summary = calculateSummary(rows, title);
+
+    if (summary && Object.keys(summary).length > 0) {
+      yPosition += 15;
+
+      if (yPosition + 120 > doc.page.height - 40) {
+        doc.addPage({
+          margin: 20,
+          size: "A4",
+          layout: isGabungan ? "landscape" : "portrait"
+        });
+        yPosition = 20;
+      }
+
+      doc
+        .fontSize(10)
+        .fillColor("#000000")
+        .font("Helvetica-Bold")
+        .text("RINGKASAN KEUANGAN", leftMargin, yPosition, {
+          width: pageWidth,
+          align: "center"
+        });
 
       yPosition += 15;
 
-      // Summary Title
-      doc
-        .fontSize(12)
-        .fillColor("#000000")
-        .font("Helvetica-Bold")
-        .text("RINGKASAN KEUANGAN", leftMargin, yPosition);
-
-      yPosition += 20;
-
-      // Summary box
       const summaryBoxWidth = 350;
       const summaryBoxX = leftMargin + (pageWidth - summaryBoxWidth) / 2;
 
-      Object.entries(summary).forEach(([key, value]) => {
-        const isGrandTotal = key === "Grand Total";
-        
-        if (isGrandTotal) {
-          // Draw line before grand total
-          doc
-            .moveTo(summaryBoxX, yPosition)
-            .lineTo(summaryBoxX + summaryBoxWidth, yPosition)
-            .lineWidth(1.5)
-            .strokeColor("#000000")
-            .stroke();
-          yPosition += 12;
+      Object.entries(summary).forEach(([key, value], index) => {
+        const isGrandTotal = key.includes("Grand Total");
 
-          // Draw grand total background
-          doc
-            .rect(summaryBoxX, yPosition - 2, summaryBoxWidth, 28)
-            .fillColor("#1F4788")
-            .fill();
-        } else {
-          // Draw normal item background
-          doc
-            .rect(summaryBoxX, yPosition - 2, summaryBoxWidth, 24)
-            .fillColor("#F0F0F0")
-            .fill();
+        if (isGrandTotal) {
+          yPosition += 3;
         }
 
         doc
-          .fontSize(isGrandTotal ? 11 : 10)
-          .fillColor(isGrandTotal ? "#FFFFFF" : "#000000")
-          .font("Helvetica-Bold")
-          .text(key, summaryBoxX + 10, yPosition + 4, { 
-            continued: true,
-            width: summaryBoxWidth / 2 - 20
-          })
-          .font(isGrandTotal ? "Helvetica-Bold" : "Helvetica")
-          .text(value, {
-            width: summaryBoxWidth / 2 - 20,
-            align: "right"
-          });
+          .rect(summaryBoxX, yPosition, summaryBoxWidth, 22)
+          .fillColor("#FFFFFF")
+          .fill();
+
+        doc
+          .rect(summaryBoxX, yPosition, summaryBoxWidth, 22)
+          .strokeColor(isGrandTotal ? "#000000" : "#CCCCCC")
+          .lineWidth(isGrandTotal ? 1 : 0.5)
+          .stroke();
+
+        const combinedText = `${key}: ${value}`;
         
-        yPosition += isGrandTotal ? 30 : 26;
+        doc
+          .fontSize(isGrandTotal ? 9 : 8.5)
+          .fillColor("#000000")
+          .font(isGrandTotal ? "Helvetica-Bold" : "Helvetica-Bold")
+          .text(combinedText, summaryBoxX + 10, yPosition + 7, { 
+            width: summaryBoxWidth - 20,
+            align: "center"
+          });
+
+        yPosition += isGrandTotal ? 24 : 22;
       });
     }
   }
 
-  // ============================================================================
-  // FOOTER SECTION
-  // ============================================================================
-  
-  const footerY = doc.page.height - 35;
-  
-  doc
-    .moveTo(leftMargin, footerY)
-    .lineTo(leftMargin + pageWidth, footerY)
-    .lineWidth(1)
-    .strokeColor("#CCCCCC")
-    .stroke();
-
-  doc
-    .fontSize(8)
-    .fillColor("#666666")
-    .font("Helvetica-Oblique")
-    .text(
-      `Generated by Sistem Rekap - ${new Date().getFullYear()}`,
-      leftMargin,
-      footerY + 5,
-      {
-        width: pageWidth,
-        align: "center"
-      }
-    );
-  
   doc.end();
 }
 
@@ -479,52 +638,45 @@ function calculateSummary(rows, title) {
   if (!rows || rows.length === 0) return {};
 
   const summary = {};
-  const titleLower = title.toLowerCase();
+  const titleUpper = (title || "").toUpperCase();
 
-  // Rekap Order
-  if (titleLower.includes("order") && !titleLower.includes("gabungan")) {
+  if (titleUpper.includes("ORDER") && !titleUpper.includes("GABUNGAN")) {
     let totalUangJalan = 0;
     let totalPotongan = 0;
     let totalHasilAkhir = 0;
 
     rows.forEach(row => {
-      totalUangJalan += parseFloat(row.uang_jalan || 0);
-      totalPotongan += parseFloat(row.potongan || 0);
-      totalHasilAkhir += parseFloat(row.hasil_akhir || 0);
+      totalUangJalan += Number(row.uang_jalan || row.uang_jalan || 0);
+      totalPotongan += Number(row.potongan || 0);
+      totalHasilAkhir += Number(row.hasil_akhir || row.total || 0);
     });
 
     summary["Total Uang Jalan"] = `Rp ${totalUangJalan.toLocaleString("id-ID")}`;
     summary["Total Potongan"] = `Rp ${totalPotongan.toLocaleString("id-ID")}`;
     summary["Grand Total"] = `Rp ${totalHasilAkhir.toLocaleString("id-ID")}`;
-  }
-  // Rekap Buangan
-  else if (titleLower.includes("buangan")) {
+  } else if (titleUpper.includes("BUANGAN")) {
     let totalUangAlihan = 0;
-
     rows.forEach(row => {
-      totalUangAlihan += parseFloat(row.uang_alihan || 0);
+      totalUangAlihan += Number(row.uang_alihan || 0);
     });
-
-    summary["Grand Total"] = `Rp ${totalUangAlihan.toLocaleString("id-ID")}`;
-  }
-  // Rekap Gabungan
-  else if (titleLower.includes("gabungan")) {
+    summary["Total Uang Alihan"] = `Rp ${totalUangAlihan.toLocaleString("id-ID")}`;
+  } else if (titleUpper.includes("GABUNGAN")) {
     let totalUangJalan = 0;
     let totalPotongan = 0;
-    let totalHasilAkhir = 0;
     let totalUangAlihan = 0;
 
     rows.forEach(row => {
-      totalUangJalan += parseFloat(row.uang_jalan || 0);
-      totalPotongan += parseFloat(row.potongan || 0);
-      totalHasilAkhir += parseFloat(row.hasil_akhir || 0);
-      totalUangAlihan += parseFloat(row.uang_alihan || 0);
+      totalUangJalan += Number(row.uang_jalan || 0);
+      totalPotongan += Number(row.potongan || 0);
+      totalUangAlihan += Number(row.uang_alihan || 0);
     });
+
+    const grandTotal = totalUangJalan - totalPotongan;
 
     summary["Total Uang Jalan"] = `Rp ${totalUangJalan.toLocaleString("id-ID")}`;
     summary["Total Potongan"] = `Rp ${totalPotongan.toLocaleString("id-ID")}`;
+    summary["Grand Total (UJ - Potongan)"] = `Rp ${grandTotal.toLocaleString("id-ID")}`;
     summary["Total Uang Alihan"] = `Rp ${totalUangAlihan.toLocaleString("id-ID")}`;
-    summary["Grand Total"] = `Rp ${(totalHasilAkhir + totalUangAlihan).toLocaleString("id-ID")}`;
   }
 
   return summary;
