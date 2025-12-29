@@ -7,6 +7,87 @@ let masterSupir = [];
 let masterGalian = [];
 
 // ============================================================================
+// FILTER FUNCTIONS
+// ============================================================================
+
+function togglePeriodeSection(header) {
+    header.classList.toggle('collapsed');
+}
+
+function toggleFilterSection(header) {
+    const filterSection = header.parentElement;
+    filterSection.classList.toggle('collapsed');
+}
+
+function updateFilterStats(data) {
+    if (!Array.isArray(data)) return;
+    
+    const totalData = data.length;
+    const complete = data.filter(item => 
+        item.status === 'COMPLETE' || item.status === 'COMPLETED'
+    ).length;
+    const process = data.filter(item => 
+        item.status === 'ON_PROCESS' || item.status === 'ON PROCESS'
+    ).length;
+    const batal = data.filter(item => 
+        item.status === 'BATAL'
+    ).length;
+    
+    const statTotal = document.getElementById('stat-total-order');
+    const statComplete = document.getElementById('stat-complete-order');
+    const statProcess = document.getElementById('stat-process-order');
+    const statBatal = document.getElementById('stat-batal-order');
+    
+    if (statTotal) statTotal.textContent = totalData;
+    if (statComplete) statComplete.textContent = complete;
+    if (statProcess) statProcess.textContent = process;
+    if (statBatal) statBatal.textContent = batal;
+}
+
+function initCollapsibleSections() {
+    const collapsibleHeaders = document.querySelectorAll('.filter-section-subtitle h4');
+    collapsibleHeaders.forEach(header => {
+        header.addEventListener('click', function() {
+            const subtitle = this.parentElement;
+            subtitle.classList.toggle('collapsed');
+        });
+    });
+}
+
+function handleResponsiveFilters() {
+    const filterSections = document.querySelectorAll('.filter-section');
+    if (window.innerWidth <= 768) {
+        filterSections.forEach(section => {
+            section.classList.add('collapsed');
+        });
+    }
+}
+
+function initFilterImprovements() {
+    initCollapsibleSections();
+    handleResponsiveFilters();
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            handleResponsiveFilters();
+        }, 250);
+    });
+}
+
+function initInputFocusEffects() {
+    const inputs = document.querySelectorAll('.filter-item input, .filter-item select');
+    inputs.forEach(input => {
+        input.addEventListener('focus', function() {
+            this.parentElement.classList.add('focused');
+        });
+        input.addEventListener('blur', function() {
+            this.parentElement.classList.remove('focused');
+        });
+    });
+}
+
+// ============================================================================
 // DEBUG UTILITIES
 // ============================================================================
 function debugLog(title, data) {
@@ -203,9 +284,10 @@ async function loadUsedGalianAlihan() {
 }
 
 // ============================================================================
-// TAB NAVIGATION
+// TAB NAVIGATION & COLLAPSIBLE FILTERS
 // ============================================================================
 document.addEventListener('DOMContentLoaded', () => {
+    // Tab Navigation
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const tabName = btn.dataset.tab;
@@ -216,6 +298,9 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.classList.add('active');
             document.getElementById(`${tabName}-tab`).classList.add('active');
             
+            if (tabName === 'order') {
+                loadRekapOrder();
+            }
             if (tabName === 'buangan') {
                 loadRekapBuangan();
             }
@@ -225,6 +310,24 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
+    // Collapsible Filter Sections
+    document.querySelectorAll('.filter-section-subtitle h4').forEach(header => {
+        header.addEventListener('click', () => {
+            const subtitle = header.parentElement;
+            const nextElement = subtitle.nextElementSibling;
+            
+            subtitle.classList.toggle('collapsed');
+            
+            if (nextElement && (nextElement.classList.contains('filter-grid') || 
+                               nextElement.classList.contains('date-range-inputs') ||
+                               nextElement.id && nextElement.id.includes('date-range'))) {
+                nextElement.classList.toggle('filter-collapsible');
+                nextElement.classList.toggle('show');
+            }
+        });
+    });
+    
+    // Proyek Input Auto-search
     const proyekInput = document.getElementById('filter-proyek-order');
     if (proyekInput) {
         let typingTimer;
@@ -672,6 +775,7 @@ async function loadRekapOrder() {
                 `;
             }).join('');
 
+            updateFilterStats(data);
             displayOrderSummary(totalUangJalan, totalPotongan, totalHasilAkhir);
         } else {
             console.log('ℹ️ No order data found');
@@ -1419,12 +1523,15 @@ function formatDate(dateString) {
 // ============================================================================
 document.addEventListener('DOMContentLoaded', async () => {
     debugLog('Page Initialization', 'Starting...');
+
+    initFilterImprovements();      
+    initInputFocusEffects();
     
     console.log('1️⃣ Loading master data...');
     await loadMasterData();
     
-    console.log('\n2️⃣ Loading initial order data...');
-    await loadRekapOrder();
+    console.log('\n2️⃣ Loading initial data...');
+    await loadRekapGabungan();
     
     console.log('\n✅ Initialization complete!\n');
 });
