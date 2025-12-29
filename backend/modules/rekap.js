@@ -169,22 +169,22 @@ async function generateFilterInfo(req, type) {
   // Build filters object with names for ALL types
   
   // Proyek (untuk order dan gabungan)
-  if (req.query.proyek_input) {
+  if (req.query.proyek_input && req.query.proyek_input.trim() !== '') {
     filters["Proyek"] = req.query.proyek_input;
   }
   
   // Petugas (untuk order dan gabungan)
-  if (req.query.petugas_order) {
+  if (req.query.petugas_order && req.query.petugas_order.trim() !== '') {
     filters["Petugas"] = req.query.petugas_order;
   }
   
   // Lokasi Bongkar (untuk gabungan)
-  if (req.query.lokasi_bongkar) {
+  if (req.query.lokasi_bongkar && req.query.lokasi_bongkar.trim() !== '') {
     filters["Lokasi Bongkar"] = req.query.lokasi_bongkar;
   }
   
   // Kendaraan (untuk semua)
-  if (req.query.kendaraan_id) {
+  if (req.query.kendaraan_id && req.query.kendaraan_id !== '' && req.query.kendaraan_id !== '0') {
     try {
       const kendaraanResult = await db.query(
         "SELECT no_pintu FROM master_kendaraan WHERE id = ?",
@@ -201,7 +201,7 @@ async function generateFilterInfo(req, type) {
   }
   
   // Supir (untuk order dan gabungan)
-  if (req.query.supir_id) {
+  if (req.query.supir_id && req.query.supir_id !== '' && req.query.supir_id !== '0') {
     try {
       const supirResult = await db.query(
         "SELECT nama FROM master_supir WHERE id = ?",
@@ -218,7 +218,7 @@ async function generateFilterInfo(req, type) {
   }
   
   // Galian (untuk order dan gabungan)
-  if (req.query.galian_id) {
+  if (req.query.galian_id && req.query.galian_id !== '' && req.query.galian_id !== '0') {
     try {
       const galianResult = await db.query(
         "SELECT nama_galian FROM master_galian WHERE id = ?",
@@ -235,7 +235,7 @@ async function generateFilterInfo(req, type) {
   }
   
   // Galian Alihan (untuk gabungan)
-  if (req.query.galian_alihan_id) {
+  if (req.query.galian_alihan_id && req.query.galian_alihan_id !== '' && req.query.galian_alihan_id !== '0') {
     try {
       const galianAlihanResult = await db.query(
         "SELECT nama_galian FROM master_galian WHERE id = ?",
@@ -252,7 +252,7 @@ async function generateFilterInfo(req, type) {
   }
   
   // Status (untuk semua)
-  if (req.query.status) {
+  if (req.query.status && req.query.status !== '') {
     filters["Status"] = req.query.status.toUpperCase();
   }
   
@@ -262,7 +262,7 @@ async function generateFilterInfo(req, type) {
   }
   
   // No Order (untuk buangan dan gabungan)
-  if (req.query.no_order) {
+  if (req.query.no_order && req.query.no_order.trim() !== '') {
     filters["No Order"] = req.query.no_order;
   }
 

@@ -983,45 +983,53 @@ async function exportToExcel(type) {
         let params = new URLSearchParams();
 
         if (type === 'order') {
-            endpoint = '/rekap/order/export/excel';
             const filters = {
                 tanggal_dari: document.getElementById('filter-tanggal-dari-order')?.value || "",
                 tanggal_sampai: document.getElementById('filter-tanggal-sampai-order')?.value || "",
-                proyek_input: document.getElementById('filter-proyek-order')?.value || "",
+                proyek_input: document.getElementById('filter-proyek-order')?.value.trim() || "",
                 status: document.getElementById('filter-status-order')?.value || "",
                 kendaraan_id: document.getElementById('filter-kendaraan-order-id')?.value || "",
                 supir_id: document.getElementById('filter-supir-order-id')?.value || "",
                 galian_id: document.getElementById('filter-galian-order-id')?.value || ""
             };
             Object.keys(filters).forEach(key => {
-                if (filters[key]) params.append(key, filters[key]);
+                if (filters[key] && filters[key] !== '0') params.append(key, filters[key]);
             });
+            endpoint = '/rekap/order/export/excel';
+            
         } else if (type === 'buangan') {
-            endpoint = '/rekap/buangan/export/excel';
             const filters = {
                 tanggal_dari: document.getElementById('filter-tanggal-dari-buangan')?.value || "",
                 tanggal_sampai: document.getElementById('filter-tanggal-sampai-buangan')?.value || "",
-                no_order: document.getElementById('filter-no-order')?.value || ""
+                no_order: document.getElementById('filter-no-order')?.value.trim() || "",
+                alihan: document.getElementById('filter-alihan')?.value || ""
             };
             Object.keys(filters).forEach(key => {
                 if (filters[key]) params.append(key, filters[key]);
             });
+            endpoint = '/rekap/buangan/export/excel';
+            
         } else if (type === 'gabungan') {
-            endpoint = '/rekap/gabungan/export/excel';
             const filters = {
-                tanggal_dari: document.getElementById('filter-tanggal-dari-gabungan')?.value || "",
-                tanggal_sampai: document.getElementById('filter-tanggal-sampai-gabungan')?.value || "",
-                proyek_input: document.getElementById('filter-proyek-gabungan')?.value || "",
+                tanggal_order_dari: document.getElementById('filter-tanggal-order-dari-gabungan')?.value || "",
+                tanggal_order_sampai: document.getElementById('filter-tanggal-order-sampai-gabungan')?.value || "",
+                tanggal_bongkar_dari: document.getElementById('filter-tanggal-bongkar-dari-gabungan')?.value || "",
+                tanggal_bongkar_sampai: document.getElementById('filter-tanggal-bongkar-sampai-gabungan')?.value || "",
+                proyek_input: document.getElementById('filter-proyek-gabungan')?.value.trim() || "",
+                lokasi_bongkar: document.getElementById('filter-lokasi-bongkar-gabungan')?.value.trim() || "",
                 status: document.getElementById('filter-status-gabungan')?.value || "",
                 kendaraan_id: document.getElementById('filter-kendaraan-gabungan-id')?.value || "",
-                galian_id: document.getElementById('filter-galian-gabungan-id')?.value || ""
+                galian_id: document.getElementById('filter-galian-gabungan-id')?.value || "",
+                alihan: document.getElementById('filter-alihan-gabungan')?.value || "",
+                galian_alihan_id: document.getElementById('filter-galian-alihan-gabungan-id')?.value || ""
             };
             Object.keys(filters).forEach(key => {
-                if (filters[key]) params.append(key, filters[key]);
+                if (filters[key] && filters[key] !== '0') params.append(key, filters[key]);
             });
+            endpoint = '/rekap/gabungan/export/excel';
         }
 
-        const url = `${API_URL}${endpoint}?${params}`;
+        const url = `${API_URL}${endpoint}?${params.toString()}`;
         console.log('📥 Exporting to Excel:', url);
 
         const response = await fetch(url);
@@ -1050,45 +1058,53 @@ async function exportToPDF(type) {
         let params = new URLSearchParams();
 
         if (type === 'order') {
-            endpoint = '/rekap/order/export/pdf';
             const filters = {
                 tanggal_dari: document.getElementById('filter-tanggal-dari-order')?.value || "",
                 tanggal_sampai: document.getElementById('filter-tanggal-sampai-order')?.value || "",
-                proyek_input: document.getElementById('filter-proyek-order')?.value || "",
+                proyek_input: document.getElementById('filter-proyek-order')?.value.trim() || "",
                 status: document.getElementById('filter-status-order')?.value || "",
                 kendaraan_id: document.getElementById('filter-kendaraan-order-id')?.value || "",
                 supir_id: document.getElementById('filter-supir-order-id')?.value || "",
                 galian_id: document.getElementById('filter-galian-order-id')?.value || ""
             };
             Object.keys(filters).forEach(key => {
-                if (filters[key]) params.append(key, filters[key]);
+                if (filters[key] && filters[key] !== '0') params.append(key, filters[key]);
             });
+            endpoint = '/rekap/order/export/pdf';
+            
         } else if (type === 'buangan') {
-            endpoint = '/rekap/buangan/export/pdf';
             const filters = {
                 tanggal_dari: document.getElementById('filter-tanggal-dari-buangan')?.value || "",
                 tanggal_sampai: document.getElementById('filter-tanggal-sampai-buangan')?.value || "",
-                no_order: document.getElementById('filter-no-order')?.value || ""
+                no_order: document.getElementById('filter-no-order')?.value.trim() || "",
+                alihan: document.getElementById('filter-alihan')?.value || ""
             };
             Object.keys(filters).forEach(key => {
                 if (filters[key]) params.append(key, filters[key]);
             });
+            endpoint = '/rekap/buangan/export/pdf';
+            
         } else if (type === 'gabungan') {
-            endpoint = '/rekap/gabungan/export/pdf';
             const filters = {
-                tanggal_dari: document.getElementById('filter-tanggal-dari-gabungan')?.value || "",
-                tanggal_sampai: document.getElementById('filter-tanggal-sampai-gabungan')?.value || "",
-                proyek_input: document.getElementById('filter-proyek-gabungan')?.value || "",
+                tanggal_order_dari: document.getElementById('filter-tanggal-order-dari-gabungan')?.value || "",
+                tanggal_order_sampai: document.getElementById('filter-tanggal-order-sampai-gabungan')?.value || "",
+                tanggal_bongkar_dari: document.getElementById('filter-tanggal-bongkar-dari-gabungan')?.value || "",
+                tanggal_bongkar_sampai: document.getElementById('filter-tanggal-bongkar-sampai-gabungan')?.value || "",
+                proyek_input: document.getElementById('filter-proyek-gabungan')?.value.trim() || "",
+                lokasi_bongkar: document.getElementById('filter-lokasi-bongkar-gabungan')?.value.trim() || "",
                 status: document.getElementById('filter-status-gabungan')?.value || "",
                 kendaraan_id: document.getElementById('filter-kendaraan-gabungan-id')?.value || "",
-                galian_id: document.getElementById('filter-galian-gabungan-id')?.value || ""
+                galian_id: document.getElementById('filter-galian-gabungan-id')?.value || "",
+                alihan: document.getElementById('filter-alihan-gabungan')?.value || "",
+                galian_alihan_id: document.getElementById('filter-galian-alihan-gabungan-id')?.value || ""
             };
             Object.keys(filters).forEach(key => {
-                if (filters[key]) params.append(key, filters[key]);
+                if (filters[key] && filters[key] !== '0') params.append(key, filters[key]);
             });
+            endpoint = '/rekap/gabungan/export/pdf';
         }
 
-        const url = `${API_URL}${endpoint}?${params}`;
+        const url = `${API_URL}${endpoint}?${params.toString()}`;
         console.log('📄 Exporting to PDF:', url);
 
         const response = await fetch(url);
