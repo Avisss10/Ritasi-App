@@ -56,6 +56,113 @@ let currentViewMode = 'buangan'; // 'order' atau 'buangan'
 let currentBuanganDetail = null;
 let currentKmAwalEdit = 0;
 
+// Pagination variables
+let currentOrderPage = 1;
+let currentBuanganPage = 1;
+let itemsPerPage = 10;
+let filteredOrderData = [];
+let filteredBuanganData = [];
+
+// ============================================================================
+// PAGINATION - ORDER TABLE
+// ============================================================================
+function changeOrderPage(direction) {
+    const totalPages = Math.ceil(filteredOrderData.length / itemsPerPage);
+    
+    if (direction === 'prev' && currentOrderPage > 1) {
+        currentOrderPage--;
+    } else if (direction === 'next' && currentOrderPage < totalPages) {
+        currentOrderPage++;
+    }
+    
+    displayOrderResults(filteredOrderData);
+}
+
+function updateOrderPagination(dataLength) {
+    const totalPages = Math.ceil(dataLength / itemsPerPage);
+    const paginationContainer = document.getElementById('orderPagination');
+    const pageInfo = document.getElementById('orderPageInfo');
+    const prevBtn = document.getElementById('orderPrevBtn');
+    const nextBtn = document.getElementById('orderNextBtn');
+    
+    if (totalPages <= 1) {
+        paginationContainer.style.display = 'none';
+        return;
+    }
+    
+    paginationContainer.style.display = 'flex';
+    pageInfo.textContent = `Halaman ${currentOrderPage} dari ${totalPages}`;
+    
+    prevBtn.disabled = currentOrderPage === 1;
+    nextBtn.disabled = currentOrderPage === totalPages;
+    
+    if (currentOrderPage === 1) {
+        prevBtn.style.opacity = '0.5';
+        prevBtn.style.cursor = 'not-allowed';
+    } else {
+        prevBtn.style.opacity = '1';
+        prevBtn.style.cursor = 'pointer';
+    }
+    
+    if (currentOrderPage === totalPages) {
+        nextBtn.style.opacity = '0.5';
+        nextBtn.style.cursor = 'not-allowed';
+    } else {
+        nextBtn.style.opacity = '1';
+        nextBtn.style.cursor = 'pointer';
+    }
+}
+
+// ============================================================================
+// PAGINATION - BUANGAN TABLE
+// ============================================================================
+function changeBuanganPage(direction) {
+    const totalPages = Math.ceil(filteredBuanganData.length / itemsPerPage);
+    
+    if (direction === 'prev' && currentBuanganPage > 1) {
+        currentBuanganPage--;
+    } else if (direction === 'next' && currentBuanganPage < totalPages) {
+        currentBuanganPage++;
+    }
+    
+    displayBuanganList(filteredBuanganData);
+}
+
+function updateBuanganPagination(dataLength) {
+    const totalPages = Math.ceil(dataLength / itemsPerPage);
+    const paginationContainer = document.getElementById('buanganPagination');
+    const pageInfo = document.getElementById('buanganPageInfo');
+    const prevBtn = document.getElementById('buanganPrevBtn');
+    const nextBtn = document.getElementById('buanganNextBtn');
+    
+    if (totalPages <= 1) {
+        paginationContainer.style.display = 'none';
+        return;
+    }
+    
+    paginationContainer.style.display = 'flex';
+    pageInfo.textContent = `Halaman ${currentBuanganPage} dari ${totalPages}`;
+    
+    prevBtn.disabled = currentBuanganPage === 1;
+    nextBtn.disabled = currentBuanganPage === totalPages;
+    
+    if (currentBuanganPage === 1) {
+        prevBtn.style.opacity = '0.5';
+        prevBtn.style.cursor = 'not-allowed';
+    } else {
+        prevBtn.style.opacity = '1';
+        prevBtn.style.cursor = 'pointer';
+    }
+    
+    if (currentBuanganPage === totalPages) {
+        nextBtn.style.opacity = '0.5';
+        nextBtn.style.cursor = 'not-allowed';
+    } else {
+        nextBtn.style.opacity = '1';
+        nextBtn.style.cursor = 'pointer';
+    }
+}
+
 // ============================================================================
 // SEARCH ORDER
 // ============================================================================
@@ -200,17 +307,15 @@ function filterTable() {
 // FILTER ORDER BY NO PINTU
 // ============================================================================
 function filterByNoPintu() {
+    currentOrderPage = 1; // Reset to first page
     const filterValue = document.getElementById('filterNoPintu').value.toLowerCase().trim();
 
     if (filterValue === '') {
-        // Tampilkan semua data
         displayOrderResults(allOrderData);
     } else {
-        // Filter berdasarkan no pintu
         const filtered = allOrderData.filter(order => {
             return order.no_pintu && order.no_pintu.toLowerCase().includes(filterValue);
         });
-
         displayOrderResults(filtered);
     }
 }
@@ -219,17 +324,15 @@ function filterByNoPintu() {
 // FILTER BUANGAN BY NO PINTU
 // ============================================================================
 function filterBuanganByNoPintu() {
+    currentBuanganPage = 1; // Reset to first page
     const filterValue = document.getElementById('filterNoPintu').value.toLowerCase().trim();
 
     if (filterValue === '') {
-        // Tampilkan semua data
         displayBuanganList(allBuanganData);
     } else {
-        // Filter berdasarkan no pintu
         const filtered = allBuanganData.filter(buangan => {
             return buangan.no_pintu && buangan.no_pintu.toLowerCase().includes(filterValue);
         });
-
         displayBuanganList(filtered);
     }
 }
@@ -238,11 +341,21 @@ function filterBuanganByNoPintu() {
 // DISPLAY ORDER RESULTS
 // ============================================================================
 function displayOrderResults(orders) {
+    filteredOrderData = orders;
+    
     const tbody = document.getElementById('orderTableBody');
     tbody.innerHTML = '';
-
-    orders.forEach(order => {
+    
+    // Calculate pagination
+    const startIndex = (currentOrderPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedData = orders.slice(startIndex, endIndex);
+    
+    paginatedData.forEach((order, index) => {
         const tr = document.createElement('tr');
+        
+        // Calculate row number (global index)
+        const rowNumber = startIndex + index + 1;
         
         let statusBadge = '';
         if (order.status === 'COMPLETE') {
@@ -267,6 +380,7 @@ function displayOrderResults(orders) {
             `;
 
         tr.innerHTML = `
+            <td style="text-align: center; font-weight: 600;">${rowNumber}</td>
             <td>${order.no_order || '-'}</td>
             <td>${formatDate(order.tanggal_order)}</td>
             <td>${order.no_pintu || '-'}</td>
@@ -279,6 +393,8 @@ function displayOrderResults(orders) {
 
         tbody.appendChild(tr);
     });
+    
+    updateOrderPagination(orders.length);
 }
 
 // ============================================================================
@@ -1044,23 +1160,34 @@ async function loadBuanganList() {
 // DISPLAY BUANGAN LIST
 // ============================================================================
 function displayBuanganList(buanganList) {
+    filteredBuanganData = buanganList;
+    
     const tbody = document.getElementById('buanganTableBody');
     tbody.innerHTML = '';
 
     if (!Array.isArray(buanganList) || buanganList.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="13" class="empty-state">
+                <td colspan="14" class="empty-state">
                     <div class="empty-state-icon">📦</div>
                     <div class="empty-state-text">Belum ada data buangan</div>
                 </td>
             </tr>
         `;
+        document.getElementById('buanganPagination').style.display = 'none';
         return;
     }
+    
+    // Calculate pagination
+    const startIndex = (currentBuanganPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedData = buanganList.slice(startIndex, endIndex);
 
-    buanganList.forEach(buangan => {
+    paginatedData.forEach((buangan, index) => {
         const tr = document.createElement('tr');
+        
+        // Calculate row number (global index)
+        const rowNumber = startIndex + index + 1;
 
         const alihanBadge = buangan.alihan 
             ? '<span class="badge badge-yes">Ya</span>'
@@ -1077,7 +1204,6 @@ function displayBuanganList(buanganList) {
         const tanggalBongkarDisplay = buangan.tanggal_bongkar ? formatDate(buangan.tanggal_bongkar) : '-';
         const jamBongkarDisplay = buangan.jam_bongkar ? buangan.jam_bongkar : '-';
         
-        // Handle KM Akhir (bisa angka atau ODO ERROR)
         let kmAkhirDisplay = '-';
         if (buangan.km_akhir === 'ODO ERROR') {
             kmAkhirDisplay = 'ODO ERROR';
@@ -1085,7 +1211,6 @@ function displayBuanganList(buanganList) {
             kmAkhirDisplay = `${formatKM(buangan.km_akhir)} KM`;
         }
         
-        // Handle jarak_km display - bisa angka atau ODO ERROR
         let jarakDisplay = '-';
         if (buangan.jarak_km === 'ODO ERROR') {
             jarakDisplay = 'ODO ERROR';
@@ -1095,6 +1220,7 @@ function displayBuanganList(buanganList) {
         const lokasiDisplay = buangan.lokasi_bongkar || '-';
 
         tr.innerHTML = `
+            <td style="text-align: center; font-weight: 600;">${rowNumber}</td>
             <td>${buangan.no_order || '-'}</td>
             <td>${formatDate(buangan.tanggal_order)}</td>
             <td>${buangan.no_pintu || '-'}</td>
@@ -1116,6 +1242,20 @@ function displayBuanganList(buanganList) {
 
         tbody.appendChild(tr);
     });
+    
+    updateBuanganPagination(buanganList.length);
+}
+
+// ============================================================================
+// MODAL BATAL FOR DETAIL
+// ============================================================================
+function bukaModalBatalDariDetail() {
+    if (!currentBuanganDetail || !currentBuanganDetail.order_id) {
+        showToast('Data order tidak ditemukan', 'error');
+        return;
+    }
+    
+    bukaModalBatal(currentBuanganDetail.order_id);
 }
 
 // ============================================================================
