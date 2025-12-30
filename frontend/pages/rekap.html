@@ -30,26 +30,6 @@
                 </div>
                 
                 <div class="filter-body">
-                    <!-- Filter Stats -->
-                    <div class="filter-stats">
-                        <div class="filter-stat-item">
-                            <div class="label">Total Data</div>
-                            <div class="value" id="stat-total-order">0</div>
-                        </div>
-                        <div class="filter-stat-item">
-                            <div class="label">Complete</div>
-                            <div class="value" id="stat-complete-order">0</div>
-                        </div>
-                        <div class="filter-stat-item">
-                            <div class="label">On Process</div>
-                            <div class="value" id="stat-process-order">0</div>
-                        </div>
-                        <div class="filter-stat-item">
-                            <div class="label">Batal</div>
-                            <div class="value" id="stat-batal-order">0</div>
-                        </div>
-                    </div>
-
                     <!-- Filter Group: Periode -->
                     <div class="filter-group">
                         <div class="filter-group-title">📅 Periode Waktu</div>
@@ -263,6 +243,40 @@
 
         <!-- TAB 3: REKAP GABUNGAN -->
         <div id="gabungan-tab" class="tab-content active">
+            <!-- Summary Stats Section (Outside Filter) -->
+            <div class="summary-stats-section">
+                <div class="summary-stats-grid">
+                    <div class="summary-stat-card">
+                        <div class="stat-icon">📊</div>
+                        <div class="stat-content">
+                            <div class="stat-label">Total Data</div>
+                            <div class="stat-value" id="stat-total-gabungan">0</div>
+                        </div>
+                    </div>
+                    <div class="summary-stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-content">
+                            <div class="stat-label">Complete</div>
+                            <div class="stat-value complete" id="stat-complete-gabungan">0</div>
+                        </div>
+                    </div>
+                    <div class="summary-stat-card">
+                        <div class="stat-icon">⏳</div>
+                        <div class="stat-content">
+                            <div class="stat-label">On Process</div>
+                            <div class="stat-value process" id="stat-process-gabungan">0</div>
+                        </div>
+                    </div>
+                    <div class="summary-stat-card">
+                        <div class="stat-icon">❌</div>
+                        <div class="stat-content">
+                            <div class="stat-label">Batal</div>
+                            <div class="stat-value batal" id="stat-batal-gabungan">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Filter Section -->
             <div class="filter-section">
                 <div class="filter-header" onclick="toggleFilterSection(this)">

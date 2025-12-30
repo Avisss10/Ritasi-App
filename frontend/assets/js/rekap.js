@@ -19,7 +19,7 @@ function toggleFilterSection(header) {
     filterSection.classList.toggle('collapsed');
 }
 
-function updateFilterStats(data) {
+function updateFilterStats(data, type = 'order') {
     if (!Array.isArray(data)) return;
     
     const totalData = data.length;
@@ -33,15 +33,27 @@ function updateFilterStats(data) {
         item.status === 'BATAL'
     ).length;
     
-    const statTotal = document.getElementById('stat-total-order');
-    const statComplete = document.getElementById('stat-complete-order');
-    const statProcess = document.getElementById('stat-process-order');
-    const statBatal = document.getElementById('stat-batal-order');
-    
-    if (statTotal) statTotal.textContent = totalData;
-    if (statComplete) statComplete.textContent = complete;
-    if (statProcess) statProcess.textContent = process;
-    if (statBatal) statBatal.textContent = batal;
+    if (type === 'order') {
+        const statTotal = document.getElementById('stat-total-order');
+        const statComplete = document.getElementById('stat-complete-order');
+        const statProcess = document.getElementById('stat-process-order');
+        const statBatal = document.getElementById('stat-batal-order');
+        
+        if (statTotal) statTotal.textContent = totalData;
+        if (statComplete) statComplete.textContent = complete;
+        if (statProcess) statProcess.textContent = process;
+        if (statBatal) statBatal.textContent = batal;
+    } else if (type === 'gabungan') {
+        const statTotal = document.getElementById('stat-total-gabungan');
+        const statComplete = document.getElementById('stat-complete-gabungan');
+        const statProcess = document.getElementById('stat-process-gabungan');
+        const statBatal = document.getElementById('stat-batal-gabungan');
+        
+        if (statTotal) statTotal.textContent = totalData;
+        if (statComplete) statComplete.textContent = complete;
+        if (statProcess) statProcess.textContent = process;
+        if (statBatal) statBatal.textContent = batal;
+    }
 }
 
 function initCollapsibleSections() {
@@ -775,7 +787,6 @@ async function loadRekapOrder() {
                 `;
             }).join('');
 
-            updateFilterStats(data);
             displayOrderSummary(totalUangJalan, totalPotongan, totalHasilAkhir);
         } else {
             console.log('ℹ️ No order data found');
@@ -1041,10 +1052,12 @@ async function loadRekapGabungan() {
                 `;
             }).join('');
 
+            updateFilterStats(data, 'gabungan');
             displayGabunganSummary(totalUangJalan, totalPotongan, grandTotal, totalUangAlihan);
         } else {
             console.log('ℹ️ No gabungan data found');
             tbody.innerHTML = '<tr><td colspan="23" class="text-center">Tidak ada data gabungan</td></tr>';
+            updateFilterStats([], 'gabungan');
             const summaryDiv = document.getElementById('summary-gabungan');
             if (summaryDiv) summaryDiv.innerHTML = '';
         }
@@ -1130,6 +1143,18 @@ async function exportToExcel(type) {
             Object.keys(filters).forEach(key => {
                 if (filters[key] && filters[key] !== '0') params.append(key, filters[key]);
             });
+            
+            // Kirim Stats untuk Summary
+            const statsTotal = document.getElementById('stat-total-gabungan')?.textContent || '0';
+            const statsComplete = document.getElementById('stat-complete-gabungan')?.textContent || '0';
+            const statsProcess = document.getElementById('stat-process-gabungan')?.textContent || '0';
+            const statsBatal = document.getElementById('stat-batal-gabungan')?.textContent || '0';
+            
+            params.append('stats_total', statsTotal);
+            params.append('stats_complete', statsComplete);
+            params.append('stats_process', statsProcess);
+            params.append('stats_batal', statsBatal);
+            
             endpoint = '/rekap/gabungan/export/excel';
         }
 
@@ -1205,6 +1230,18 @@ async function exportToPDF(type) {
             Object.keys(filters).forEach(key => {
                 if (filters[key] && filters[key] !== '0') params.append(key, filters[key]);
             });
+            
+            // Kirim Stats untuk Summary
+            const statsTotal = document.getElementById('stat-total-gabungan')?.textContent || '0';
+            const statsComplete = document.getElementById('stat-complete-gabungan')?.textContent || '0';
+            const statsProcess = document.getElementById('stat-process-gabungan')?.textContent || '0';
+            const statsBatal = document.getElementById('stat-batal-gabungan')?.textContent || '0';
+            
+            params.append('stats_total', statsTotal);
+            params.append('stats_complete', statsComplete);
+            params.append('stats_process', statsProcess);
+            params.append('stats_batal', statsBatal);
+            
             endpoint = '/rekap/gabungan/export/pdf';
         }
 

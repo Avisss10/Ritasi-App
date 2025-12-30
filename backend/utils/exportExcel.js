@@ -130,6 +130,78 @@ export async function generateExcel(filename, headers, rows, filterInfo, res) {
 
   currentRow++;
 
+// ======================================================================
+// SUMMARY STATS (untuk Gabungan)
+// ======================================================================
+if (filterInfo.title && filterInfo.title.includes('GABUNGAN') && filterInfo.stats) {
+  currentRow++;
+  
+  worksheet.mergeCells(`A${currentRow}:${lastColLetter}${currentRow}`);
+  const statsTitleCell = worksheet.getCell(`A${currentRow}`);
+  statsTitleCell.value = "STATISTIK DATA";
+  statsTitleCell.font = { size: 12, bold: true };
+  statsTitleCell.alignment = { vertical: "middle", horizontal: "center" };
+  statsTitleCell.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFE8EAF6' }
+  };
+  statsTitleCell.border = {
+    top: { style: "medium" },
+    left: { style: "medium" },
+    bottom: { style: "thin" },
+    right: { style: "medium" }
+  };
+  worksheet.getRow(currentRow).height = 28;
+  currentRow++;
+
+  // Stats grid - 4 columns (tanpa icon)
+  const statsData = [
+    { label: 'Total Data', value: filterInfo.stats.total || 0, color: null },
+    { label: 'Complete', value: filterInfo.stats.complete || 0, color: 'FF28a745' },
+    { label: 'On Process', value: filterInfo.stats.process || 0, color: 'FFffc107' },
+    { label: 'Batal', value: filterInfo.stats.batal || 0, color: 'FFdc3545' }
+  ];
+
+  const colsPerStat = Math.max(1, Math.floor(headers.length / statsData.length));
+  
+  statsData.forEach((stat, index) => {
+    const startCol = (index * colsPerStat) + 1;
+    const endCol = Math.min(startCol + colsPerStat - 1, headers.length);
+    
+    if (startCol <= headers.length) {
+      const startLetter = String.fromCharCode(64 + startCol);
+      const endLetter = String.fromCharCode(64 + endCol);
+      
+      worksheet.mergeCells(`${startLetter}${currentRow}:${endLetter}${currentRow}`);
+      const statCell = worksheet.getCell(`${startLetter}${currentRow}`);
+      statCell.value = `${stat.label}: ${stat.value}`;
+      statCell.font = { 
+        size: 10, 
+        bold: true,
+        color: stat.color ? { argb: stat.color } : undefined
+      };
+      statCell.alignment = { vertical: "middle", horizontal: "center" };
+      statCell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFFFFFFF' }
+      };
+      statCell.border = {
+        top: { style: "thin" },
+        left: { style: "thin" },
+        bottom: { style: "medium" },
+        right: { style: "thin" }
+      };
+    }
+  });
+  
+  worksheet.getRow(currentRow).height = 25;
+  currentRow++;
+}
+
+  currentRow++;
+
   // ======================================================================
   // TABLE HEADERS
   // ======================================================================

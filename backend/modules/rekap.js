@@ -887,6 +887,13 @@ router.get("/gabungan/export/excel", async (req, res) => {
       jarak_km: formatKM(row.jarak_km)
     }));
 
+    const stats = {
+      total: parseInt(req.query.stats_total) || 0,
+      complete: parseInt(req.query.stats_complete) || 0,
+      process: parseInt(req.query.stats_process) || 0,
+      batal: parseInt(req.query.stats_batal) || 0
+    };
+
     // Adjusted headers for LANDSCAPE view
     const headers = [
       { label: "No", key: "no", width: 8 },
@@ -915,6 +922,7 @@ router.get("/gabungan/export/excel", async (req, res) => {
     ];
 
     const filterInfo = await generateFilterInfo(req, "gabungan");
+    filterInfo.stats = stats;
     await generateExcel("Rekap_Gabungan", headers, formattedRows, filterInfo, res);
   } catch (err) {
     console.error("Error in /rekap/gabungan/export/excel:", err);
@@ -979,8 +987,16 @@ router.get("/gabungan/export/pdf", async (req, res) => {
       km_akhir: formatKM(row.km_akhir),
       jarak_km: formatKM(row.jarak_km)
     }));
+
+    const stats = {
+      total: parseInt(req.query.stats_total) || 0,
+      complete: parseInt(req.query.stats_complete) || 0,
+      process: parseInt(req.query.stats_process) || 0,
+      batal: parseInt(req.query.stats_batal) || 0
+    };
     
     const filterInfo = await generateFilterInfo(req, "gabungan");
+    filterInfo.stats = stats;
     
     generatePDF("LAPORAN REKAP GABUNGAN", formattedRows, filterInfo, res);
   } catch (err) {

@@ -236,7 +236,93 @@ export function generatePDF(title, rows, filterInfo, res) {
       }
     );
 
+  yPosition += 20;
+
+// ======================================================================
+// SUMMARY STATS (untuk Gabungan)
+// ======================================================================
+if (filterInfo && filterInfo.stats && title.includes('GABUNGAN')) {
+  // Check if we need space
+  if (yPosition + 80 > doc.page.height - 60) {
+    doc.addPage({
+      margin: 20,
+      size: "A4",
+      layout: isGabungan ? "landscape" : "portrait"
+    });
+    yPosition = 20;
+  }
+
+  doc
+    .fontSize(11)
+    .fillColor("#000000")
+    .font("Helvetica-Bold")
+    .text("STATISTIK DATA", leftMargin, yPosition, {
+      width: pageWidth,
+      align: "center"
+    });
+
+  yPosition += 18;
+
+  const statsData = [
+    { label: 'Total Data', value: filterInfo.stats.total || 0, color: '#000000' },
+    { label: 'Complete', value: filterInfo.stats.complete || 0, color: '#28a745' },
+    { label: 'On Process', value: filterInfo.stats.process || 0, color: '#ffc107' },
+    { label: 'Batal', value: filterInfo.stats.batal || 0, color: '#dc3545' }
+  ];
+
+  const boxWidth = (pageWidth - 30) / 4;
+  const boxHeight = 40;
+  let xPos = leftMargin;
+
+  statsData.forEach((stat, index) => {
+    // Box background
+    doc
+      .rect(xPos, yPosition, boxWidth, boxHeight)
+      .fillColor("#F8F9FA")
+      .fill();
+    
+    // Box border
+    doc
+      .rect(xPos, yPosition, boxWidth, boxHeight)
+      .strokeColor("#CCCCCC")
+      .lineWidth(1)
+      .stroke();
+
+    // Label (tanpa icon)
+    doc
+      .fontSize(8)
+      .fillColor("#666666")
+      .font("Helvetica")
+      .text(stat.label, xPos + 5, yPosition + 10, {
+        width: boxWidth - 10,
+        align: "center"
+      });
+
+    // Value with color
+    doc
+      .fontSize(12)
+      .fillColor(stat.color)
+      .font("Helvetica-Bold")
+      .text(String(stat.value), xPos + 5, yPosition + 22, {
+        width: boxWidth - 10,
+        align: "center"
+      });
+
+    xPos += boxWidth + 7.5;
+  });
+
+  yPosition += boxHeight + 15;
+
+  // Bottom line separator
+  doc
+    .moveTo(leftMargin, yPosition)
+    .lineTo(leftMargin + pageWidth, yPosition)
+    .lineWidth(0.8)
+    .strokeColor("#CCCCCC")
+    .stroke();
+
   yPosition += 15;
+}
 
   // ======================================================================
   // DATA TABLE - SEMUA DATA CENTER
@@ -256,7 +342,7 @@ export function generatePDF(title, rows, filterInfo, res) {
 
     if (isGabungan) {
       columns = [
-        "no", "no_order", "tanggal_order", "petugas", "galian", 
+        "row_number", "no_order", "tanggal_order", "petugas", "galian",
         "galian_alihan", "no_do", "kendaraan", "supir", "jam_order",
         "km_awal", "tanggal_bongkar", "jam_bongkar", "km_akhir", 
         "jarak_km", "uang_jalan", "potongan", "total", "proyek",
@@ -264,7 +350,7 @@ export function generatePDF(title, rows, filterInfo, res) {
       ];
       
       columnConfig = {
-        "no": { width: 25, label: "No" },
+        "row_number": { width: 25, label: "No" },
         "no_order": { width: 40, label: "No Order" },
         "tanggal_order": { width: 45, label: "Tgl Order" },
         "petugas": { width: 40, label: "Petugas" },
@@ -454,6 +540,18 @@ export function generatePDF(title, rows, filterInfo, res) {
         const config = columnConfig[col] || { width: 60 };
         const width = config.width * scale;
         let value = row[col];
+
+        // Special handling untuk row_number
+        if (col === "row_number") {
+          value = rowIndex + 1;
+        }
+        
+        // Special handling untuk kolom total di Gabungan
+        if (col === "total" && isGabungan) {
+          const uangJalan = Number(row.uang_jalan || 0);
+          const potongan = Number(row.potongan || 0);
+          value = uangJalan - potongan;
+        }
 
         // Special formatting
         if ((col.includes("tanggal") || col === "tanggal_order" || col === "tanggal_bongkar") && value) {
