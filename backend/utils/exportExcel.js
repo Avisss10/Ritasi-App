@@ -408,7 +408,11 @@ if (filterInfo.title && filterInfo.title.includes('GABUNGAN') && filterInfo.stat
 
   // SEND
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-  res.setHeader("Content-Disposition", `attachment; filename="${filterInfo.filename || filename}.xlsx"`);
+  // Expose Content-Disposition so frontend JS can read it
+  res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
+  const { generateFilename } = await import('./filename.js');
+  const { filename: exportFilename, encoded: exportFilenameEncoded } = generateFilename(filterInfo.filename || filename, filterInfo);
+  res.setHeader("Content-Disposition", `attachment; filename="${exportFilename}.xlsx"; filename*=UTF-8''${exportFilenameEncoded}.xlsx`);
 
   await workbook.xlsx.write(res);
   res.end();

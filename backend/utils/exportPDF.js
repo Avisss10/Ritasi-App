@@ -1,73 +1,6 @@
 import PDFDocument from "pdfkit";
 
-/**
- * Generate descriptive filename based on filter info
- * @param {string} baseName - Base filename
- * @param {Object} filterInfo - Filter information
- * @returns {string} Formatted filename
- */
-function generateFilename(baseName, filterInfo) {
-  let filename = baseName;
-  const filterParts = [];
-  
-  if (filterInfo.filters) {
-    // Prioritize date range filters first
-    if (filterInfo.filters["Periode"]) {
-      const period = filterInfo.filters["Periode"];
-      const cleanPeriod = period
-        .replace(/s\/d/g, '_sd_')
-        .replace(/\//g, '-')
-        .replace(/\s+/g, '_');
-      filterParts.push(`Periode_${cleanPeriod}`);
-    }
-    
-    if (filterInfo.filters["Periode Order"]) {
-      const period = filterInfo.filters["Periode Order"];
-      const cleanPeriod = period
-        .replace(/s\/d/g, '_sd_')
-        .replace(/\//g, '-')
-        .replace(/\s+/g, '_');
-      filterParts.push(`Order_${cleanPeriod}`);
-    }
-    
-    if (filterInfo.filters["Periode Bongkar"]) {
-      const period = filterInfo.filters["Periode Bongkar"];
-      const cleanPeriod = period
-        .replace(/s\/d/g, '_sd_')
-        .replace(/\//g, '-')
-        .replace(/\s+/g, '_');
-      filterParts.push(`Bongkar_${cleanPeriod}`);
-    }
-    
-    // Add other important filters (limit to 3 most relevant)
-    const priorityFilters = ["Proyek", "Lokasi Bongkar", "Kendaraan", "Supir", "Galian", "Status", "Galian Alihan"];
-    let addedCount = 0;
-    
-    priorityFilters.forEach(filterKey => {
-      if (addedCount < 3 && filterInfo.filters[filterKey]) {
-        const value = filterInfo.filters[filterKey];
-        const cleanValue = value
-          .replace(/[<>:"/\\|?*]/g, '')
-          .replace(/\s+/g, '_')
-          .substring(0, 20);
-        filterParts.push(`${filterKey.replace(/\s+/g, '_')}_${cleanValue}`);
-        addedCount++;
-      }
-    });
-  }
-  
-  // Combine all parts
-  if (filterParts.length > 0) {
-    const filterString = filterParts.join('_').substring(0, 80);
-    filename = `${baseName}_${filterString}`;
-  }
-  
-  // Add timestamp for uniqueness
-  const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  filename = `${filename}_${timestamp}`;
-  
-  return filename.replace(/\s+/g, '_');
-}
+import { generateFilename } from "./filename.js";
 
 // Helper: Format nilai KM - dengan format biasa, 0 tetap 0
 function formatKM(value) {
@@ -114,12 +47,14 @@ export function generatePDF(title, rows, filterInfo, res) {
   });
 
   res.setHeader("Content-Type", "application/pdf");
+  // Expose Content-Disposition so frontend JS can read it
+  res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
   
   // Generate descriptive filename
-  const exportFilename = generateFilename(filterInfo.filename || title, filterInfo);
+  const { filename: exportFilename, encoded: exportFilenameEncoded } = generateFilename(filterInfo.filename || title, filterInfo);
   res.setHeader(
     "Content-Disposition",
-    `attachment; filename="${exportFilename}.pdf"`
+    `attachment; filename="${exportFilename}.pdf"; filename*=UTF-8''${exportFilenameEncoded}.pdf`
   );
 
   doc.pipe(res);

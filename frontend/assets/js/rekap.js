@@ -1126,6 +1126,17 @@ function resetFilterGabungan() {
 // ============================================================================
 // EXPORT FUNCTIONS
 // ============================================================================
+function sanitizeFilename(name) {
+    if (!name) return name;
+    // Remove surrounding quotes
+    name = name.replace(/^"(.*)"$/, '$1');
+    // Remove invalid filename characters and control chars
+    name = name.replace(/[<>:"\/\\|?*\u0000-\u001F]/g, '_');
+    // Collapse multiple underscores
+    name = name.replace(/_+/g, '_');
+    // Trim and limit length
+    return name.trim().substring(0, 120);
+} 
 async function exportToExcel(type) {
     try {
         let endpoint = '';
@@ -1200,16 +1211,23 @@ async function exportToExcel(type) {
         if (!response.ok) throw new Error(`Export failed: ${response.statusText}`);
 
         const blob = await response.blob();
+        // Try to get filename from Content-Disposition header
+        const disposition = response.headers.get('Content-Disposition') || response.headers.get('content-disposition') || '';
+        let filename = `rekap_${type}_${Date.now()}.xlsx`;
+        const filenameMatch = disposition.match(/filename\*=UTF-8''([^;]+)|filename=\"?([^\";]+)\"?/i);
+        if (filenameMatch) {
+            filename = decodeURIComponent(filenameMatch[1] || filenameMatch[2] || filename);
+        }
+        filename = sanitizeFilename(filename) || `rekap_${type}_${Date.now()}.xlsx`;
         const downloadUrl = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = downloadUrl;
-        a.download = `rekap_${type}_${new Date().getTime()}.xlsx`;
+        a.download = filename;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(downloadUrl);
         document.body.removeChild(a);
-
-        alert('✅ Export Excel berhasil!');
+        // Removed success alert as per UX request
     } catch (err) {
         console.error('❌ Error exporting to Excel:', err);
         alert('❌ Gagal export Excel: ' + err.message);
@@ -1290,16 +1308,23 @@ async function exportToPDF(type) {
         if (!response.ok) throw new Error(`Export failed: ${response.statusText}`);
 
         const blob = await response.blob();
+        // Try to get filename from Content-Disposition header
+        const disposition = response.headers.get('Content-Disposition') || response.headers.get('content-disposition') || '';
+        let filename = `rekap_${type}_${Date.now()}.pdf`;
+        const filenameMatch = disposition.match(/filename\*=UTF-8''([^;]+)|filename=\"?([^\";]+)\"?/i);
+        if (filenameMatch) {
+            filename = decodeURIComponent(filenameMatch[1] || filenameMatch[2] || filename);
+        }
+        filename = sanitizeFilename(filename) || `rekap_${type}_${Date.now()}.pdf`;
         const downloadUrl = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = downloadUrl;
-        a.download = `rekap_${type}_${new Date().getTime()}.pdf`;
+        a.download = filename;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(downloadUrl);
         document.body.removeChild(a);
-
-        alert('✅ Export PDF berhasil!');
+        // Removed success alert as per UX request
     } catch (err) {
         console.error('❌ Error exporting to PDF:', err);
         alert('❌ Gagal export PDF: ' + err.message);
