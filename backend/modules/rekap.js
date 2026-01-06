@@ -15,11 +15,33 @@ function formatKM(value) {
   if (value === null || value === undefined || value === "") {
     return "0";
   }
+
+  // If the original value is a string and contains a decimal separator, preserve decimal digits
+  if (typeof value === 'string' && (value.indexOf('.') !== -1 || value.indexOf(',') !== -1)) {
+    const sep = value.indexOf('.') !== -1 ? '.' : ',';
+    const parts = value.split(sep);
+    const intPart = parts[0] || '0';
+    const decPart = parts[1] || '';
+
+    const intNum = Number(intPart.replace(/\s+/g, ''));
+    const formattedInt = isNaN(intNum) ? intPart : intNum.toLocaleString('id-ID');
+    return decPart ? `${formattedInt},${decPart}` : formattedInt;
+  }
+
   const numValue = Number(value);
   if (isNaN(numValue)) {
     return value;
   }
-  return numValue.toLocaleString("id-ID");
+
+  if (Number.isInteger(numValue)) {
+    return numValue.toLocaleString('id-ID');
+  }
+
+  // For decimals (when original was not a string with explicit decimals), preserve decimal digits from toString()
+  const parts = numValue.toString().split('.');
+  const formattedInt = Number(parts[0]).toLocaleString('id-ID');
+  const dec = parts[1] || '';
+  return dec ? `${formattedInt},${dec}` : formattedInt;
 }
 
 // Helper: Build WHERE clause based on filters for ORDER

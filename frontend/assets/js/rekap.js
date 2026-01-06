@@ -1570,13 +1570,35 @@ function formatKilometer(value) {
          value.toUpperCase() === 'ODOERR')) {
         return 'ODO ERROR';
     }
-    
-    if (!value || value === 0) return '0';
-    
-    const numValue = parseFloat(value);
-    if (isNaN(numValue)) return '0';
-    
-    return numValue.toLocaleString('id-ID');
+
+    // Treat null/undefined/empty as 0
+    if (value === null || value === undefined || value === '') return '0';
+    if (value === 0) return '0';
+
+    // If input is a string and contains a decimal separator, preserve the decimal part exactly
+    if (typeof value === 'string' && (value.includes('.') || value.includes(','))) {
+        const sep = value.includes('.') ? '.' : ',';
+        const parts = value.split(sep);
+        const intPart = parts[0] || '0';
+        const decPart = parts[1] || '';
+
+        const intNum = Number(intPart.replace(/\s+/g, ''));
+        const formattedInt = isNaN(intNum) ? intPart : intNum.toLocaleString('id-ID');
+        return decPart ? `${formattedInt},${decPart}` : formattedInt;
+    }
+
+    // For numeric values or strings without explicit decimal part, format while preserving any decimals
+    const numValue = Number(value);
+    if (isNaN(numValue)) return String(value);
+
+    // If integer, format normally
+    if (Number.isInteger(numValue)) return numValue.toLocaleString('id-ID');
+
+    // For decimals, use the string representation to capture decimal digits, then format the integer part
+    const numParts = numValue.toString().split('.');
+    const formattedInt = Number(numParts[0]).toLocaleString('id-ID');
+    const decPart = numParts[1] || '';
+    return decPart ? `${formattedInt},${decPart}` : formattedInt;
 }
 
 function formatDate(dateString) {
