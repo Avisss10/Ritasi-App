@@ -723,7 +723,7 @@ async function loadRekapOrder() {
 
         Object.keys(filters).forEach(key => {
             const value = filters[key];
-            if (value && value !== '' && value !== '0') {
+            if (value !== undefined && value !== null && value !== '') {
                 params.append(key, value);
             }
         });
@@ -866,7 +866,7 @@ async function loadRekapBuangan() {
 
         Object.keys(filters).forEach(key => {
             const value = filters[key];
-            if (value && value !== '') {
+            if (value !== undefined && value !== null && value !== '') {
                 params.append(key, value);
             }
         });
@@ -983,7 +983,7 @@ async function loadRekapGabungan() {
 
         Object.keys(filters).forEach(key => {
             const value = filters[key];
-            if (value && value !== '' && value !== '0') {
+            if (value !== undefined && value !== null && value !== '') {
                 params.append(key, value);
             }
         });
@@ -1102,9 +1102,11 @@ function resetFilterGabungan() {
     document.getElementById('filter-tanggal-type-gabungan').value = '2-hari';
     document.getElementById('filter-tanggal-order-dari-gabungan').value = get2DaysAgo();
     document.getElementById('filter-tanggal-order-sampai-gabungan').value = getToday();
-    document.getElementById('filter-tanggal-bongkar-type-gabungan').value = '2-hari';
-    document.getElementById('filter-tanggal-bongkar-dari-gabungan').value = get2DaysAgo();
-    document.getElementById('filter-tanggal-bongkar-sampai-gabungan').value = getToday();
+    // Keep Bongkar period as 'semua' by default and clear date inputs so it stays until user changes it
+    document.getElementById('filter-tanggal-bongkar-type-gabungan').value = 'semua';
+    document.getElementById('filter-tanggal-bongkar-dari-gabungan').value = '';
+    document.getElementById('filter-tanggal-bongkar-sampai-gabungan').value = '';
+    toggleDateRangeBongkarGabungan();
     document.getElementById('filter-proyek-gabungan').value = '';
     document.getElementById('filter-lokasi-bongkar-gabungan').value = '';
     document.getElementById('filter-status-gabungan').value = '';
@@ -1140,7 +1142,8 @@ async function exportToExcel(type) {
                 galian_id: document.getElementById('filter-galian-order-id')?.value || ""
             };
             Object.keys(filters).forEach(key => {
-                if (filters[key] && filters[key] !== '0') params.append(key, filters[key]);
+                const v = filters[key];
+                if (v !== undefined && v !== null && v !== '') params.append(key, v);
             });
             endpoint = '/rekap/order/export/excel';
             
@@ -1152,7 +1155,8 @@ async function exportToExcel(type) {
                 alihan: document.getElementById('filter-alihan')?.value || ""
             };
             Object.keys(filters).forEach(key => {
-                if (filters[key]) params.append(key, filters[key]);
+                const v = filters[key];
+                if (v !== undefined && v !== null && v !== '') params.append(key, v);
             });
             endpoint = '/rekap/buangan/export/excel';
             
@@ -1171,7 +1175,8 @@ async function exportToExcel(type) {
                 galian_alihan_id: document.getElementById('filter-galian-alihan-gabungan-id')?.value || ""
             };
             Object.keys(filters).forEach(key => {
-                if (filters[key] && filters[key] !== '0') params.append(key, filters[key]);
+                const v = filters[key];
+                if (v !== undefined && v !== null && v !== '') params.append(key, v);
             });
             
             // Kirim Stats untuk Summary
@@ -1227,7 +1232,8 @@ async function exportToPDF(type) {
                 galian_id: document.getElementById('filter-galian-order-id')?.value || ""
             };
             Object.keys(filters).forEach(key => {
-                if (filters[key] && filters[key] !== '0') params.append(key, filters[key]);
+                const v = filters[key];
+                if (v !== undefined && v !== null && v !== '') params.append(key, v);
             });
             endpoint = '/rekap/order/export/pdf';
             
@@ -1239,7 +1245,8 @@ async function exportToPDF(type) {
                 alihan: document.getElementById('filter-alihan')?.value || ""
             };
             Object.keys(filters).forEach(key => {
-                if (filters[key]) params.append(key, filters[key]);
+                const v = filters[key];
+                if (v !== undefined && v !== null && v !== '') params.append(key, v);
             });
             endpoint = '/rekap/buangan/export/pdf';
             
@@ -1258,7 +1265,8 @@ async function exportToPDF(type) {
                 galian_alihan_id: document.getElementById('filter-galian-alihan-gabungan-id')?.value || ""
             };
             Object.keys(filters).forEach(key => {
-                if (filters[key] && filters[key] !== '0') params.append(key, filters[key]);
+                const v = filters[key];
+                if (v !== undefined && v !== null && v !== '') params.append(key, v);
             });
             
             // Kirim Stats untuk Summary

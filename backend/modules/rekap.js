@@ -33,6 +33,10 @@ function buildFilters(req, allowedFields) {
       if (key === 'proyek_input') {
         conditions.push(`LOWER(o.${key}) LIKE LOWER(?)`);
         values.push(`${value}%`);
+      } else if (key === 'status') {
+        // Normalize spaces/underscores and compare case-insensitively so 'ON PROCESS' and 'ON_PROCESS' both match
+        conditions.push(`LOWER(REPLACE(o.status, ' ', '_')) = LOWER(REPLACE(?, ' ', '_'))`);
+        values.push(value);
       } else {
         conditions.push(`o.${key} = ?`);
         values.push(value);
@@ -109,6 +113,10 @@ function buildFiltersGabungan(req, allowedFields) {
         values.push(value);
       } else if (key === 'alihan') {
         conditions.push(`b.${key} = ?`);
+        values.push(value);
+      } else if (key === 'status') {
+        // Normalize spaces/underscores and compare case-insensitively so 'ON PROCESS' and 'ON_PROCESS' both match
+        conditions.push(`LOWER(REPLACE(o.status, ' ', '_')) = LOWER(REPLACE(?, ' ', '_'))`);
         values.push(value);
       } else {
         conditions.push(`o.${key} = ?`);
