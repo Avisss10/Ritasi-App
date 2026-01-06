@@ -794,8 +794,8 @@ async function handleFormSubmit(e) {
         const result = await response.json();
 
         const successMsg = kmAkhir === 'ODO ERROR'
-            ? 'Ritasi berhasil disimpan! (ODO ERROR)'
-            : (jarakKm === null ? 'Ritasi berhasil disimpan!' : 'Ritasi berhasil disimpan! Jarak: ' + formatKM(jarakKm) + ' KM');
+            ? 'Buangan berhasil disimpan! (ODO ERROR)'
+            : (jarakKm === null ? 'Buangan berhasil disimpan!' : 'Buangan berhasil disimpan! Jarak: ' + formatKM(jarakKm) + ' KM');
         
         showToast(successMsg, 'success');
         
@@ -804,7 +804,7 @@ async function handleFormSubmit(e) {
 
     } catch (error) {
         console.error('Error:', error);
-        showToast('Gagal menyimpan ritasi: ' + error.message, 'error');
+        showToast('Gagal menyimpan buangan: ' + error.message, 'error');
     }
 }
 
@@ -885,14 +885,14 @@ async function handleEditFormSubmit(e) {
             throw new Error(errorResult.message || `HTTP error! status: ${response.status}`);
         }
 
-        showToast('Ritasi berhasil diupdate!', 'success');
+        showToast('Buangan berhasil diupdate!', 'success');
         
         // Immediately return to main buangan page and refresh
         goToBuanganMain();
 
     } catch (error) {
         console.error('Error:', error);
-        showToast('Gagal update ritasi: ' + error.message, 'error');
+        showToast('Gagal update buangan: ' + error.message, 'error');
     }
 }
 
@@ -1594,7 +1594,7 @@ function tutupDetail() {
     currentBuanganDetail = null;
 }
 async function hapusBuangan(id) {
-    if (!confirm('Yakin ingin menghapus ritasi ini?')) {
+    if (!confirm('Yakin ingin menghapus buangan ini?')) {
         return;
     }
 
@@ -1604,11 +1604,62 @@ async function hapusBuangan(id) {
         });
 
         if (!response.ok) {
-            const errorResult = await response.json();
-            throw new Error(errorResult.message || `HTTP error! status: ${response.status}`);
+            let errMsg = `HTTP error! status: ${response.status}`;
+            try {
+                const errorResult = await response.json();
+                errMsg = errorResult.message || JSON.stringify(errorResult);
+            } catch (parseErr) {
+                try {
+                    const text = await response.text();
+                    errMsg = text;
+                } catch (e) {
+                    // ignore
+                }
+            }
+            throw new Error(errMsg);
         }
 
-        showToast('Ritasi berhasil dihapus', 'success');
+        showToast('Buangan berhasil dihapus', 'success');
+        
+        // Immediately go to main page and refresh
+        goToBuanganMain();
+
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Gagal menghapus buangan: ' + error.message, 'error');
+    }
+}
+
+// ============================================================================
+// HAPUS RITASI (hapus buangan + order)
+// ============================================================================
+async function hapusRitasi(id) {
+    if (!confirm('Yakin ingin menghapus RITASI ini beserta ORDER terkait? Tindakan ini tidak dapat dibatalkan.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/buangan/${id}/ritasi`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            let errMsg = `HTTP error! status: ${response.status}`;
+            try {
+                const errorResult = await response.json();
+                errMsg = errorResult.message || JSON.stringify(errorResult);
+            } catch (parseErr) {
+                try {
+                    const text = await response.text();
+                    errMsg = text;
+                } catch (e) {
+                    // ignore
+                }
+            }
+            throw new Error(errMsg);
+        }
+
+        showToast('Ritasi dan order berhasil dihapus', 'success');
         
         // Immediately go to main page and refresh
         goToBuanganMain();

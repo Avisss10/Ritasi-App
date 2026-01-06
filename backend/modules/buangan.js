@@ -309,7 +309,7 @@ router.post("/", async (req, res) => {
 
     console.log("✅ Order status updated to COMPLETE");
 
-    return success(res, "Ritasi berhasil ditambahkan", {
+    return success(res, "Buangan berhasil ditambahkan", {
       id: result.insertId,
       order_id,
       km_akhir: final_km_akhir,
@@ -501,10 +501,78 @@ router.delete("/:id", async (req, res) => {
       [orderId]
     );
 
-    return success(res, "Ritasi berhasil dihapus");
+    return success(res, "Buangan berhasil dihapus");
   } catch (err) {
     console.error("Error DELETE /buangan:", err);
+    return error(res, 500, "Gagal menghapus buangan", err);
+  }
+});
+
+// ============================================================================
+// DELETE RITASI (hapus buangan + order)
+// ============================================================================
+router.delete("/:id/ritasi", async (req, res) => {
+  const { id } = req.params;
+  let conn;
+  try {
+    conn = await db.getConnection();
+    await conn.beginTransaction();
+
+    // Get the buangan record to find associated order_id
+    const [buanganRows] = await conn.query(
+      `SELECT order_id FROM buangan WHERE id = ? LIMIT 1`,
+      [id]
+    );
+
+    if (buanganRows.length === 0) {
+      await conn.rollback();
+      return error(res, 404, `Buangan ID ${id} tidak ditemukan`);
+    }
+
+    const orderId = buanganRows[0].order_id;
+
+    // Check if there are other buangan records for the same order
+    const [countRows] = await conn.query(
+      `SELECT COUNT(*) as cnt FROM buangan WHERE order_id = ?`,
+      [orderId]
+    );
+
+    if (countRows[0].cnt > 1) {
+      await conn.rollback();
+      return error(res, 400, "Terdapat ritasi lain untuk order ini. Hapus ritasi lainnya terlebih dahulu.");
+    }
+
+    // Delete the buangan
+    const [delBuangan] = await conn.query(
+      `DELETE FROM buangan WHERE id = ?`,
+      [id]
+    );
+
+    if (delBuangan.affectedRows === 0) {
+      await conn.rollback();
+      return error(res, 404, `Buangan ID ${id} tidak ditemukan`);
+    }
+
+    // Delete the order
+    const [delOrder] = await conn.query(
+      `DELETE FROM orders WHERE id = ?`,
+      [orderId]
+    );
+
+    if (delOrder.affectedRows === 0) {
+      await conn.rollback();
+      return error(res, 404, `Order ID ${orderId} tidak ditemukan`);
+    }
+
+    await conn.commit();
+
+    return success(res, "Ritasi dan order berhasil dihapus");
+  } catch (err) {
+    if (conn) await conn.rollback().catch(()=>{});
+    console.error("Error DELETE /buangan/:id/ritasi:", err);
     return error(res, 500, "Gagal menghapus ritasi", err);
+  } finally {
+    if (conn) conn.release();
   }
 });
 
