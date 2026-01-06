@@ -10,6 +10,13 @@ let masterGalian = [];
 // FILTER FUNCTIONS
 // ============================================================================
 
+function get2DaysAgo() {
+    const today = new Date();
+    const twoDaysAgo = new Date(today);
+    twoDaysAgo.setDate(today.getDate() - 2);
+    return formatDateForInput(twoDaysAgo);
+}
+
 function togglePeriodeSection(header) {
     header.classList.toggle('collapsed');
 }
@@ -152,6 +159,9 @@ function toggleDateRangeOrder() {
         } else if (filterType === '7-hari') {
             dariInput.value = get7DaysAgo();
             sampaiInput.value = getToday();
+        } else if (filterType === '2-hari') {
+            dariInput.value = get2DaysAgo();
+            sampaiInput.value = getToday();
         } else if (filterType === 'semua') {
             dariInput.value = '';
             sampaiInput.value = '';
@@ -179,6 +189,9 @@ function toggleDateRangeBuangan() {
         } else if (filterType === '7-hari') {
             dariInput.value = get7DaysAgo();
             sampaiInput.value = getToday();
+        } else if (filterType === '2-hari') {
+            dariInput.value = get2DaysAgo();
+            sampaiInput.value = getToday();
         } else if (filterType === 'semua') {
             dariInput.value = '';
             sampaiInput.value = '';
@@ -186,7 +199,6 @@ function toggleDateRangeBuangan() {
     }
 }
 
-// Toggle untuk date range order gabungan
 function toggleDateRangeOrderGabungan() {
     const filterType = document.getElementById('filter-tanggal-type-gabungan').value;
     const dateRangeDiv = document.getElementById('date-range-order-gabungan');
@@ -207,6 +219,9 @@ function toggleDateRangeOrderGabungan() {
         } else if (filterType === '7-hari') {
             dariInput.value = get7DaysAgo();
             sampaiInput.value = getToday();
+        } else if (filterType === '2-hari') {
+            dariInput.value = get2DaysAgo();
+            sampaiInput.value = getToday();
         } else if (filterType === 'semua') {
             dariInput.value = '';
             sampaiInput.value = '';
@@ -214,7 +229,6 @@ function toggleDateRangeOrderGabungan() {
     }
 }
 
-// Toggle untuk date range bongkar gabungan
 function toggleDateRangeBongkarGabungan() {
     const filterType = document.getElementById('filter-tanggal-bongkar-type-gabungan').value;
     const dateRangeDiv = document.getElementById('date-range-bongkar-gabungan');
@@ -234,6 +248,9 @@ function toggleDateRangeBongkarGabungan() {
             sampaiInput.value = today;
         } else if (filterType === '7-hari') {
             dariInput.value = get7DaysAgo();
+            sampaiInput.value = getToday();
+        } else if (filterType === '2-hari') {
+            dariInput.value = get2DaysAgo();
             sampaiInput.value = getToday();
         } else if (filterType === 'semua') {
             dariInput.value = '';
@@ -321,6 +338,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+    // Initialize default date filters
+    document.getElementById('filter-tanggal-dari-order').value = get2DaysAgo();
+    document.getElementById('filter-tanggal-sampai-order').value = getToday();
+    document.getElementById('filter-tanggal-dari-buangan').value = get2DaysAgo();
+    document.getElementById('filter-tanggal-sampai-buangan').value = getToday();
+    document.getElementById('filter-tanggal-order-dari-gabungan').value = get2DaysAgo();
+    document.getElementById('filter-tanggal-order-sampai-gabungan').value = getToday();
+    // Default for Bongkar period in Gabungan tab: Semua (clear date inputs)
+    document.getElementById('filter-tanggal-bongkar-dari-gabungan').value = '';
+    document.getElementById('filter-tanggal-bongkar-sampai-gabungan').value = '';
+    document.getElementById('filter-tanggal-bongkar-type-gabungan').value = 'semua';
+    toggleDateRangeBongkarGabungan();
     
     // Collapsible Filter Sections
     document.querySelectorAll('.filter-section-subtitle h4').forEach(header => {
@@ -802,9 +832,9 @@ async function loadRekapOrder() {
 
 function resetFilterOrder() {
     console.log('🔄 Resetting Order filters...');
-    document.getElementById('filter-tanggal-type-order').value = 'semua';
-    document.getElementById('filter-tanggal-dari-order').value = '';
-    document.getElementById('filter-tanggal-sampai-order').value = '';
+    document.getElementById('filter-tanggal-type-order').value = '2-hari';
+    document.getElementById('filter-tanggal-dari-order').value = get2DaysAgo();
+    document.getElementById('filter-tanggal-sampai-order').value = getToday();
     document.getElementById('filter-proyek-order').value = '';
     document.getElementById('filter-status-order').value = '';
     document.getElementById('filter-kendaraan-order').value = '';
@@ -918,9 +948,9 @@ async function loadRekapBuangan() {
 
 function resetFilterBuangan() {
     console.log('🔄 Resetting Buangan filters...');
-    document.getElementById('filter-tanggal-type-buangan').value = 'semua';
-    document.getElementById('filter-tanggal-dari-buangan').value = '';
-    document.getElementById('filter-tanggal-sampai-buangan').value = '';
+    document.getElementById('filter-tanggal-type-buangan').value = '2-hari';
+    document.getElementById('filter-tanggal-dari-buangan').value = get2DaysAgo();
+    document.getElementById('filter-tanggal-sampai-buangan').value = getToday();
     document.getElementById('filter-no-order').value = '';
     document.getElementById('filter-alihan').value = '';
     document.getElementById('date-range-buangan').classList.remove('show');
@@ -1069,12 +1099,12 @@ async function loadRekapGabungan() {
 
 function resetFilterGabungan() {
     console.log('🔄 Resetting Gabungan filters...');
-    document.getElementById('filter-tanggal-type-gabungan').value = 'semua';
-    document.getElementById('filter-tanggal-order-dari-gabungan').value = '';
-    document.getElementById('filter-tanggal-order-sampai-gabungan').value = '';
-    document.getElementById('filter-tanggal-bongkar-type-gabungan').value = 'semua';
-    document.getElementById('filter-tanggal-bongkar-dari-gabungan').value = '';
-    document.getElementById('filter-tanggal-bongkar-sampai-gabungan').value = '';
+    document.getElementById('filter-tanggal-type-gabungan').value = '2-hari';
+    document.getElementById('filter-tanggal-order-dari-gabungan').value = get2DaysAgo();
+    document.getElementById('filter-tanggal-order-sampai-gabungan').value = getToday();
+    document.getElementById('filter-tanggal-bongkar-type-gabungan').value = '2-hari';
+    document.getElementById('filter-tanggal-bongkar-dari-gabungan').value = get2DaysAgo();
+    document.getElementById('filter-tanggal-bongkar-sampai-gabungan').value = getToday();
     document.getElementById('filter-proyek-gabungan').value = '';
     document.getElementById('filter-lokasi-bongkar-gabungan').value = '';
     document.getElementById('filter-status-gabungan').value = '';

@@ -268,11 +268,34 @@ async function generateFilterInfo(req, type) {
 
   // ========== DATE RANGE FILTERS ==========
   
+  // Helper function untuk format tanggal
+  const getTodayDate = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  };
+  
+  const get2DaysAgoDate = () => {
+    const today = new Date();
+    today.setDate(today.getDate() - 2);
+    return today.toISOString().split('T')[0];
+  };
+  
   // Date range umum (untuk order dan buangan)
   if (req.query.tanggal_dari && req.query.tanggal_sampai) {
     const dari = formatDate(req.query.tanggal_dari);
     const sampai = formatDate(req.query.tanggal_sampai);
-    filters["Periode"] = `${dari} s/d ${sampai}`;
+    
+    // Check if it's 2 days range (default)
+    const twoDaysAgo = get2DaysAgoDate();
+    const today = getTodayDate();
+    
+    if (req.query.tanggal_dari === twoDaysAgo && req.query.tanggal_sampai === today) {
+      filters["Periode"] = "2 Hari Terakhir";
+    } else if (req.query.tanggal_dari === today && req.query.tanggal_sampai === today) {
+      filters["Periode"] = "Hari Ini";
+    } else {
+      filters["Periode"] = `${dari} s/d ${sampai}`;
+    }
   } else if (req.query.tanggal_dari) {
     filters["Tanggal Dari"] = formatDate(req.query.tanggal_dari);
   } else if (req.query.tanggal_sampai) {
@@ -283,7 +306,18 @@ async function generateFilterInfo(req, type) {
   if (req.query.tanggal_order_dari && req.query.tanggal_order_sampai) {
     const dari = formatDate(req.query.tanggal_order_dari);
     const sampai = formatDate(req.query.tanggal_order_sampai);
-    filters["Periode Order"] = `${dari} s/d ${sampai}`;
+    
+    // Check if it's 2 days range (default)
+    const twoDaysAgo = get2DaysAgoDate();
+    const today = getTodayDate();
+    
+    if (req.query.tanggal_order_dari === twoDaysAgo && req.query.tanggal_order_sampai === today) {
+      filters["Periode Order"] = "2 Hari Terakhir";
+    } else if (req.query.tanggal_order_dari === today && req.query.tanggal_order_sampai === today) {
+      filters["Periode Order"] = "Hari Ini";
+    } else {
+      filters["Periode Order"] = `${dari} s/d ${sampai}`;
+    }
   } else if (req.query.tanggal_order_dari) {
     filters["Tanggal Order Dari"] = formatDate(req.query.tanggal_order_dari);
   } else if (req.query.tanggal_order_sampai) {
@@ -294,7 +328,18 @@ async function generateFilterInfo(req, type) {
   if (req.query.tanggal_bongkar_dari && req.query.tanggal_bongkar_sampai) {
     const dari = formatDate(req.query.tanggal_bongkar_dari);
     const sampai = formatDate(req.query.tanggal_bongkar_sampai);
-    filters["Periode Bongkar"] = `${dari} s/d ${sampai}`;
+    
+    // Check if it's 2 days range (default)
+    const twoDaysAgo = get2DaysAgoDate();
+    const today = getTodayDate();
+    
+    if (req.query.tanggal_bongkar_dari === twoDaysAgo && req.query.tanggal_bongkar_sampai === today) {
+      filters["Periode Bongkar"] = "2 Hari Terakhir";
+    } else if (req.query.tanggal_bongkar_dari === today && req.query.tanggal_bongkar_sampai === today) {
+      filters["Periode Bongkar"] = "Hari Ini";
+    } else {
+      filters["Periode Bongkar"] = `${dari} s/d ${sampai}`;
+    }
   } else if (req.query.tanggal_bongkar_dari) {
     filters["Tanggal Bongkar Dari"] = formatDate(req.query.tanggal_bongkar_dari);
   } else if (req.query.tanggal_bongkar_sampai) {
@@ -302,7 +347,7 @@ async function generateFilterInfo(req, type) {
   }
 
   if (Object.keys(filters).length === 0) {
-    filters["Periode"] = "Semua Data";
+    filters["Periode"] = "2 Hari Terakhir (Default)";
   }
 
   return {
