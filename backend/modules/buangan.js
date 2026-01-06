@@ -9,6 +9,15 @@ import { success, error } from "../utils/response.js";
 const router = express.Router();
 
 // ============================================================================
+// HELPERS - exact ODO ERROR check (no fuzzy matching)
+function isExactOdoVariant(s) {
+  if (!s) return false;
+  const u = s.toString().toUpperCase().replace(/\s/g, '').trim();
+  return u === 'ODOERROR' || u === 'ODOERR';
+}
+
+
+// ============================================================================
 // GET ALL BUANGAN
 // ============================================================================
 router.get("/", async (req, res) => {
@@ -177,48 +186,59 @@ router.post("/", async (req, res) => {
     let final_km_akhir = km_akhir;
     let final_jarak_km = jarak_km;
 
-    // Cek apakah km_akhir adalah "ODO ERROR"
-    if (typeof km_akhir === 'string' && 
-        (km_akhir.toUpperCase() === 'ODO ERROR' || 
-        km_akhir.toUpperCase() === 'ODOERROR' ||
-        km_akhir.toUpperCase() === 'ODO ERR' ||
-        km_akhir.toUpperCase() === 'ODOERR')) {
-      
-      console.log("⚠️ KM Akhir = ODO ERROR");
-      final_km_akhir = 'ODO ERROR';
-      final_jarak_km = 'ODO ERROR'; 
+    // If km_akhir is provided as a string, allow arbitrary text; only exact 'ODO ERROR' is treated specially
+    if (typeof km_akhir === 'string') {
+      if (isExactOdoVariant(km_akhir)) {
+        final_km_akhir = 'ODO ERROR';
+        final_jarak_km = 'ODO ERROR';
       } else {
-        // Validasi km_akhir adalah angka
-        const km_akhir_number = parseFloat(km_akhir);
-        
-        if (isNaN(km_akhir_number)) {
-          return error(res, 400, "KM Akhir harus berupa angka atau 'ODO ERROR'");
-        }
+        // Try to parse numeric value from string (handles '12.345' or formatted strings)
+        const km_akhir_number = parseFloat(km_akhir.toString().replace(/[^0-9.\-]/g, ''));
+        if (!isNaN(km_akhir_number)) {
+          final_km_akhir = km_akhir_number;
 
-        final_km_akhir = km_akhir_number;
-
-        //  Cek apakah jarak_km dari frontend adalah 'ODO ERROR'
-        if (typeof jarak_km === 'string' && 
-            (jarak_km.toUpperCase() === 'ODO ERROR' || 
-            jarak_km.toUpperCase() === 'ODOERROR' ||
-            jarak_km.toUpperCase() === 'ODO ERR' ||
-            jarak_km.toUpperCase() === 'ODOERR')) {
-          final_jarak_km = 'ODO ERROR';
-        } else {
-          const km_awal = parseFloat(order[0].km_awal);
-          const jarak_km_calculated = km_akhir_number - km_awal;
-
-          const jarak_from_body = (jarak_km !== undefined && jarak_km !== null && jarak_km !== '')
-            ? parseFloat(jarak_km)
-            : null;
-
-          if (jarak_from_body !== null && !isNaN(jarak_from_body)) {
-            final_jarak_km = jarak_from_body;
+          // jarak_km from frontend can be 'ODO ERROR' or number
+          if (typeof jarak_km === 'string' && isExactOdoVariant(jarak_km)) {
+            final_jarak_km = 'ODO ERROR';
           } else {
-            final_jarak_km = jarak_km_calculated;
+            const km_awal = parseFloat(order[0].km_awal);
+            const jarak_km_calculated = km_akhir_number - km_awal;
+
+            const jarak_from_body = (jarak_km !== undefined && jarak_km !== null && jarak_km !== '')
+              ? (isNaN(parseFloat(jarak_km)) ? null : parseFloat(jarak_km))
+              : null;
+
+            if (jarak_from_body !== null) {
+              final_jarak_km = jarak_from_body;
+            } else {
+              final_jarak_km = jarak_km_calculated;
+            }
           }
+
+          // Allow negative distances (km_awal > km_akhir). Save as-is but warn.
+          if (final_jarak_km < 0) {
+            console.warn(`⚠️ Jarak KM negatif (${final_jarak_km}).`);
+          }
+        } else {
+          // Non-numeric arbitrary text (not an ODO typo) -> save raw text and leave jarak_km null
+          final_km_akhir = km_akhir;
+          final_jarak_km = null;
         }
-      // Allow negative distances (km_awal > km_akhir). Save as-is.
+      }
+    } else {
+      // km_akhir provided as a number
+      const km_akhir_number = parseFloat(km_akhir);
+      final_km_akhir = km_akhir_number;
+
+      if (typeof jarak_km === 'string' && isExactOdoVariant(jarak_km)) {
+        final_jarak_km = 'ODO ERROR';
+      } else {
+        const km_awal = parseFloat(order[0].km_awal);
+        final_jarak_km = (jarak_km !== undefined && jarak_km !== null && jarak_km !== '' && !isNaN(parseFloat(jarak_km)))
+          ? parseFloat(jarak_km)
+          : (km_akhir_number - km_awal);
+      }
+
       if (final_jarak_km < 0) {
         console.warn(`⚠️ Jarak KM negatif (${final_jarak_km}).`);
       }
@@ -328,19 +348,46 @@ router.put("/:id", async (req, res) => {
     // Handle km_akhir dan jarak_km
     if (req.body.km_akhir !== undefined) {
       const km_akhir = req.body.km_akhir;
-      
-      // Cek apakah ODO ERROR
-      if (typeof km_akhir === 'string' && 
-          (km_akhir.toUpperCase() === 'ODO ERROR' || 
-           km_akhir.toUpperCase() === 'ODOERROR' ||
-           km_akhir.toUpperCase() === 'ODO ERR' ||
-           km_akhir.toUpperCase() === 'ODOERR')) {
-        fields.push(`km_akhir = ?`);
-        values.push('ODO ERROR');
-        fields.push(`jarak_km = ?`);
-        values.push(null);
+
+      if (typeof km_akhir === 'string') {
+        if (isExactOdoVariant(km_akhir)) {
+          fields.push(`km_akhir = ?`);
+          values.push('ODO ERROR');
+          fields.push(`jarak_km = ?`);
+          values.push(null);
+        } else {
+          // try to extract numeric from string
+          const km_akhir_number = parseFloat(km_akhir.toString().replace(/[^0-9.\-]/g, ''));
+
+          if (!isNaN(km_akhir_number)) {
+            const [[order]] = await db.query(
+              `SELECT o.km_awal 
+               FROM buangan b 
+               JOIN orders o ON b.order_id = o.id 
+               WHERE b.id = ? LIMIT 1`,
+              [id]
+            );
+
+            if (!order) {
+              return error(res, 404, "Data tidak valid untuk hitung jarak");
+            }
+
+            const jarak_km = km_akhir_number - order.km_awal;
+
+            fields.push(`km_akhir = ?`);
+            values.push(km_akhir_number);
+            fields.push(`jarak_km = ?`);
+            values.push(jarak_km);
+          } else {
+            // arbitrary text -> save as-is, clear jarak_km
+            fields.push(`km_akhir = ?`);
+            values.push(km_akhir);
+            fields.push(`jarak_km = ?`);
+            values.push(null);
+          }
+        }
       } else {
-        // Hitung jarak_km jika km_akhir adalah angka
+        // numeric value
         const [[order]] = await db.query(
           `SELECT o.km_awal 
            FROM buangan b 
@@ -354,12 +401,8 @@ router.put("/:id", async (req, res) => {
         }
 
         const km_akhir_number = parseFloat(km_akhir);
-        if (isNaN(km_akhir_number)) {
-          return error(res, 400, "KM Akhir harus berupa angka atau 'ODO ERROR'");
-        }
-
         const jarak_km = km_akhir_number - order.km_awal;
-        
+
         fields.push(`km_akhir = ?`);
         values.push(km_akhir_number);
         fields.push(`jarak_km = ?`);

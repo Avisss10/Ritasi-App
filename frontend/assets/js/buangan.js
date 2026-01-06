@@ -7,6 +7,13 @@ let currentOrderData = null;
 let currentKmAwal = 0;
 let isKmAwalOdoError = false;
 
+// Helper: check exact ODO ERROR variants for display (case/space tolerant)
+function isExactOdoVariantDisplay(val) {
+    if (val === null || val === undefined) return false;
+    const s = String(val).toUpperCase().replace(/\s/g, '').trim();
+    return s === 'ODOERROR' || s === 'ODOERR';
+} 
+
 // ============================================================================
 // INITIALIZATION
 // ============================================================================
@@ -128,39 +135,80 @@ function changeBuanganPage(direction) {
     displayBuanganList(filteredBuanganData);
 }
 
-function updateBuanganPagination(dataLength) {
-    const totalPages = Math.ceil(dataLength / itemsPerPage);
+// New pagination helpers (Order-style) for Buangan
+function getBuanganTotalPages() {
+    return Math.ceil(filteredBuanganData.length / itemsPerPage);
+}
+
+function goToBuanganPage(page) {
+    const totalPages = getBuanganTotalPages();
+    if (page < 1 || page > totalPages) return;
+    currentBuanganPage = page;
+    displayBuanganList(filteredBuanganData);
+    renderBuanganPagination();
+}
+
+function renderBuanganPagination() {
+    const totalPages = getBuanganTotalPages();
+    const totalItems = filteredBuanganData.length;
     const paginationContainer = document.getElementById('buanganPagination');
-    const pageInfo = document.getElementById('buanganPageInfo');
-    const prevBtn = document.getElementById('buanganPrevBtn');
-    const nextBtn = document.getElementById('buanganNextBtn');
-    
+
+    if (!paginationContainer) return;
+
     if (totalPages <= 1) {
+        paginationContainer.innerHTML = '';
         paginationContainer.style.display = 'none';
         return;
     }
-    
+
     paginationContainer.style.display = 'flex';
-    pageInfo.textContent = `Halaman ${currentBuanganPage} dari ${totalPages}`;
-    
-    prevBtn.disabled = currentBuanganPage === 1;
-    nextBtn.disabled = currentBuanganPage === totalPages;
-    
-    if (currentBuanganPage === 1) {
-        prevBtn.style.opacity = '0.5';
-        prevBtn.style.cursor = 'not-allowed';
-    } else {
-        prevBtn.style.opacity = '1';
-        prevBtn.style.cursor = 'pointer';
+
+    const startItem = (currentBuanganPage - 1) * itemsPerPage + 1;
+    const endItem = Math.min(currentBuanganPage * itemsPerPage, totalItems);
+
+    let paginationHTML = `
+        <div class="pagination-info">
+            Menampilkan ${startItem}-${endItem} dari ${totalItems} buangan
+        </div>
+        <div class="pagination-controls">
+            <button class="pagination-btn" onclick="goToBuanganPage(1)" ${currentBuanganPage === 1 ? 'disabled' : ''}>«</button>
+            <button class="pagination-btn" onclick="goToBuanganPage(${currentBuanganPage - 1})" ${currentBuanganPage === 1 ? 'disabled' : ''}>‹</button>
+    `;
+
+    // Page numbers
+    const maxVisible = 5;
+    let startPage = Math.max(1, currentBuanganPage - Math.floor(maxVisible / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+    if (endPage - startPage < maxVisible - 1) {
+        startPage = Math.max(1, endPage - maxVisible + 1);
     }
-    
-    if (currentBuanganPage === totalPages) {
-        nextBtn.style.opacity = '0.5';
-        nextBtn.style.cursor = 'not-allowed';
-    } else {
-        nextBtn.style.opacity = '1';
-        nextBtn.style.cursor = 'pointer';
+
+    if (startPage > 1) {
+        paginationHTML += `<button class="pagination-btn" onclick="goToBuanganPage(1)">1</button>`;
+        if (startPage > 2) paginationHTML += `<span class="pagination-ellipsis">...</span>`;
     }
+
+    for (let i = startPage; i <= endPage; i++) {
+        paginationHTML += `<button class="pagination-btn ${i === currentBuanganPage ? 'active' : ''}" onclick="goToBuanganPage(${i})">${i}</button>`;
+    }
+
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) paginationHTML += `<span class="pagination-ellipsis">...</span>`;
+        paginationHTML += `<button class="pagination-btn" onclick="goToBuanganPage(${totalPages})">${totalPages}</button>`;
+    }
+
+    paginationHTML += `
+            <button class="pagination-btn" onclick="goToBuanganPage(${currentBuanganPage + 1})" ${currentBuanganPage === totalPages ? 'disabled' : ''}>›</button>
+            <button class="pagination-btn" onclick="goToBuanganPage(${totalPages})" ${currentBuanganPage === totalPages ? 'disabled' : ''}>»</button>
+        </div>
+    `;
+
+    paginationContainer.innerHTML = paginationHTML;
+}
+
+// Backwards-compatible wrapper used by displayBuanganList
+function updateBuanganPagination(dataLength) {
+    renderBuanganPagination();
 }
 
 // ============================================================================
@@ -550,106 +598,63 @@ function toggleAlihanEdit() {
 }
 
 // ============================================================================
-// HANDLE KM AKHIR INPUT WITH ODO ERROR SUPPORT
+// HANDLE KM AKHIR INPUT (NO AUTO-CORRECT)
 // ============================================================================
 function handleKmAkhirInputWithODO(input, jarakInputId) {
-    let value = input.value.trim().toUpperCase();
-    
-    // Jika input kosong
-    if (value === '') {
-        input.value = '';
+    const raw = input.value;
+    if (!raw || raw.trim() === '') {
+        input.value = raw ? raw.trim() : '';
         document.getElementById(jarakInputId).value = '';
         return;
     }
-    
-    // ✅ Cek apakah input adalah "ODO ERROR" (berbagai varian)
-    const odoErrorVariants = [
-        'ODO ERROR',
-        'ODOERROR', 
-        'ODO ERR',
-        'ODOERR',
-        'ODOEROR',
-        'ODOERO',
-        'ODOERRO',
-        'ODDO ERROR',
-        'ODO EROR',
-        'ODO EROOR',
-        'ODDO ERR',
-        'ODDO EROR',
-        'OD ERROR',
-        'OD ERR',
-        'ODOERRR',
-        'ODOEERROR'
-    ];
-    
-    // Cek apakah input match dengan salah satu varian ODO ERROR
-    let isOdoError = false;
-    for (let variant of odoErrorVariants) {
-        if (value === variant) {
-            isOdoError = true;
-            break;
+
+    // If the input contains any digit, treat as numeric-ish and format/extract number
+    const containsDigit = /\d/.test(raw);
+
+    if (containsDigit) {
+        // Extract digits (and keep dots) to allow users typing formatted numbers
+        const cleanedDigits = raw.toString().replace(/[^0-9.\-]/g, '');
+        if (!cleanedDigits) {
+            // no usable numbers
+            document.getElementById(jarakInputId).value = '';
+            return;
         }
-    }
-    
-    // ✅ Jika input adalah ODO ERROR (varian apapun)
-    if (isOdoError) {
-        input.value = 'ODO ERROR'; // Auto-correct ke format standar
-        document.getElementById(jarakInputId).value = 'ODO ERROR'; // ✅ Set jarak = ODO ERROR
-        return;
-    }
-    
-    // ✅ Cek apakah user sedang mengetik "ODO ERROR" (partial)
-    let isTypingOdo = false;
-    const partialVariants = ['O', 'OD', 'ODD', 'ODDO', 'ODO', 'ODOE', 'ODOER', 'ODOERR', 'ODOERRO'];
-    for (let partial of partialVariants) {
-        if (value === partial) {
-            isTypingOdo = true;
-            break;
+
+        // Limit length (digits only)
+        const digitsOnly = cleanedDigits.replace(/\D/g, '').substring(0, 10);
+        const number = parseInt(digitsOnly, 10);
+        if (isNaN(number)) {
+            document.getElementById(jarakInputId).value = '';
+            return;
         }
-    }
-    
-    // Jika sedang mengetik ODO, biarkan (jangan hapus alphabet)
-    if (isTypingOdo) {
-        input.value = value;
+
+        // Format display with thousand separators
+        input.value = number.toLocaleString('id-ID');
+
+        // Compute distance if KM Awal is numeric
+        const kmAwal = jarakInputId.includes('edit') ? Number(currentKmAwalEdit) : parseFloat(currentKmAwal);
+        const isKmAwalOdo = jarakInputId.includes('edit') 
+            ? (typeof currentBuanganDetail?.order?.km_awal === 'string' && 
+               (currentBuanganDetail.order.km_awal.toUpperCase().replace(/\s/g,'') === 'ODOERROR' || currentBuanganDetail.order.km_awal.toUpperCase() === 'ODO ERROR'))
+            : isKmAwalOdoError;
+
+        if (isKmAwalOdo) {
+            document.getElementById(jarakInputId).value = 'ODO ERROR';
+        } else if (!isNaN(number) && !isNaN(kmAwal)) {
+            const jarak = number - kmAwal;
+            if (jarak >= 0) {
+                document.getElementById(jarakInputId).value = formatKM(jarak) + ' KM';
+            } else {
+                document.getElementById(jarakInputId).value = '';
+            }
+        } else {
+            document.getElementById(jarakInputId).value = '';
+        }
+
+    } else {
+        // Arbitrary text (no digits) — preserve as typed and clear distance
+        input.value = raw;
         document.getElementById(jarakInputId).value = '';
-        return;
-    }
-    
-    // ✅ Jika bukan ODO ERROR dan bukan sedang mengetik ODO, treat as angka
-    const numericValue = input.value.replace(/\D/g, ''); // Hapus non-digit
-    
-    if (numericValue === '') {
-        input.value = '';
-        document.getElementById(jarakInputId).value = '';
-        return;
-    }
-    
-    // Batasi 10 digit
-    let finalValue = numericValue;
-    if (finalValue.length > 10) {
-        finalValue = finalValue.substring(0, 10);
-    }
-    
-    // Format dengan titik ribuan
-    const number = parseInt(finalValue, 10);
-    input.value = number.toLocaleString('id-ID');
-    
-    // ✅ Hitung jarak realtime
-    const kmAkhir = number;
-    const kmAwal = jarakInputId.includes('edit') ? Number(currentKmAwalEdit) : parseFloat(currentKmAwal);
-    
-    // Cek apakah KM Awal juga ODO ERROR
-    const isKmAwalOdo = jarakInputId.includes('edit') 
-        ? (typeof currentBuanganDetail?.order?.km_awal === 'string' && 
-           ['ODO ERROR', 'ODOERROR', 'ODO ERR', 'ODOERR'].includes(currentBuanganDetail.order.km_awal.toUpperCase()))
-        : isKmAwalOdoError;
-    
-    if (isKmAwalOdo) {
-        // ✅ Jika KM Awal ODO ERROR, maka jarak juga ODO ERROR
-        document.getElementById(jarakInputId).value = 'ODO ERROR';
-    } else if (!isNaN(kmAkhir) && !isNaN(kmAwal)) {
-        const jarak = kmAkhir - kmAwal;
-        document.getElementById(jarakInputId).value = formatKM(jarak) + ' KM';
     }
 }
 
@@ -718,29 +723,32 @@ async function handleFormSubmit(e) {
     
     let kmAkhir = null;
     let jarakKm = null;
-    
-    // Cek apakah ODO ERROR
-    if (kmAkhirInput.toUpperCase() === 'ODO ERROR' ||
-        kmAkhirInput.toUpperCase() === 'ODOERROR' ||
-        kmAkhirInput.toUpperCase() === 'ODO ERR' ||
-        kmAkhirInput.toUpperCase() === 'ODOERR') {
-        kmAkhir = 'ODO ERROR';
-        jarakKm = 'ODO ERROR'; 
-    } else {
-        kmAkhir = parseKMInput(kmAkhirInput);
+
+    // Exact match for 'ODO ERROR' (no fuzzy autocorrect)
+    function isExactOdoVariant(input){
+        if(!input) return false;
+        const s = input.toString().toUpperCase().replace(/\s/g,'').trim();
+        return s === 'ODOERROR' || s === 'ODOERR';
+    }
+
+    // If numeric -> compute distance. If exact ODO -> set ODO ERROR. Otherwise keep text as-is.
+    const maybeNumber = parseKMInput(kmAkhirInput);
+    if (!isNaN(maybeNumber)) {
+        kmAkhir = maybeNumber;
         const kmAwal = parseFloat(currentKmAwal);
-        
-        if (isNaN(kmAkhir)) {
-            showToast('KM Akhir harus diisi dengan angka valid atau "ODO ERROR"', 'warning');
-            return;
-        }
-        
         jarakKm = kmAkhir - kmAwal;
-        
-        if (jarakKm <= 0) {
+
+        if (isNaN(jarakKm) || jarakKm <= 0) {
             showToast('KM Akhir harus lebih besar dari KM Awal (' + kmAwal + ' KM)', 'warning');
             return;
         }
+    } else if (isExactOdoVariant(kmAkhirInput)) {
+        kmAkhir = 'ODO ERROR';
+        jarakKm = 'ODO ERROR';
+    } else {
+        // arbitrary text -> accept and send as-is, jarak null
+        kmAkhir = kmAkhirInput;
+        jarakKm = null;
     }
     
     // Get galian_alihan_id dari nama
@@ -785,9 +793,9 @@ async function handleFormSubmit(e) {
 
         const result = await response.json();
 
-        const successMsg = kmAkhir === 'ODO ERROR' 
+        const successMsg = kmAkhir === 'ODO ERROR'
             ? 'Ritasi berhasil disimpan! (ODO ERROR)'
-            : 'Ritasi berhasil disimpan! Jarak: ' + formatKM(jarakKm) + ' KM';
+            : (jarakKm === null ? 'Ritasi berhasil disimpan!' : 'Ritasi berhasil disimpan! Jarak: ' + formatKM(jarakKm) + ' KM');
         
         showToast(successMsg, 'success');
         
@@ -819,25 +827,26 @@ async function handleEditFormSubmit(e) {
     }
     
     let kmAkhir = null;
-    
-    // Cek apakah ODO ERROR
-    if (kmAkhirInput.toUpperCase() === 'ODO ERROR' || 
-        kmAkhirInput.toUpperCase() === 'ODOERROR' || 
-        kmAkhirInput.toUpperCase() === 'ODO ERR' ||
-        kmAkhirInput.toUpperCase() === 'ODOERR') {
-        kmAkhir = 'ODO ERROR';
-    } else {
-        kmAkhir = parseKMInput(kmAkhirInput);
-        
-        if (isNaN(kmAkhir)) {
-            showToast('KM Akhir harus diisi dengan angka valid atau "ODO ERROR"', 'warning');
-            return;
-        }
-        
+
+    // Exact match for 'ODO ERROR' (no fuzzy autocorrect)
+    function isExactOdoVariant(input){
+        if(!input) return false;
+        const s = input.toString().toUpperCase().replace(/\s/g,'').trim();
+        return s === 'ODOERROR' || s === 'ODOERR';
+    }
+
+    const maybeNumber = parseKMInput(kmAkhirInput);
+    if (!isNaN(maybeNumber)) {
+        kmAkhir = maybeNumber;
         if (kmAkhir <= currentKmAwalEdit) {
             showToast('KM Akhir harus lebih besar dari KM Awal', 'warning');
             return;
         }
+    } else if (isExactOdoVariant(kmAkhirInput)) {
+        kmAkhir = 'ODO ERROR';
+    } else {
+        // arbitrary text -> accept and send as-is
+        kmAkhir = kmAkhirInput;
     }
     
     // Get galian_alihan_id dari nama
@@ -1205,17 +1214,23 @@ function displayBuanganList(buanganList) {
         const jamBongkarDisplay = buangan.jam_bongkar ? buangan.jam_bongkar : '-';
         
         let kmAkhirDisplay = '-';
-        if (buangan.km_akhir === 'ODO ERROR') {
+        // Show exactly what's in DB. Treat null/undefined/empty as '-'. If DB has 0, display '0'.
+        if (buangan.km_akhir === null || buangan.km_akhir === undefined || buangan.km_akhir === '') {
+            kmAkhirDisplay = '-';
+        } else if (isExactOdoVariantDisplay(buangan.km_akhir)) {
             kmAkhirDisplay = 'ODO ERROR';
-        } else if (buangan.km_akhir !== 0 && buangan.km_akhir != null) {
-            kmAkhirDisplay = `${formatKM(buangan.km_akhir)} KM`;
+        } else {
+            kmAkhirDisplay = String(buangan.km_akhir);
         }
         
         let jarakDisplay = '-';
-        if (buangan.jarak_km === 'ODO ERROR') {
+        // Show exactly what's in DB. Treat null/undefined/empty as '-'. If DB has 0, display '0'.
+        if (buangan.jarak_km === null || buangan.jarak_km === undefined || buangan.jarak_km === '') {
+            jarakDisplay = '-';
+        } else if (isExactOdoVariantDisplay(buangan.jarak_km)) {
             jarakDisplay = 'ODO ERROR';
-        } else if (buangan.jarak_km !== 0 && buangan.jarak_km != null) {
-            jarakDisplay = `${formatKM(buangan.jarak_km)} KM`;
+        } else {
+            jarakDisplay = String(buangan.jarak_km);
         }
         const lokasiDisplay = buangan.lokasi_bongkar || '-';
 
@@ -1464,20 +1479,24 @@ function displayDetailBuangan(buangan) {
     const tanggalBongkarDisplay = buangan.tanggal_bongkar ? formatDate(buangan.tanggal_bongkar) : '-';
     const jamBongkarDisplay = buangan.jam_bongkar ? buangan.jam_bongkar : '-';
     
-    // Handle KM Akhir (bisa angka atau ODO ERROR)
+    // Handle KM Akhir (display exactly what's in DB)
     let kmAkhirDisplay = '-';
-    if (buangan.km_akhir === 'ODO ERROR') {
+    if (buangan.km_akhir === null || buangan.km_akhir === undefined || buangan.km_akhir === '') {
+        kmAkhirDisplay = '-';
+    } else if (isExactOdoVariantDisplay(buangan.km_akhir)) {
         kmAkhirDisplay = 'ODO ERROR';
-    } else if (buangan.km_akhir !== 0 && buangan.km_akhir != null) {
-        kmAkhirDisplay = `${formatKM(buangan.km_akhir)} KM`;
+    } else {
+        kmAkhirDisplay = String(buangan.km_akhir);
     }
     
-    // Handle jarak_km display - bisa angka atau ODO ERROR
+    // Handle jarak_km display - display exactly what's in DB
     let jarakDisplay = '-';
-    if (buangan.jarak_km === 'ODO ERROR') {
+    if (buangan.jarak_km === null || buangan.jarak_km === undefined || buangan.jarak_km === '') {
+        jarakDisplay = '-';
+    } else if (isExactOdoVariantDisplay(buangan.jarak_km)) {
         jarakDisplay = 'ODO ERROR';
-    } else if (buangan.jarak_km !== 0 && buangan.jarak_km != null) {
-        jarakDisplay = `${formatKM(buangan.jarak_km)} KM`;
+    } else {
+        jarakDisplay = String(buangan.jarak_km);
     }
     const lokasiDisplay = buangan.lokasi_bongkar || '-';
 
@@ -1736,9 +1755,13 @@ function formatKMAwal(kmAwal) {
 }
 
 // Parse input KM - hilangkan titik sebelum parsing
+// Returns a Number or NaN when not numeric
 function parseKMInput(value) {
-    if (!value) return 0;
+    if (!value) return NaN;
     // Hapus semua titik dan spasi
     const cleaned = value.toString().replace(/\./g, '').replace(/\s/g, '');
-    return parseFloat(cleaned) || 0;
+    // If there are no digits, return NaN
+    if (!/[0-9]/.test(cleaned)) return NaN;
+    const n = parseFloat(cleaned);
+    return isNaN(n) ? NaN : n;
 }
