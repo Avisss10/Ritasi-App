@@ -432,6 +432,33 @@ router.put("/:id", async (req, res) => {
       return error(res, 404, `Buangan ID ${id} tidak ditemukan`);
     }
 
+    // If the related order was previously canceled (BATAL), set it to COMPLETE
+    try {
+      const [buanganRows] = await db.query(
+        `SELECT order_id FROM buangan WHERE id = ? LIMIT 1`,
+        [id]
+      );
+
+      if (buanganRows.length > 0) {
+        const orderId = buanganRows[0].order_id;
+        const [orderRows] = await db.query(
+          `SELECT status FROM orders WHERE id = ? LIMIT 1`,
+          [orderId]
+        );
+
+        if (orderRows.length > 0 && orderRows[0].status === 'BATAL') {
+          await db.query(
+            `UPDATE orders SET status = 'COMPLETE' WHERE id = ?`,
+            [orderId]
+          );
+          console.log(`✅ Order ID ${orderId} status updated from BATAL to COMPLETE`);
+        }
+      }
+    } catch (err) {
+      console.warn("Warning while checking/updating order status after buangan edit:", err);
+      // don't fail the buangan update if order status change fails
+    }
+
     return success(res, "Buangan berhasil diupdate");
 
   } catch (err) {

@@ -799,10 +799,8 @@ async function handleFormSubmit(e) {
         
         showToast(successMsg, 'success');
         
-        // Reset form dan kembali ke halaman awal
-        setTimeout(() => {
-            batalForm();
-        }, 1500);
+        // Immediately go back to main buangan page and refresh
+        goToBuanganMain();
 
     } catch (error) {
         console.error('Error:', error);
@@ -889,10 +887,8 @@ async function handleEditFormSubmit(e) {
 
         showToast('Ritasi berhasil diupdate!', 'success');
         
-        setTimeout(() => {
-            tutupFormEdit();
-            lihatDetailBuangan(buanganId);
-        }, 1500);
+        // Immediately return to main buangan page and refresh
+        goToBuanganMain();
 
     } catch (error) {
         console.error('Error:', error);
@@ -1025,6 +1021,37 @@ function batalForm() {
     document.getElementById('buanganForm').reset();
 
     // Reload buangan list
+    loadBuanganList();
+}
+
+// Navigate to the Buangan main page and refresh list
+window.goToBuanganMain = function() {
+    // Hide any open overlays or detail/edit sections
+    const formSection = document.getElementById('formSection');
+    const editSection = document.getElementById('editSection');
+    const detailSection = document.getElementById('detailSection');
+
+    if (formSection) formSection.style.display = 'none';
+    if (editSection) editSection.style.display = 'none';
+    if (detailSection) detailSection.style.display = 'none';
+
+    // Show search & main table
+    document.getElementById('searchSection').style.display = 'block';
+    document.getElementById('mainTableSection').style.display = 'block';
+    document.getElementById('tableTitle').textContent = 'Daftar Buangan';
+    document.getElementById('orderTableContainer').style.display = 'none';
+    document.getElementById('buanganTableContainer').style.display = 'block';
+    document.getElementById('filterNoPintu').value = '';
+
+    currentViewMode = 'buangan';
+    currentOrderData = null;
+    currentKmAwal = 0;
+    currentBuanganDetail = null;
+
+    if (document.getElementById('buanganForm')) document.getElementById('buanganForm').reset();
+    if (document.getElementById('editBuanganForm')) document.getElementById('editBuanganForm').reset();
+
+    // Reload list
     loadBuanganList();
 }
 
@@ -1583,18 +1610,8 @@ async function hapusBuangan(id) {
 
         showToast('Ritasi berhasil dihapus', 'success');
         
-        // Jika dari detail, kembali ke list
-        if (currentBuanganDetail) {
-            setTimeout(() => {
-                document.getElementById('searchSection').style.display = 'block';
-                document.getElementById('mainTableSection').style.display = 'block';
-                document.getElementById('detailSection').style.display = 'none';
-                currentBuanganDetail = null;
-                loadBuanganList();
-            }, 1000);
-        } else {
-            loadBuanganList();
-        }
+        // Immediately go to main page and refresh
+        goToBuanganMain();
 
     } catch (error) {
         console.error('Error:', error);
@@ -1650,13 +1667,9 @@ async function konfirmasiBatalOrder() {
 
         showToast('Order berhasil dibatalkan', 'success');
         
-        // Tutup modal
+        // Tutup modal and go to main buangan page
         tutupModalBatal();
-
-        // Reload data order yang ditampilkan
-        setTimeout(() => {
-            cariOrder();
-        }, 1000);
+        goToBuanganMain();
 
     } catch (error) {
         console.error('Error:', error);
