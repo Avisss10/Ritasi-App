@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Galian</title>
+    <link rel="stylesheet" href="../assets/css/master.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>Master Galian</h1>
+            <button class="btn btn-primary" onclick="openAddModal()">+ Tambah Galian</button>
+        </div>
+
+        <!-- Alert -->
+        <div id="alertContainer"></div>
+
+        <!-- Search Box -->
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="🔍 Cari nama galian..." onkeyup="filterTable()">
+        </div>
+
+        <!-- Table -->
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 80px;">No</th>
+                        <th>Nama Galian</th>
+                        <th style="width: 200px;" class="text-center">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr>
+                        <td colspan="3" class="loading-row">Memuat data...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal Add/Edit -->
+    <div id="modalForm" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Tambah Galian</h2>
+                <span class="close" onclick="closeModal('modalForm')">&times;</span>
+            </div>
+            <form onsubmit="handleSubmit(event)">
+                <div class="form-group">
+                    <label for="namaGalian">Nama Galian <span style="color: red;">*</span></label>
+                    <input type="text" id="namaGalian" name="namaGalian" placeholder="Masukkan nama galian" required>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modalForm')">Batal</button>
+                    <button type="submit" class="btn btn-success" id="btnSubmit">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Confirm Delete -->
+    <div id="modalConfirm" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2>Konfirmasi Hapus</h2>
+                <span class="close" onclick="closeModal('modalConfirm')">&times;</span>
+            </div>
+            <form onsubmit="handleDelete(event)">
+                <p>Apakah Anda yakin ingin menghapus galian <strong id="deleteGalianName"></strong>?</p>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modalConfirm')">Batal</button>
+                    <button type="submit" class="btn btn-danger">Hapus</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="../assets/js/master-galian.js"></script>
+</body>
+</html>
