@@ -5,6 +5,169 @@ const API_URL = 'http://localhost:3000/api';
 let masterKendaraan = [];
 let masterSupir = [];
 let masterGalian = [];
+let masterProyek = [];
+
+// ============================================================================
+// MULTI-SELECT COMPONENT
+// ============================================================================
+const multiSelects = {};
+
+function initMultiSelect(containerId, data, labelKey, hiddenInputId) {
+    multiSelects[containerId] = {
+        data: data,
+        labelKey: labelKey,
+        hiddenInputId: hiddenInputId,
+        selected: new Map()
+    };
+
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const input = container.querySelector('.ms-input');
+    const dropdown = container.querySelector('.ms-dropdown');
+    const clearBtn = container.querySelector('.ms-clear');
+
+    if (input) {
+        input.addEventListener('focus', () => {
+            renderMsDropdown(containerId, input.value);
+            if (dropdown) dropdown.classList.add('open');
+        });
+        input.addEventListener('input', () => {
+            renderMsDropdown(containerId, input.value);
+            if (dropdown && !dropdown.classList.contains('open')) dropdown.classList.add('open');
+        });
+    }
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            clearMultiSelect(containerId);
+        });
+    }
+
+    document.addEventListener('click', (e) => {
+        const el = document.getElementById(containerId);
+        if (el && !el.contains(e.target)) {
+            const dd = el.querySelector('.ms-dropdown');
+            if (dd) dd.classList.remove('open');
+        }
+    });
+}
+
+function updateMsData(containerId, newData) {
+    if (multiSelects[containerId]) multiSelects[containerId].data = newData;
+}
+
+function renderMsDropdown(containerId, search = '') {
+    const state = multiSelects[containerId];
+    if (!state) return;
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const dropdown = container.querySelector('.ms-dropdown');
+    if (!dropdown) return;
+
+    const filtered = state.data.filter(item => {
+        const label = (item[state.labelKey] || '').toLowerCase();
+        return label.includes((search || '').toLowerCase());
+    });
+
+    if (filtered.length === 0) {
+        dropdown.innerHTML = '<div class="ms-empty">Tidak ada data</div>';
+        return;
+    }
+
+    dropdown.innerHTML = filtered.slice(0, 60).map(item => {
+        const id = String(item.id);
+        const label = (item[state.labelKey] || '').replace(/"/g, '&quot;');
+        const isSelected = state.selected.has(id);
+        return `<label class="ms-option${isSelected ? ' selected' : ''}">
+            <input type="checkbox" value="${id}" data-label="${label}"${isSelected ? ' checked' : ''}>
+            <span>${item[state.labelKey] || ''}</span>
+        </label>`;
+    }).join('');
+
+    dropdown.querySelectorAll('input[type=checkbox]').forEach(cb => {
+        cb.addEventListener('change', (e) => {
+            e.stopPropagation();
+            toggleMsItem(containerId, e.target.value, e.target.dataset.label, e.target.checked);
+        });
+    });
+}
+
+function toggleMsItem(containerId, id, label, checked) {
+    const state = multiSelects[containerId];
+    if (!state) return;
+    if (checked) {
+        state.selected.set(String(id), label);
+    } else {
+        state.selected.delete(String(id));
+    }
+    renderMsTags(containerId);
+    updateMsHiddenInput(containerId);
+    const container = document.getElementById(containerId);
+    if (container) {
+        const input = container.querySelector('.ms-input');
+        renderMsDropdown(containerId, input ? input.value : '');
+    }
+}
+
+function renderMsTags(containerId) {
+    const state = multiSelects[containerId];
+    if (!state) return;
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const tags = container.querySelector('.ms-tags');
+    if (!tags) return;
+
+    tags.innerHTML = Array.from(state.selected.entries()).map(([id, label]) =>
+        `<span class="ms-tag"><span title="${label}">${label}</span><button type="button" class="ms-tag-remove" data-id="${id}">×</button></span>`
+    ).join('');
+
+    tags.querySelectorAll('.ms-tag-remove').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            state.selected.delete(btn.dataset.id);
+            renderMsTags(containerId);
+            updateMsHiddenInput(containerId);
+            const container = document.getElementById(containerId);
+            if (container) {
+                const dd = container.querySelector('.ms-dropdown');
+                if (dd && dd.classList.contains('open')) {
+                    const input = container.querySelector('.ms-input');
+                    renderMsDropdown(containerId, input ? input.value : '');
+                }
+            }
+        });
+    });
+}
+
+function updateMsHiddenInput(containerId) {
+    const state = multiSelects[containerId];
+    if (!state) return;
+    const el = document.getElementById(state.hiddenInputId);
+    if (el) el.value = Array.from(state.selected.keys()).join(',');
+}
+
+function clearMultiSelect(containerId) {
+    const state = multiSelects[containerId];
+    if (!state) return;
+    state.selected.clear();
+    renderMsTags(containerId);
+    updateMsHiddenInput(containerId);
+    const container = document.getElementById(containerId);
+    if (container) {
+        const input = container.querySelector('.ms-input');
+        if (input) input.value = '';
+        const dd = container.querySelector('.ms-dropdown');
+        if (dd) dd.classList.remove('open');
+    }
+}
+
+function getMsIds(containerId) {
+    const state = multiSelects[containerId];
+    if (!state) return '';
+    return Array.from(state.selected.keys()).join(',');
+}
 
 // ============================================================================
 // FILTER FUNCTIONS
@@ -28,34 +191,17 @@ function toggleFilterSection(header) {
 
 function updateFilterStats(data, type = 'order') {
     if (!Array.isArray(data)) return;
-    
+
     const totalData = data.length;
-    const complete = data.filter(item => 
-        item.status === 'COMPLETE' || item.status === 'COMPLETED'
-    ).length;
-    const process = data.filter(item => 
-        item.status === 'ON_PROCESS' || item.status === 'ON PROCESS'
-    ).length;
-    const batal = data.filter(item => 
-        item.status === 'BATAL'
-    ).length;
-    
-    if (type === 'order') {
-        const statTotal = document.getElementById('stat-total-order');
-        const statComplete = document.getElementById('stat-complete-order');
-        const statProcess = document.getElementById('stat-process-order');
-        const statBatal = document.getElementById('stat-batal-order');
-        
-        if (statTotal) statTotal.textContent = totalData;
-        if (statComplete) statComplete.textContent = complete;
-        if (statProcess) statProcess.textContent = process;
-        if (statBatal) statBatal.textContent = batal;
-    } else if (type === 'gabungan') {
+    const complete = data.filter(item => item.status === 'COMPLETE' || item.status === 'COMPLETED').length;
+    const process = data.filter(item => item.status === 'ON_PROCESS' || item.status === 'ON PROCESS').length;
+    const batal = data.filter(item => item.status === 'BATAL').length;
+
+    if (type === 'gabungan') {
         const statTotal = document.getElementById('stat-total-gabungan');
         const statComplete = document.getElementById('stat-complete-gabungan');
         const statProcess = document.getElementById('stat-process-gabungan');
         const statBatal = document.getElementById('stat-batal-gabungan');
-        
         if (statTotal) statTotal.textContent = totalData;
         if (statComplete) statComplete.textContent = complete;
         if (statProcess) statProcess.textContent = process;
@@ -67,8 +213,7 @@ function initCollapsibleSections() {
     const collapsibleHeaders = document.querySelectorAll('.filter-section-subtitle h4');
     collapsibleHeaders.forEach(header => {
         header.addEventListener('click', function() {
-            const subtitle = this.parentElement;
-            subtitle.classList.toggle('collapsed');
+            this.parentElement.classList.toggle('collapsed');
         });
     });
 }
@@ -76,9 +221,7 @@ function initCollapsibleSections() {
 function handleResponsiveFilters() {
     const filterSections = document.querySelectorAll('.filter-section');
     if (window.innerWidth <= 768) {
-        filterSections.forEach(section => {
-            section.classList.add('collapsed');
-        });
+        filterSections.forEach(section => section.classList.add('collapsed'));
     }
 }
 
@@ -88,21 +231,15 @@ function initFilterImprovements() {
     let resizeTimer;
     window.addEventListener('resize', () => {
         clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(() => {
-            handleResponsiveFilters();
-        }, 250);
+        resizeTimer = setTimeout(handleResponsiveFilters, 250);
     });
 }
 
 function initInputFocusEffects() {
     const inputs = document.querySelectorAll('.filter-item input, .filter-item select');
     inputs.forEach(input => {
-        input.addEventListener('focus', function() {
-            this.parentElement.classList.add('focused');
-        });
-        input.addEventListener('blur', function() {
-            this.parentElement.classList.remove('focused');
-        });
+        input.addEventListener('focus', function() { this.parentElement.classList.add('focused'); });
+        input.addEventListener('blur', function() { this.parentElement.classList.remove('focused'); });
     });
 }
 
@@ -121,15 +258,14 @@ function debugLog(title, data) {
 // DATE FILTER FUNCTIONS
 // ============================================================================
 function getToday() {
-    const today = new Date();
-    return formatDateForInput(today);
+    return formatDateForInput(new Date());
 }
 
 function get7DaysAgo() {
     const today = new Date();
-    const sevenDaysAgo = new Date(today);
-    sevenDaysAgo.setDate(today.getDate() - 7);
-    return formatDateForInput(sevenDaysAgo);
+    const d = new Date(today);
+    d.setDate(today.getDate() - 7);
+    return formatDateForInput(d);
 }
 
 function formatDateForInput(date) {
@@ -144,28 +280,17 @@ function toggleDateRangeOrder() {
     const dateRangeDiv = document.getElementById('date-range-order');
     const dariInput = document.getElementById('filter-tanggal-dari-order');
     const sampaiInput = document.getElementById('filter-tanggal-sampai-order');
-    
+
     if (filterType === 'manual') {
         dateRangeDiv.classList.add('show');
         dariInput.value = '';
         sampaiInput.value = '';
     } else {
         dateRangeDiv.classList.remove('show');
-        
-        if (filterType === 'hari-ini') {
-            const today = getToday();
-            dariInput.value = today;
-            sampaiInput.value = today;
-        } else if (filterType === '7-hari') {
-            dariInput.value = get7DaysAgo();
-            sampaiInput.value = getToday();
-        } else if (filterType === '2-hari') {
-            dariInput.value = get2DaysAgo();
-            sampaiInput.value = getToday();
-        } else if (filterType === 'semua') {
-            dariInput.value = '';
-            sampaiInput.value = '';
-        }
+        if (filterType === 'hari-ini') { dariInput.value = getToday(); sampaiInput.value = getToday(); }
+        else if (filterType === '7-hari') { dariInput.value = get7DaysAgo(); sampaiInput.value = getToday(); }
+        else if (filterType === '2-hari') { dariInput.value = get2DaysAgo(); sampaiInput.value = getToday(); }
+        else if (filterType === 'semua') { dariInput.value = ''; sampaiInput.value = ''; }
     }
 }
 
@@ -174,28 +299,17 @@ function toggleDateRangeBuangan() {
     const dateRangeDiv = document.getElementById('date-range-buangan');
     const dariInput = document.getElementById('filter-tanggal-dari-buangan');
     const sampaiInput = document.getElementById('filter-tanggal-sampai-buangan');
-    
+
     if (filterType === 'manual') {
         dateRangeDiv.classList.add('show');
         dariInput.value = '';
         sampaiInput.value = '';
     } else {
         dateRangeDiv.classList.remove('show');
-        
-        if (filterType === 'hari-ini') {
-            const today = getToday();
-            dariInput.value = today;
-            sampaiInput.value = today;
-        } else if (filterType === '7-hari') {
-            dariInput.value = get7DaysAgo();
-            sampaiInput.value = getToday();
-        } else if (filterType === '2-hari') {
-            dariInput.value = get2DaysAgo();
-            sampaiInput.value = getToday();
-        } else if (filterType === 'semua') {
-            dariInput.value = '';
-            sampaiInput.value = '';
-        }
+        if (filterType === 'hari-ini') { dariInput.value = getToday(); sampaiInput.value = getToday(); }
+        else if (filterType === '7-hari') { dariInput.value = get7DaysAgo(); sampaiInput.value = getToday(); }
+        else if (filterType === '2-hari') { dariInput.value = get2DaysAgo(); sampaiInput.value = getToday(); }
+        else if (filterType === 'semua') { dariInput.value = ''; sampaiInput.value = ''; }
     }
 }
 
@@ -204,28 +318,17 @@ function toggleDateRangeOrderGabungan() {
     const dateRangeDiv = document.getElementById('date-range-order-gabungan');
     const dariInput = document.getElementById('filter-tanggal-order-dari-gabungan');
     const sampaiInput = document.getElementById('filter-tanggal-order-sampai-gabungan');
-    
+
     if (filterType === 'manual') {
         dateRangeDiv.classList.add('show');
         dariInput.value = '';
         sampaiInput.value = '';
     } else {
         dateRangeDiv.classList.remove('show');
-        
-        if (filterType === 'hari-ini') {
-            const today = getToday();
-            dariInput.value = today;
-            sampaiInput.value = today;
-        } else if (filterType === '7-hari') {
-            dariInput.value = get7DaysAgo();
-            sampaiInput.value = getToday();
-        } else if (filterType === '2-hari') {
-            dariInput.value = get2DaysAgo();
-            sampaiInput.value = getToday();
-        } else if (filterType === 'semua') {
-            dariInput.value = '';
-            sampaiInput.value = '';
-        }
+        if (filterType === 'hari-ini') { dariInput.value = getToday(); sampaiInput.value = getToday(); }
+        else if (filterType === '7-hari') { dariInput.value = get7DaysAgo(); sampaiInput.value = getToday(); }
+        else if (filterType === '2-hari') { dariInput.value = get2DaysAgo(); sampaiInput.value = getToday(); }
+        else if (filterType === 'semua') { dariInput.value = ''; sampaiInput.value = ''; }
     }
 }
 
@@ -234,28 +337,17 @@ function toggleDateRangeBongkarGabungan() {
     const dateRangeDiv = document.getElementById('date-range-bongkar-gabungan');
     const dariInput = document.getElementById('filter-tanggal-bongkar-dari-gabungan');
     const sampaiInput = document.getElementById('filter-tanggal-bongkar-sampai-gabungan');
-    
+
     if (filterType === 'manual') {
         dateRangeDiv.classList.add('show');
         dariInput.value = '';
         sampaiInput.value = '';
     } else {
         dateRangeDiv.classList.remove('show');
-        
-        if (filterType === 'hari-ini') {
-            const today = getToday();
-            dariInput.value = today;
-            sampaiInput.value = today;
-        } else if (filterType === '7-hari') {
-            dariInput.value = get7DaysAgo();
-            sampaiInput.value = getToday();
-        } else if (filterType === '2-hari') {
-            dariInput.value = get2DaysAgo();
-            sampaiInput.value = getToday();
-        } else if (filterType === 'semua') {
-            dariInput.value = '';
-            sampaiInput.value = '';
-        }
+        if (filterType === 'hari-ini') { dariInput.value = getToday(); sampaiInput.value = getToday(); }
+        else if (filterType === '7-hari') { dariInput.value = get7DaysAgo(); sampaiInput.value = getToday(); }
+        else if (filterType === '2-hari') { dariInput.value = get2DaysAgo(); sampaiInput.value = getToday(); }
+        else if (filterType === 'semua') { dariInput.value = ''; sampaiInput.value = ''; }
     }
 }
 
@@ -264,7 +356,7 @@ function toggleGalianAlihanFilter() {
     const galianAlihanDiv = document.getElementById('galian-alihan-filter-gabungan');
     const galianAlihanInput = document.getElementById('filter-galian-alihan-gabungan');
     const galianAlihanIdInput = document.getElementById('filter-galian-alihan-gabungan-id');
-    
+
     if (alihanSelect.value === '1') {
         galianAlihanDiv.classList.add('show');
         loadUsedGalianAlihan();
@@ -280,32 +372,17 @@ function toggleGalianAlihanFilter() {
 async function loadUsedGalianAlihan() {
     try {
         const url = `${API_URL}/rekap/galian-alihan-used`;
-        console.log('📡 Fetching Used Galian Alihan:', url);
-        
         const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         const result = await response.json();
-        debugLog('Used Galian Alihan Response', result);
-        
+
         let data = null;
-        if (result && result.success && Array.isArray(result.data)) {
-            data = result.data;
-        } else if (Array.isArray(result)) {
-            data = result;
-        } else if (result && Array.isArray(result.rows)) {
-            data = result.rows;
-        }
-        
-        if (data && Array.isArray(data) && data.length > 0) {
-            console.log(`✅ Loaded ${data.length} used galian alihan records`);
+        if (result && result.success && Array.isArray(result.data)) data = result.data;
+        else if (Array.isArray(result)) data = result;
+        else if (result && Array.isArray(result.rows)) data = result.rows;
+
+        if (data && data.length > 0) {
             populateDatalist('datalist-galian-alihan-gabungan', data, 'nama_galian');
-        } else {
-            console.warn('⚠️ No used galian alihan found');
-            const datalist = document.getElementById('datalist-galian-alihan-gabungan');
-            if (datalist) datalist.innerHTML = '<option value="">Tidak ada galian alihan yang digunakan</option>';
         }
     } catch (err) {
         console.error('❌ Error loading used galian alihan:', err.message);
@@ -316,174 +393,82 @@ async function loadUsedGalianAlihan() {
 // TAB NAVIGATION & COLLAPSIBLE FILTERS
 // ============================================================================
 document.addEventListener('DOMContentLoaded', () => {
-    // Tab Navigation
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const tabName = btn.dataset.tab;
-            
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            
             btn.classList.add('active');
             document.getElementById(`${tabName}-tab`).classList.add('active');
-            
-            if (tabName === 'order') {
-                loadRekapOrder();
-            }
-            if (tabName === 'buangan') {
-                loadRekapBuangan();
-            }
-            if (tabName === 'gabungan') {
-                loadRekapGabungan();
-            }
+
+            if (tabName === 'order') loadRekapOrder();
+            if (tabName === 'buangan') loadRekapBuangan();
+            if (tabName === 'gabungan') loadRekapGabungan();
         });
     });
 
-    // Initialize default date filters
     document.getElementById('filter-tanggal-dari-order').value = get2DaysAgo();
     document.getElementById('filter-tanggal-sampai-order').value = getToday();
     document.getElementById('filter-tanggal-dari-buangan').value = get2DaysAgo();
     document.getElementById('filter-tanggal-sampai-buangan').value = getToday();
     document.getElementById('filter-tanggal-order-dari-gabungan').value = get2DaysAgo();
     document.getElementById('filter-tanggal-order-sampai-gabungan').value = getToday();
-    // Default for Bongkar period in Gabungan tab: Semua (clear date inputs)
     document.getElementById('filter-tanggal-bongkar-dari-gabungan').value = '';
     document.getElementById('filter-tanggal-bongkar-sampai-gabungan').value = '';
     document.getElementById('filter-tanggal-bongkar-type-gabungan').value = 'semua';
     toggleDateRangeBongkarGabungan();
-    
-    // Collapsible Filter Sections
+
     document.querySelectorAll('.filter-section-subtitle h4').forEach(header => {
         header.addEventListener('click', () => {
             const subtitle = header.parentElement;
             const nextElement = subtitle.nextElementSibling;
-            
             subtitle.classList.toggle('collapsed');
-            
-            if (nextElement && (nextElement.classList.contains('filter-grid') || 
+            if (nextElement && (nextElement.classList.contains('filter-grid') ||
                                nextElement.classList.contains('date-range-inputs') ||
-                               nextElement.id && nextElement.id.includes('date-range'))) {
+                               (nextElement.id && nextElement.id.includes('date-range')))) {
                 nextElement.classList.toggle('filter-collapsible');
                 nextElement.classList.toggle('show');
             }
         });
     });
-    
-    // Proyek Input Auto-search
-    const proyekInput = document.getElementById('filter-proyek-order');
-    if (proyekInput) {
-        let typingTimer;
-        const typingDelay = 500;
-        
-        proyekInput.addEventListener('input', () => {
-            clearTimeout(typingTimer);
-            typingTimer = setTimeout(() => {
-                loadRekapOrder();
-            }, typingDelay);
-        });
-    }
-    
+
     setupAutocompleteListeners();
 });
 
 // ============================================================================
-// AUTOCOMPLETE SETUP
+// AUTOCOMPLETE SETUP (kendaraan, supir, galian-alihan only - proyek/galian use multiselect)
 // ============================================================================
 function setupAutocompleteListeners() {
-    // Kendaraan autocomplete
     const kendaraanInput = document.getElementById('filter-kendaraan-order');
     if (kendaraanInput) {
         kendaraanInput.addEventListener('input', function() {
             filterDatalist(this.value, masterKendaraan, 'datalist-kendaraan', 'no_pintu');
         });
-        
         kendaraanInput.addEventListener('change', function() {
             const selectedItem = masterKendaraan.find(k => k.no_pintu === this.value);
-            if (selectedItem) {
-                document.getElementById('filter-kendaraan-order-id').value = selectedItem.id;
-            } else {
-                document.getElementById('filter-kendaraan-order-id').value = '';
-            }
+            document.getElementById('filter-kendaraan-order-id').value = selectedItem ? selectedItem.id : '';
         });
     }
-    
-    // Supir autocomplete
+
     const supirInput = document.getElementById('filter-supir-order');
     if (supirInput) {
         supirInput.addEventListener('input', function() {
             filterDatalist(this.value, masterSupir, 'datalist-supir', 'nama');
         });
-        
         supirInput.addEventListener('change', function() {
             const selectedItem = masterSupir.find(s => s.nama === this.value);
-            if (selectedItem) {
-                document.getElementById('filter-supir-order-id').value = selectedItem.id;
-            } else {
-                document.getElementById('filter-supir-order-id').value = '';
-            }
-        });
-    }
-    
-    // Galian autocomplete
-    const galianInput = document.getElementById('filter-galian-order');
-    if (galianInput) {
-        galianInput.addEventListener('input', function() {
-            filterDatalist(this.value, masterGalian, 'datalist-galian', 'nama_galian');
-        });
-
-        galianInput.addEventListener('change', function() {
-            const selectedItem = masterGalian.find(g => g.nama_galian === this.value);
-            if (selectedItem) {
-                document.getElementById('filter-galian-order-id').value = selectedItem.id;
-            } else {
-                document.getElementById('filter-galian-order-id').value = '';
-            }
+            document.getElementById('filter-supir-order-id').value = selectedItem ? selectedItem.id : '';
         });
     }
 
-    // GABUNGAN AUTOCOMPLETE
     const kendaraanGabunganInput = document.getElementById('filter-kendaraan-gabungan');
     if (kendaraanGabunganInput) {
         kendaraanGabunganInput.addEventListener('input', function() {
             filterDatalist(this.value, masterKendaraan, 'datalist-kendaraan-gabungan', 'no_pintu');
         });
-
         kendaraanGabunganInput.addEventListener('change', function() {
             const selectedItem = masterKendaraan.find(k => k.no_pintu === this.value);
-            if (selectedItem) {
-                document.getElementById('filter-kendaraan-gabungan-id').value = selectedItem.id;
-            } else {
-                document.getElementById('filter-kendaraan-gabungan-id').value = '';
-            }
-        });
-    }
-
-    const galianGabunganInput = document.getElementById('filter-galian-gabungan');
-    if (galianGabunganInput) {
-        galianGabunganInput.addEventListener('input', function() {
-            filterDatalist(this.value, masterGalian, 'datalist-galian-gabungan', 'nama_galian');
-        });
-
-        galianGabunganInput.addEventListener('change', function() {
-            const selectedItem = masterGalian.find(g => g.nama_galian === this.value);
-            if (selectedItem) {
-                document.getElementById('filter-galian-gabungan-id').value = selectedItem.id;
-            } else {
-                document.getElementById('filter-galian-gabungan-id').value = '';
-            }
-        });
-    }
-
-    const proyekGabunganInput = document.getElementById('filter-proyek-gabungan');
-    if (proyekGabunganInput) {
-        let typingTimer;
-        const typingDelay = 500;
-
-        proyekGabunganInput.addEventListener('input', () => {
-            clearTimeout(typingTimer);
-            typingTimer = setTimeout(() => {
-                loadRekapGabungan();
-            }, typingDelay);
+            document.getElementById('filter-kendaraan-gabungan-id').value = selectedItem ? selectedItem.id : '';
         });
     }
 
@@ -492,27 +477,18 @@ function setupAutocompleteListeners() {
         galianAlihanGabunganInput.addEventListener('input', function() {
             filterDatalist(this.value, masterGalian, 'datalist-galian-alihan-gabungan', 'nama_galian');
         });
-
         galianAlihanGabunganInput.addEventListener('change', function() {
             const selectedItem = masterGalian.find(g => g.nama_galian === this.value);
-            if (selectedItem) {
-                document.getElementById('filter-galian-alihan-gabungan-id').value = selectedItem.id;
-            } else {
-                document.getElementById('filter-galian-alihan-gabungan-id').value = '';
-            }
+            document.getElementById('filter-galian-alihan-gabungan-id').value = selectedItem ? selectedItem.id : '';
         });
     }
 
     const lokasiBongkarGabunganInput = document.getElementById('filter-lokasi-bongkar-gabungan');
     if (lokasiBongkarGabunganInput) {
         let typingTimer;
-        const typingDelay = 500;
-
         lokasiBongkarGabunganInput.addEventListener('input', () => {
             clearTimeout(typingTimer);
-            typingTimer = setTimeout(() => {
-                loadRekapGabungan();
-            }, typingDelay);
+            typingTimer = setTimeout(() => loadRekapGabungan(), 500);
         });
     }
 }
@@ -523,24 +499,14 @@ function setupAutocompleteListeners() {
 function filterDatalist(searchTerm, dataArray, datalistId, displayKey) {
     const datalist = document.getElementById(datalistId);
     if (!datalist) return;
-    
+
     datalist.innerHTML = '';
-    
-    if (!searchTerm || searchTerm.length < 1) {
-        dataArray.slice(0, 50).forEach(item => {
-            const option = document.createElement('option');
-            option.value = item[displayKey];
-            datalist.appendChild(option);
-        });
-        return;
-    }
-    
-    const filtered = dataArray.filter(item => 
-        item[displayKey] && 
-        item[displayKey].toString().toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    
-    filtered.slice(0, 50).forEach(item => {
+
+    const items = (!searchTerm || searchTerm.length < 1)
+        ? dataArray.slice(0, 50)
+        : dataArray.filter(item => item[displayKey] && item[displayKey].toString().toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 50);
+
+    items.forEach(item => {
         const option = document.createElement('option');
         option.value = item[displayKey];
         datalist.appendChild(option);
@@ -548,7 +514,7 @@ function filterDatalist(searchTerm, dataArray, datalistId, displayKey) {
 }
 
 // ============================================================================
-// LOAD MASTER DATA FOR AUTOCOMPLETE
+// LOAD MASTER DATA FOR AUTOCOMPLETE & MULTISELECTS
 // ============================================================================
 async function loadMasterData() {
     debugLog('Loading Master Data', 'Starting...');
@@ -556,48 +522,44 @@ async function loadMasterData() {
     await loadKendaraan();
     await loadSupir();
     await loadGalian();
+    await loadProyek();
+    await loadNodOList();
 
     if (masterKendaraan.length > 0) {
         populateDatalist('datalist-kendaraan-gabungan', masterKendaraan, 'no_pintu');
     }
     if (masterGalian.length > 0) {
-        populateDatalist('datalist-galian-gabungan', masterGalian, 'nama_galian');
         populateDatalist('datalist-galian-alihan-gabungan', masterGalian, 'nama_galian');
     }
+
+    // Init multiselects for proyek
+    initMultiSelect('ms-proyek-order', masterProyek, 'nama_proyek', 'filter-proyek-order-ids');
+    initMultiSelect('ms-proyek-buangan', masterProyek, 'nama_proyek', 'filter-proyek-buangan-ids');
+    initMultiSelect('ms-proyek-gabungan', masterProyek, 'nama_proyek', 'filter-proyek-gabungan-ids');
+
+    // Init multiselects for galian
+    initMultiSelect('ms-galian-order', masterGalian, 'nama_galian', 'filter-galian-order-ids');
+    initMultiSelect('ms-galian-buangan', masterGalian, 'nama_galian', 'filter-galian-buangan-ids');
+    initMultiSelect('ms-galian-gabungan', masterGalian, 'nama_galian', 'filter-galian-gabungan-ids');
 
     console.log('✅ Master data loading completed\n');
 }
 
 async function loadKendaraan() {
     try {
-        const url = `${API_URL}/master/kendaraan`;
-        console.log('📡 Fetching Kendaraan:', url);
-        
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
+        const response = await fetch(`${API_URL}/master/kendaraan`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const result = await response.json();
-        debugLog('Kendaraan Response', result);
-        
+
         let data = null;
-        if (result && result.success && Array.isArray(result.data)) {
-            data = result.data;
-        } else if (Array.isArray(result)) {
-            data = result;
-        } else if (result && Array.isArray(result.rows)) {
-            data = result.rows;
-        } else if (result && Array.isArray(result.data)) {
-            data = result.data;
-        }
-        
+        if (result && result.success && Array.isArray(result.data)) data = result.data;
+        else if (Array.isArray(result)) data = result;
+        else if (result && Array.isArray(result.rows)) data = result.rows;
+        else if (result && Array.isArray(result.data)) data = result.data;
+
         if (data && Array.isArray(data)) {
             masterKendaraan = data;
-            console.log(`✅ Loaded ${data.length} kendaraan records`);
             populateDatalist('datalist-kendaraan', data, 'no_pintu');
-        } else {
-            console.error('❌ Kendaraan: Invalid data structure');
         }
     } catch (err) {
         console.error('❌ Error loading kendaraan:', err.message);
@@ -606,34 +568,19 @@ async function loadKendaraan() {
 
 async function loadSupir() {
     try {
-        const url = `${API_URL}/master/supir`;
-        console.log('📡 Fetching Supir:', url);
-        
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
+        const response = await fetch(`${API_URL}/master/supir`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const result = await response.json();
-        debugLog('Supir Response', result);
-        
+
         let data = null;
-        if (result && result.success && Array.isArray(result.data)) {
-            data = result.data;
-        } else if (Array.isArray(result)) {
-            data = result;
-        } else if (result && Array.isArray(result.rows)) {
-            data = result.rows;
-        } else if (result && Array.isArray(result.data)) {
-            data = result.data;
-        }
-        
+        if (result && result.success && Array.isArray(result.data)) data = result.data;
+        else if (Array.isArray(result)) data = result;
+        else if (result && Array.isArray(result.rows)) data = result.rows;
+        else if (result && Array.isArray(result.data)) data = result.data;
+
         if (data && Array.isArray(data)) {
             masterSupir = data;
-            console.log(`✅ Loaded ${data.length} supir records`);
             populateDatalist('datalist-supir', data, 'nama');
-        } else {
-            console.error('❌ Supir: Invalid data structure');
         }
     } catch (err) {
         console.error('❌ Error loading supir:', err.message);
@@ -642,54 +589,72 @@ async function loadSupir() {
 
 async function loadGalian() {
     try {
-        const url = `${API_URL}/master/galian`;
-        console.log('📡 Fetching Galian:', url);
-        
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
+        const response = await fetch(`${API_URL}/master/galian`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const result = await response.json();
-        debugLog('Galian Response', result);
-        
+
         let data = null;
-        if (result && result.success && Array.isArray(result.data)) {
-            data = result.data;
-        } else if (Array.isArray(result)) {
-            data = result;
-        } else if (result && Array.isArray(result.rows)) {
-            data = result.rows;
-        } else if (result && Array.isArray(result.data)) {
-            data = result.data;
-        }
-        
+        if (result && result.success && Array.isArray(result.data)) data = result.data;
+        else if (Array.isArray(result)) data = result;
+        else if (result && Array.isArray(result.rows)) data = result.rows;
+        else if (result && Array.isArray(result.data)) data = result.data;
+
         if (data && Array.isArray(data)) {
             masterGalian = data;
-            console.log(`✅ Loaded ${data.length} galian records`);
-            populateDatalist('datalist-galian', data, 'nama_galian');
-        } else {
-            console.error('❌ Galian: Invalid data structure');
         }
     } catch (err) {
         console.error('❌ Error loading galian:', err.message);
     }
 }
 
+async function loadProyek() {
+    try {
+        const response = await fetch(`${API_URL}/master/proyek`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const result = await response.json();
+        let data = null;
+        if (result && Array.isArray(result.data)) data = result.data;
+        else if (Array.isArray(result)) data = result;
+        if (data && Array.isArray(data)) {
+            masterProyek = data;
+        }
+    } catch (err) {
+        console.error('❌ Error loading proyek:', err.message);
+    }
+}
+
+async function loadNodOList() {
+    try {
+        const response = await fetch(`${API_URL}/rekap/no-do-list`);
+        if (!response.ok) return;
+        const result = await response.json();
+        let data = null;
+        if (result && Array.isArray(result.data)) data = result.data;
+        else if (Array.isArray(result)) data = result;
+        if (!data || !Array.isArray(data)) return;
+
+        ['datalist-no-do-order', 'datalist-no-do-buangan', 'datalist-no-do-gabungan'].forEach(id => {
+            const dl = document.getElementById(id);
+            if (!dl) return;
+            dl.innerHTML = '';
+            data.forEach(val => {
+                if (val) {
+                    const opt = document.createElement('option');
+                    opt.value = val;
+                    dl.appendChild(opt);
+                }
+            });
+        });
+    } catch (err) {
+        console.error('❌ Error loading no_do list:', err.message);
+    }
+}
+
 function populateDatalist(datalistId, data, textKey) {
     const datalist = document.getElementById(datalistId);
-    if (!datalist) {
-        console.error(`❌ Datalist #${datalistId} not found`);
-        return;
-    }
-    
+    if (!datalist) return;
     datalist.innerHTML = '';
-    
-    if (!Array.isArray(data) || data.length === 0) {
-        console.warn(`⚠️ No data to populate for #${datalistId}`);
-        return;
-    }
-    
+    if (!Array.isArray(data) || data.length === 0) return;
     data.slice(0, 50).forEach(item => {
         if (item[textKey] !== undefined) {
             const option = document.createElement('option');
@@ -697,8 +662,6 @@ function populateDatalist(datalistId, data, textKey) {
             datalist.appendChild(option);
         }
     });
-    
-    console.log(`✅ Populated #${datalistId}: ${Math.min(50, data.length)}/${data.length} items`);
 }
 
 // ============================================================================
@@ -710,89 +673,60 @@ async function loadRekapOrder() {
 
     try {
         const params = new URLSearchParams();
-        
+
         const filters = {
             tanggal_dari: document.getElementById('filter-tanggal-dari-order').value,
             tanggal_sampai: document.getElementById('filter-tanggal-sampai-order').value,
-            proyek_input: document.getElementById('filter-proyek-order').value.trim(),
+            proyek_id: getMsIds('ms-proyek-order'),
+            galian_id: getMsIds('ms-galian-order'),
+            no_do: document.getElementById('filter-no-do-order').value.trim(),
             status: document.getElementById('filter-status-order').value,
             kendaraan_id: document.getElementById('filter-kendaraan-order-id').value,
-            supir_id: document.getElementById('filter-supir-order-id').value,
-            galian_id: document.getElementById('filter-galian-order-id').value
+            supir_id: document.getElementById('filter-supir-order-id').value
         };
 
         Object.keys(filters).forEach(key => {
             const value = filters[key];
-            if (value !== undefined && value !== null && value !== '') {
-                params.append(key, value);
-            }
+            if (value !== undefined && value !== null && value !== '') params.append(key, value);
         });
 
         const url = `${API_URL}/rekap/order${params.toString() ? '?' + params.toString() : ''}`;
-        debugLog('Loading Rekap Order', {
-            url: url,
-            filters: filters
-        });
-        
+        debugLog('Loading Rekap Order', { url, filters });
+
         const response = await fetch(url);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+
         const result = await response.json();
         debugLog('Rekap Order Response', result);
 
         let data = null;
-        
-        if (result && result.success === true && result.data) {
-            console.log('✓ Using result.data structure');
-            data = result.data;
-        } else if (Array.isArray(result)) {
-            console.log('✓ Result is directly an array');
-            data = result;
-        } else if (result && Array.isArray(result.rows)) {
-            console.log('✓ Using result.rows structure');
-            data = result.rows;
-        } else if (result && Array.isArray(result.data)) {
-            console.log('✓ Using result.data (no success check)');
-            data = result.data;
-        }
-
-        console.log('Extracted data:', data);
-        console.log('Data is array?', Array.isArray(data));
-        console.log('Data length:', data ? data.length : 0);
+        if (result && result.success === true && result.data) data = result.data;
+        else if (Array.isArray(result)) data = result;
+        else if (result && Array.isArray(result.rows)) data = result.rows;
+        else if (result && Array.isArray(result.data)) data = result.data;
 
         if (data && Array.isArray(data) && data.length > 0) {
-            console.log(`✅ Displaying ${data.length} order records`);
-
-            let totalUangJalan = 0;
-            let totalPotongan = 0;
-            let totalHasilAkhir = 0;
+            let totalUangJalan = 0, totalPotongan = 0, totalHasilAkhir = 0, totalHargaRitasi = 0;
+            const totalRitasi = data.length;
 
             data.forEach(row => {
                 totalUangJalan += parseFloat(row.uang_jalan || 0);
                 totalPotongan += parseFloat(row.potongan || 0);
                 totalHasilAkhir += parseFloat(row.hasil_akhir || 0);
+                totalHargaRitasi += parseFloat(row.proyek_harga || 0);
             });
 
             tbody.innerHTML = data.map((row, index) => {
                 let statusStyle = '';
                 const status = (row.status || '').toUpperCase();
-                if (status === 'COMPLETE') {
-                    statusStyle = 'background: #28a745; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
-                } else if (status === 'ON PROCESS' || status === 'ON_PROCESS') {
-                    statusStyle = 'background: #ffc107; color: #000; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
-                } else if (status === 'BATAL') {
-                    statusStyle = 'background: #dc3545; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
-                } else {
-                    statusStyle = 'background: #6c757d; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
-                }
+                if (status === 'COMPLETE') statusStyle = 'background: #28a745; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
+                else if (status === 'ON PROCESS' || status === 'ON_PROCESS') statusStyle = 'background: #ffc107; color: #000; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
+                else if (status === 'BATAL') statusStyle = 'background: #dc3545; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
+                else statusStyle = 'background: #6c757d; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
 
                 const isComplete = (row.status || '').toUpperCase() === 'COMPLETE';
                 const actionButton = (isComplete && row.id) ?
-                    `<button class="btn btn-info btn-sm" onclick="showOrderDetail('${row.id}')">Detail</button>` :
-                    '-';
+                    `<button class="btn btn-info btn-sm" onclick="showOrderDetail('${row.id}')">Detail</button>` : '-';
 
                 return `
                     <tr>
@@ -809,7 +743,7 @@ async function loadRekapOrder() {
                         <td>${formatCurrency(row.uang_jalan)}</td>
                         <td>${formatCurrency(row.potongan)}</td>
                         <td>${formatCurrency(row.hasil_akhir)}</td>
-                        <td>${row.proyek_input || '-'}</td>
+                        <td>${row.proyek_display || '-'}</td>
                         <td>${row.keterangan_buangan || '-'}</td>
                         <td><span style="${statusStyle}">${row.status || '-'}</span></td>
                         <td>${actionButton}</td>
@@ -817,9 +751,8 @@ async function loadRekapOrder() {
                 `;
             }).join('');
 
-            displayOrderSummary(totalUangJalan, totalPotongan, totalHasilAkhir);
+            displayOrderSummary(totalUangJalan, totalPotongan, totalHasilAkhir, totalRitasi, totalHargaRitasi);
         } else {
-            console.log('ℹ️ No order data found');
             tbody.innerHTML = '<tr><td colspan="17" class="text-center">Tidak ada data order</td></tr>';
             const summaryDiv = document.getElementById('summary-order');
             if (summaryDiv) summaryDiv.innerHTML = '';
@@ -831,24 +764,23 @@ async function loadRekapOrder() {
 }
 
 function resetFilterOrder() {
-    console.log('🔄 Resetting Order filters...');
     document.getElementById('filter-tanggal-type-order').value = '2-hari';
     document.getElementById('filter-tanggal-dari-order').value = get2DaysAgo();
     document.getElementById('filter-tanggal-sampai-order').value = getToday();
-    document.getElementById('filter-proyek-order').value = '';
+    document.getElementById('filter-no-do-order').value = '';
     document.getElementById('filter-status-order').value = '';
     document.getElementById('filter-kendaraan-order').value = '';
     document.getElementById('filter-kendaraan-order-id').value = '';
     document.getElementById('filter-supir-order').value = '';
     document.getElementById('filter-supir-order-id').value = '';
-    document.getElementById('filter-galian-order').value = '';
-    document.getElementById('filter-galian-order-id').value = '';
+    clearMultiSelect('ms-proyek-order');
+    clearMultiSelect('ms-galian-order');
     document.getElementById('date-range-order').classList.remove('show');
     loadRekapOrder();
 }
 
 // ============================================================================
-// REKAP BUANGAN (DENGAN KOLOM BUANGAN/LOKASI_BONGKAR)
+// REKAP BUANGAN
 // ============================================================================
 async function loadRekapBuangan() {
     const tbody = document.getElementById('tbody-buangan');
@@ -856,59 +788,38 @@ async function loadRekapBuangan() {
 
     try {
         const params = new URLSearchParams();
-        
+
         const filters = {
             tanggal_dari: document.getElementById('filter-tanggal-dari-buangan').value,
             tanggal_sampai: document.getElementById('filter-tanggal-sampai-buangan').value,
             no_order: document.getElementById('filter-no-order').value.trim(),
-            alihan: document.getElementById('filter-alihan').value
+            no_do: document.getElementById('filter-no-do-buangan').value.trim(),
+            alihan: document.getElementById('filter-alihan').value,
+            proyek_id: getMsIds('ms-proyek-buangan'),
+            galian_id: getMsIds('ms-galian-buangan')
         };
 
         Object.keys(filters).forEach(key => {
             const value = filters[key];
-            if (value !== undefined && value !== null && value !== '') {
-                params.append(key, value);
-            }
+            if (value !== undefined && value !== null && value !== '') params.append(key, value);
         });
 
         const url = `${API_URL}/rekap/buangan${params.toString() ? '?' + params.toString() : ''}`;
-        debugLog('Loading Rekap Buangan', {
-            url: url,
-            filters: filters
-        });
-        
+        debugLog('Loading Rekap Buangan', { url, filters });
+
         const response = await fetch(url);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+
         const result = await response.json();
         debugLog('Rekap Buangan Response', result);
 
         let data = null;
-        
-        if (result && result.success === true && result.data) {
-            console.log('✓ Using result.data structure');
-            data = result.data;
-        } else if (Array.isArray(result)) {
-            console.log('✓ Result is directly an array');
-            data = result;
-        } else if (result && Array.isArray(result.rows)) {
-            console.log('✓ Using result.rows structure');
-            data = result.rows;
-        } else if (result && Array.isArray(result.data)) {
-            console.log('✓ Using result.data (no success check)');
-            data = result.data;
-        }
-
-        console.log('Extracted buangan data:', data);
-        console.log('Data is array?', Array.isArray(data));
-        console.log('Data length:', data ? data.length : 0);
+        if (result && result.success === true && result.data) data = result.data;
+        else if (Array.isArray(result)) data = result;
+        else if (result && Array.isArray(result.rows)) data = result.rows;
+        else if (result && Array.isArray(result.data)) data = result.data;
 
         if (data && Array.isArray(data) && data.length > 0) {
-            console.log(`✅ Displaying ${data.length} buangan records`);
-
             let totalUangAlihan = 0;
 
             tbody.innerHTML = data.map((row, index) => `
@@ -929,13 +840,9 @@ async function loadRekapBuangan() {
                 </tr>
             `).join('');
 
-            data.forEach(row => {
-                totalUangAlihan += parseFloat(row.uang_alihan || 0);
-            });
-
+            data.forEach(row => { totalUangAlihan += parseFloat(row.uang_alihan || 0); });
             displayBuanganSummary(totalUangAlihan);
         } else {
-            console.log('ℹ️ No buangan data found');
             tbody.innerHTML = '<tr><td colspan="13" class="text-center">Tidak ada data buangan</td></tr>';
             const summaryDiv = document.getElementById('summary-buangan');
             if (summaryDiv) summaryDiv.innerHTML = '';
@@ -947,22 +854,24 @@ async function loadRekapBuangan() {
 }
 
 function resetFilterBuangan() {
-    console.log('🔄 Resetting Buangan filters...');
     document.getElementById('filter-tanggal-type-buangan').value = '2-hari';
     document.getElementById('filter-tanggal-dari-buangan').value = get2DaysAgo();
     document.getElementById('filter-tanggal-sampai-buangan').value = getToday();
     document.getElementById('filter-no-order').value = '';
+    document.getElementById('filter-no-do-buangan').value = '';
     document.getElementById('filter-alihan').value = '';
+    clearMultiSelect('ms-proyek-buangan');
+    clearMultiSelect('ms-galian-buangan');
     document.getElementById('date-range-buangan').classList.remove('show');
     loadRekapBuangan();
 }
 
 // ============================================================================
-// REKAP GABUNGAN (DENGAN KOLOM BUANGAN/LOKASI_BONGKAR)
+// REKAP GABUNGAN
 // ============================================================================
 async function loadRekapGabungan() {
     const tbody = document.getElementById('tbody-gabungan');
-    tbody.innerHTML = '<tr><td colspan="23" class="text-center loading">Memuat data...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="24" class="text-center loading">Memuat data...</td></tr>';
 
     try {
         const params = new URLSearchParams();
@@ -972,84 +881,54 @@ async function loadRekapGabungan() {
             tanggal_order_sampai: document.getElementById('filter-tanggal-order-sampai-gabungan').value,
             tanggal_bongkar_dari: document.getElementById('filter-tanggal-bongkar-dari-gabungan').value,
             tanggal_bongkar_sampai: document.getElementById('filter-tanggal-bongkar-sampai-gabungan').value,
-            proyek_input: document.getElementById('filter-proyek-gabungan').value.trim(),
+            proyek_id: getMsIds('ms-proyek-gabungan'),
+            galian_id: getMsIds('ms-galian-gabungan'),
+            no_do: document.getElementById('filter-no-do-gabungan').value.trim(),
             lokasi_bongkar: document.getElementById('filter-lokasi-bongkar-gabungan').value.trim(),
             status: document.getElementById('filter-status-gabungan').value,
             kendaraan_id: document.getElementById('filter-kendaraan-gabungan-id').value,
-            galian_id: document.getElementById('filter-galian-gabungan-id').value,
             alihan: document.getElementById('filter-alihan-gabungan').value,
             galian_alihan_id: document.getElementById('filter-galian-alihan-gabungan-id').value
         };
 
         Object.keys(filters).forEach(key => {
             const value = filters[key];
-            if (value !== undefined && value !== null && value !== '') {
-                params.append(key, value);
-            }
+            if (value !== undefined && value !== null && value !== '') params.append(key, value);
         });
 
         const url = `${API_URL}/rekap/gabungan${params.toString() ? '?' + params.toString() : ''}`;
-        debugLog('Loading Rekap Gabungan', {
-            url: url,
-            filters: filters
-        });
+        debugLog('Loading Rekap Gabungan', { url, filters });
 
         const response = await fetch(url);
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
         const result = await response.json();
         debugLog('Rekap Gabungan Response', result);
 
         let data = null;
-
-        if (result && result.success === true && result.data) {
-            console.log('✓ Using result.data structure');
-            data = result.data;
-        } else if (Array.isArray(result)) {
-            console.log('✓ Result is directly an array');
-            data = result;
-        } else if (result && Array.isArray(result.rows)) {
-            console.log('✓ Using result.rows structure');
-            data = result.rows;
-        } else if (result && Array.isArray(result.data)) {
-            console.log('✓ Using result.data (no success check)');
-            data = result.data;
-        }
-
-        console.log('Extracted gabungan data:', data);
-        console.log('Data is array?', Array.isArray(data));
-        console.log('Data length:', data ? data.length : 0);
+        if (result && result.success === true && result.data) data = result.data;
+        else if (Array.isArray(result)) data = result;
+        else if (result && Array.isArray(result.rows)) data = result.rows;
+        else if (result && Array.isArray(result.data)) data = result.data;
 
         if (data && Array.isArray(data) && data.length > 0) {
-            console.log(`✅ Displaying ${data.length} gabungan records`);
-
-            let totalUangJalan = 0;
-            let totalPotongan = 0;
-            let totalUangAlihan = 0;
+            let totalUangJalan = 0, totalPotongan = 0, totalUangAlihan = 0, totalAlihan = 0;
+            const totalRitasi = data.length;
 
             data.forEach(row => {
                 totalUangJalan += parseFloat(row.uang_jalan || 0);
                 totalPotongan += parseFloat(row.potongan || 0);
                 totalUangAlihan += parseFloat(row.uang_alihan || 0);
+                if (row.alihan == 1) totalAlihan++;
             });
-
-            const grandTotal = totalUangJalan - totalPotongan;
 
             tbody.innerHTML = data.map((row, index) => {
                 let statusStyle = '';
                 const status = (row.status || '').toUpperCase();
-                if (status === 'COMPLETE') {
-                    statusStyle = 'background: #28a745; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
-                } else if (status === 'ON PROCESS' || status === 'ON_PROCESS') {
-                    statusStyle = 'background: #ffc107; color: #000; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
-                } else if (status === 'BATAL') {
-                    statusStyle = 'background: #dc3545; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
-                } else {
-                    statusStyle = 'background: #6c757d; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
-                }
+                if (status === 'COMPLETE') statusStyle = 'background: #28a745; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
+                else if (status === 'ON PROCESS' || status === 'ON_PROCESS') statusStyle = 'background: #ffc107; color: #000; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
+                else if (status === 'BATAL') statusStyle = 'background: #dc3545; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
+                else statusStyle = 'background: #6c757d; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
 
                 const total = (parseFloat(row.uang_jalan || 0) - parseFloat(row.potongan || 0));
 
@@ -1075,6 +954,7 @@ async function loadRekapGabungan() {
                         <td>${formatCurrency(total)}</td>
                         <td>${row.proyek || '-'}</td>
                         <td>${row.buangan || '-'}</td>
+                        <td>${row.alihan == 1 ? 'Ya' : (row.alihan == 0 ? 'Tidak' : '-')}</td>
                         <td>${formatCurrency(row.uang_alihan)}</td>
                         <td>${row.keterangan || '-'}</td>
                         <td><span style="${statusStyle}">${row.status || '-'}</span></td>
@@ -1083,40 +963,37 @@ async function loadRekapGabungan() {
             }).join('');
 
             updateFilterStats(data, 'gabungan');
-            displayGabunganSummary(totalUangJalan, totalPotongan, grandTotal, totalUangAlihan);
+            displayGabunganSummary(totalUangJalan, totalPotongan, totalUangAlihan, totalRitasi, totalAlihan);
         } else {
-            console.log('ℹ️ No gabungan data found');
-            tbody.innerHTML = '<tr><td colspan="23" class="text-center">Tidak ada data gabungan</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="24" class="text-center">Tidak ada data gabungan</td></tr>';
             updateFilterStats([], 'gabungan');
             const summaryDiv = document.getElementById('summary-gabungan');
             if (summaryDiv) summaryDiv.innerHTML = '';
         }
     } catch (err) {
         console.error('❌ Error loading rekap gabungan:', err);
-        tbody.innerHTML = `<tr><td colspan="23" class="text-center" style="color: red;">Error: ${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="24" class="text-center" style="color: red;">Error: ${err.message}</td></tr>`;
     }
 }
 
 function resetFilterGabungan() {
-    console.log('🔄 Resetting Gabungan filters...');
     document.getElementById('filter-tanggal-type-gabungan').value = '2-hari';
     document.getElementById('filter-tanggal-order-dari-gabungan').value = get2DaysAgo();
     document.getElementById('filter-tanggal-order-sampai-gabungan').value = getToday();
-    // Keep Bongkar period as 'semua' by default and clear date inputs so it stays until user changes it
     document.getElementById('filter-tanggal-bongkar-type-gabungan').value = 'semua';
     document.getElementById('filter-tanggal-bongkar-dari-gabungan').value = '';
     document.getElementById('filter-tanggal-bongkar-sampai-gabungan').value = '';
     toggleDateRangeBongkarGabungan();
-    document.getElementById('filter-proyek-gabungan').value = '';
+    document.getElementById('filter-no-do-gabungan').value = '';
     document.getElementById('filter-lokasi-bongkar-gabungan').value = '';
     document.getElementById('filter-status-gabungan').value = '';
     document.getElementById('filter-kendaraan-gabungan').value = '';
     document.getElementById('filter-kendaraan-gabungan-id').value = '';
-    document.getElementById('filter-galian-gabungan').value = '';
-    document.getElementById('filter-galian-gabungan-id').value = '';
     document.getElementById('filter-alihan-gabungan').value = '';
     document.getElementById('filter-galian-alihan-gabungan').value = '';
     document.getElementById('filter-galian-alihan-gabungan-id').value = '';
+    clearMultiSelect('ms-proyek-gabungan');
+    clearMultiSelect('ms-galian-gabungan');
     document.getElementById('date-range-order-gabungan').classList.remove('show');
     document.getElementById('date-range-bongkar-gabungan').classList.remove('show');
     document.getElementById('galian-alihan-filter-gabungan').classList.remove('show');
@@ -1128,15 +1005,12 @@ function resetFilterGabungan() {
 // ============================================================================
 function sanitizeFilename(name) {
     if (!name) return name;
-    // Remove surrounding quotes
     name = name.replace(/^"(.*)"$/, '$1');
-    // Remove invalid filename characters and control chars
-    name = name.replace(/[<>:"\/\\|?*\u0000-\u001F]/g, '_');
-    // Collapse multiple underscores
+    name = name.replace(/[<>:"\/\\|?* -]/g, '_');
     name = name.replace(/_+/g, '_');
-    // Trim and limit length
     return name.trim().substring(0, 120);
-} 
+}
+
 async function exportToExcel(type) {
     try {
         let endpoint = '';
@@ -1146,79 +1020,64 @@ async function exportToExcel(type) {
             const filters = {
                 tanggal_dari: document.getElementById('filter-tanggal-dari-order')?.value || "",
                 tanggal_sampai: document.getElementById('filter-tanggal-sampai-order')?.value || "",
-                proyek_input: document.getElementById('filter-proyek-order')?.value.trim() || "",
+                proyek_id: getMsIds('ms-proyek-order'),
+                galian_id: getMsIds('ms-galian-order'),
+                no_do: document.getElementById('filter-no-do-order')?.value.trim() || "",
                 status: document.getElementById('filter-status-order')?.value || "",
                 kendaraan_id: document.getElementById('filter-kendaraan-order-id')?.value || "",
-                supir_id: document.getElementById('filter-supir-order-id')?.value || "",
-                galian_id: document.getElementById('filter-galian-order-id')?.value || ""
+                supir_id: document.getElementById('filter-supir-order-id')?.value || ""
             };
-            Object.keys(filters).forEach(key => {
-                const v = filters[key];
-                if (v !== undefined && v !== null && v !== '') params.append(key, v);
-            });
+            Object.keys(filters).forEach(key => { if (filters[key]) params.append(key, filters[key]); });
             endpoint = '/rekap/order/export/excel';
-            
+
         } else if (type === 'buangan') {
             const filters = {
                 tanggal_dari: document.getElementById('filter-tanggal-dari-buangan')?.value || "",
                 tanggal_sampai: document.getElementById('filter-tanggal-sampai-buangan')?.value || "",
                 no_order: document.getElementById('filter-no-order')?.value.trim() || "",
-                alihan: document.getElementById('filter-alihan')?.value || ""
+                no_do: document.getElementById('filter-no-do-buangan')?.value.trim() || "",
+                alihan: document.getElementById('filter-alihan')?.value || "",
+                proyek_id: getMsIds('ms-proyek-buangan'),
+                galian_id: getMsIds('ms-galian-buangan')
             };
-            Object.keys(filters).forEach(key => {
-                const v = filters[key];
-                if (v !== undefined && v !== null && v !== '') params.append(key, v);
-            });
+            Object.keys(filters).forEach(key => { if (filters[key]) params.append(key, filters[key]); });
             endpoint = '/rekap/buangan/export/excel';
-            
+
         } else if (type === 'gabungan') {
             const filters = {
                 tanggal_order_dari: document.getElementById('filter-tanggal-order-dari-gabungan')?.value || "",
                 tanggal_order_sampai: document.getElementById('filter-tanggal-order-sampai-gabungan')?.value || "",
                 tanggal_bongkar_dari: document.getElementById('filter-tanggal-bongkar-dari-gabungan')?.value || "",
                 tanggal_bongkar_sampai: document.getElementById('filter-tanggal-bongkar-sampai-gabungan')?.value || "",
-                proyek_input: document.getElementById('filter-proyek-gabungan')?.value.trim() || "",
+                proyek_id: getMsIds('ms-proyek-gabungan'),
+                galian_id: getMsIds('ms-galian-gabungan'),
+                no_do: document.getElementById('filter-no-do-gabungan')?.value.trim() || "",
                 lokasi_bongkar: document.getElementById('filter-lokasi-bongkar-gabungan')?.value.trim() || "",
                 status: document.getElementById('filter-status-gabungan')?.value || "",
                 kendaraan_id: document.getElementById('filter-kendaraan-gabungan-id')?.value || "",
-                galian_id: document.getElementById('filter-galian-gabungan-id')?.value || "",
                 alihan: document.getElementById('filter-alihan-gabungan')?.value || "",
                 galian_alihan_id: document.getElementById('filter-galian-alihan-gabungan-id')?.value || ""
             };
-            Object.keys(filters).forEach(key => {
-                const v = filters[key];
-                if (v !== undefined && v !== null && v !== '') params.append(key, v);
-            });
-            
-            // Kirim Stats untuk Summary
-            const statsTotal = document.getElementById('stat-total-gabungan')?.textContent || '0';
-            const statsComplete = document.getElementById('stat-complete-gabungan')?.textContent || '0';
-            const statsProcess = document.getElementById('stat-process-gabungan')?.textContent || '0';
-            const statsBatal = document.getElementById('stat-batal-gabungan')?.textContent || '0';
-            
-            params.append('stats_total', statsTotal);
-            params.append('stats_complete', statsComplete);
-            params.append('stats_process', statsProcess);
-            params.append('stats_batal', statsBatal);
-            
+            Object.keys(filters).forEach(key => { if (filters[key]) params.append(key, filters[key]); });
+
+            params.append('stats_total', document.getElementById('stat-total-gabungan')?.textContent || '0');
+            params.append('stats_complete', document.getElementById('stat-complete-gabungan')?.textContent || '0');
+            params.append('stats_process', document.getElementById('stat-process-gabungan')?.textContent || '0');
+            params.append('stats_batal', document.getElementById('stat-batal-gabungan')?.textContent || '0');
             endpoint = '/rekap/gabungan/export/excel';
         }
 
         const url = `${API_URL}${endpoint}?${params.toString()}`;
-        console.log('📥 Exporting to Excel:', url);
-
         const response = await fetch(url);
         if (!response.ok) throw new Error(`Export failed: ${response.statusText}`);
 
         const blob = await response.blob();
-        // Try to get filename from Content-Disposition header
         const disposition = response.headers.get('Content-Disposition') || response.headers.get('content-disposition') || '';
         let filename = `rekap_${type}_${Date.now()}.xlsx`;
         const filenameMatch = disposition.match(/filename\*=UTF-8''([^;]+)|filename=\"?([^\";]+)\"?/i);
-        if (filenameMatch) {
-            filename = decodeURIComponent(filenameMatch[1] || filenameMatch[2] || filename);
-        }
+        if (filenameMatch) filename = decodeURIComponent(filenameMatch[1] || filenameMatch[2] || filename);
         filename = sanitizeFilename(filename) || `rekap_${type}_${Date.now()}.xlsx`;
+
         const downloadUrl = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = downloadUrl;
@@ -1227,7 +1086,6 @@ async function exportToExcel(type) {
         a.click();
         window.URL.revokeObjectURL(downloadUrl);
         document.body.removeChild(a);
-        // Removed success alert as per UX request
     } catch (err) {
         console.error('❌ Error exporting to Excel:', err);
         alert('❌ Gagal export Excel: ' + err.message);
@@ -1243,79 +1101,64 @@ async function exportToPDF(type) {
             const filters = {
                 tanggal_dari: document.getElementById('filter-tanggal-dari-order')?.value || "",
                 tanggal_sampai: document.getElementById('filter-tanggal-sampai-order')?.value || "",
-                proyek_input: document.getElementById('filter-proyek-order')?.value.trim() || "",
+                proyek_id: getMsIds('ms-proyek-order'),
+                galian_id: getMsIds('ms-galian-order'),
+                no_do: document.getElementById('filter-no-do-order')?.value.trim() || "",
                 status: document.getElementById('filter-status-order')?.value || "",
                 kendaraan_id: document.getElementById('filter-kendaraan-order-id')?.value || "",
-                supir_id: document.getElementById('filter-supir-order-id')?.value || "",
-                galian_id: document.getElementById('filter-galian-order-id')?.value || ""
+                supir_id: document.getElementById('filter-supir-order-id')?.value || ""
             };
-            Object.keys(filters).forEach(key => {
-                const v = filters[key];
-                if (v !== undefined && v !== null && v !== '') params.append(key, v);
-            });
+            Object.keys(filters).forEach(key => { if (filters[key]) params.append(key, filters[key]); });
             endpoint = '/rekap/order/export/pdf';
-            
+
         } else if (type === 'buangan') {
             const filters = {
                 tanggal_dari: document.getElementById('filter-tanggal-dari-buangan')?.value || "",
                 tanggal_sampai: document.getElementById('filter-tanggal-sampai-buangan')?.value || "",
                 no_order: document.getElementById('filter-no-order')?.value.trim() || "",
-                alihan: document.getElementById('filter-alihan')?.value || ""
+                no_do: document.getElementById('filter-no-do-buangan')?.value.trim() || "",
+                alihan: document.getElementById('filter-alihan')?.value || "",
+                proyek_id: getMsIds('ms-proyek-buangan'),
+                galian_id: getMsIds('ms-galian-buangan')
             };
-            Object.keys(filters).forEach(key => {
-                const v = filters[key];
-                if (v !== undefined && v !== null && v !== '') params.append(key, v);
-            });
+            Object.keys(filters).forEach(key => { if (filters[key]) params.append(key, filters[key]); });
             endpoint = '/rekap/buangan/export/pdf';
-            
+
         } else if (type === 'gabungan') {
             const filters = {
                 tanggal_order_dari: document.getElementById('filter-tanggal-order-dari-gabungan')?.value || "",
                 tanggal_order_sampai: document.getElementById('filter-tanggal-order-sampai-gabungan')?.value || "",
                 tanggal_bongkar_dari: document.getElementById('filter-tanggal-bongkar-dari-gabungan')?.value || "",
                 tanggal_bongkar_sampai: document.getElementById('filter-tanggal-bongkar-sampai-gabungan')?.value || "",
-                proyek_input: document.getElementById('filter-proyek-gabungan')?.value.trim() || "",
+                proyek_id: getMsIds('ms-proyek-gabungan'),
+                galian_id: getMsIds('ms-galian-gabungan'),
+                no_do: document.getElementById('filter-no-do-gabungan')?.value.trim() || "",
                 lokasi_bongkar: document.getElementById('filter-lokasi-bongkar-gabungan')?.value.trim() || "",
                 status: document.getElementById('filter-status-gabungan')?.value || "",
                 kendaraan_id: document.getElementById('filter-kendaraan-gabungan-id')?.value || "",
-                galian_id: document.getElementById('filter-galian-gabungan-id')?.value || "",
                 alihan: document.getElementById('filter-alihan-gabungan')?.value || "",
                 galian_alihan_id: document.getElementById('filter-galian-alihan-gabungan-id')?.value || ""
             };
-            Object.keys(filters).forEach(key => {
-                const v = filters[key];
-                if (v !== undefined && v !== null && v !== '') params.append(key, v);
-            });
-            
-            // Kirim Stats untuk Summary
-            const statsTotal = document.getElementById('stat-total-gabungan')?.textContent || '0';
-            const statsComplete = document.getElementById('stat-complete-gabungan')?.textContent || '0';
-            const statsProcess = document.getElementById('stat-process-gabungan')?.textContent || '0';
-            const statsBatal = document.getElementById('stat-batal-gabungan')?.textContent || '0';
-            
-            params.append('stats_total', statsTotal);
-            params.append('stats_complete', statsComplete);
-            params.append('stats_process', statsProcess);
-            params.append('stats_batal', statsBatal);
-            
+            Object.keys(filters).forEach(key => { if (filters[key]) params.append(key, filters[key]); });
+
+            params.append('stats_total', document.getElementById('stat-total-gabungan')?.textContent || '0');
+            params.append('stats_complete', document.getElementById('stat-complete-gabungan')?.textContent || '0');
+            params.append('stats_process', document.getElementById('stat-process-gabungan')?.textContent || '0');
+            params.append('stats_batal', document.getElementById('stat-batal-gabungan')?.textContent || '0');
             endpoint = '/rekap/gabungan/export/pdf';
         }
 
         const url = `${API_URL}${endpoint}?${params.toString()}`;
-        console.log('📄 Exporting to PDF:', url);
-
         const response = await fetch(url);
         if (!response.ok) throw new Error(`Export failed: ${response.statusText}`);
 
         const blob = await response.blob();
-        // Try to get filename from Content-Disposition header
         const disposition = response.headers.get('Content-Disposition') || response.headers.get('content-disposition') || '';
         let filename = `rekap_${type}_${Date.now()}.pdf`;
         const filenameMatch = disposition.match(/filename\*=UTF-8''([^;]+)|filename=\"?([^\";]+)\"?/i);
-        if (filenameMatch) {
-            filename = decodeURIComponent(filenameMatch[1] || filenameMatch[2] || filename);
-        }
+        if (filenameMatch) filename = decodeURIComponent(filenameMatch[1] || filenameMatch[2] || filename);
         filename = sanitizeFilename(filename) || `rekap_${type}_${Date.now()}.pdf`;
+
         const downloadUrl = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = downloadUrl;
@@ -1324,7 +1167,6 @@ async function exportToPDF(type) {
         a.click();
         window.URL.revokeObjectURL(downloadUrl);
         document.body.removeChild(a);
-        // Removed success alert as per UX request
     } catch (err) {
         console.error('❌ Error exporting to PDF:', err);
         alert('❌ Gagal export PDF: ' + err.message);
@@ -1332,48 +1174,31 @@ async function exportToPDF(type) {
 }
 
 // ============================================================================
-// ORDER DETAIL MODAL FUNCTIONS (DENGAN LOKASI BONGKAR)
+// ORDER DETAIL MODAL FUNCTIONS
 // ============================================================================
 async function showOrderDetail(orderId) {
     try {
-        console.log('📋 Showing order detail for ID:', orderId);
-
         const modal = document.getElementById('order-detail-modal');
         modal.style.display = 'block';
 
         const orderResponse = await fetch(`${API_URL}/rekap/order/${orderId}`);
-        if (!orderResponse.ok) {
-            throw new Error(`Failed to fetch order: ${orderResponse.status}`);
-        }
+        if (!orderResponse.ok) throw new Error(`Failed to fetch order: ${orderResponse.status}`);
         const orderResult = await orderResponse.json();
-        
-        console.log('Order API Response:', orderResult);
-        
+
         let orderData = null;
         if (orderResult.data) {
-            orderData = Array.isArray(orderResult.data) 
-                ? orderResult.data[0]
-                : orderResult.data;
+            orderData = Array.isArray(orderResult.data) ? orderResult.data[0] : orderResult.data;
         } else if (orderResult.success && orderResult.order) {
             orderData = orderResult.order;
         } else if (Array.isArray(orderResult)) {
             orderData = orderResult[0];
         }
-        
-        if (!orderData) {
-            throw new Error('Order data not found');
-        }
-
-        console.log('Extracted order data:', orderData);
+        if (!orderData) throw new Error('Order data not found');
 
         const buanganResponse = await fetch(`${API_URL}/rekap/buangan/by-order/${orderId}`);
-        if (!buanganResponse.ok) {
-            throw new Error(`Failed to fetch buangan: ${buanganResponse.status}`);
-        }
+        if (!buanganResponse.ok) throw new Error(`Failed to fetch buangan: ${buanganResponse.status}`);
         const buanganResult = await buanganResponse.json();
-        
-        console.log('Buangan API Response:', buanganResult);
-        
+
         let buanganData = [];
         if (buanganResult.data) {
             buanganData = Array.isArray(buanganResult.data) ? buanganResult.data : [buanganResult.data];
@@ -1381,32 +1206,19 @@ async function showOrderDetail(orderId) {
             buanganData = buanganResult;
         }
 
-        console.log('Extracted buangan data:', buanganData);
-        console.log('Buangan count:', buanganData.length);
-
         populateOrderInfo(orderData);
 
         const container = document.getElementById('buangan-cards');
         if (buanganData.length > 0) {
             container.innerHTML = '';
-            buanganData.forEach(buangan => {
-                populateBuanganCard(buangan, orderData, container);
-            });
+            buanganData.forEach(buangan => populateBuanganCard(buangan, orderData, container));
         } else {
             container.innerHTML = '<p class="no-data">Tidak ada data buangan untuk order ini</p>';
         }
 
         const closeBtn = modal.querySelector('.modal-close');
-        closeBtn.onclick = () => {
-            modal.style.display = 'none';
-        };
-
-        window.onclick = (event) => {
-            if (event.target === modal) {
-                modal.style.display = 'none';
-            }
-        };
-
+        closeBtn.onclick = () => { modal.style.display = 'none'; };
+        window.onclick = (event) => { if (event.target === modal) modal.style.display = 'none'; };
     } catch (err) {
         console.error('❌ Error showing order detail:', err);
         alert('❌ Gagal memuat detail order: ' + err.message);
@@ -1415,56 +1227,26 @@ async function showOrderDetail(orderId) {
 
 function populateBuanganCard(buangan, orderData, container) {
     if (!buangan) return;
-
     const card = document.createElement('div');
     card.className = 'buangan-card';
     card.innerHTML = `
         <div class="card-header">
             <h4>No. Urut ${buangan.no_urut || '1'}</h4>
-            <span class="card-proyek">${orderData.proyek_input || '-'}</span>
+            <span class="card-proyek">${orderData.proyek_display || orderData.proyek_input || '-'}</span>
             <span class="card-date">${formatDate(buangan.tanggal_bongkar)}</span>
         </div>
         <div class="card-body">
-            <div class="card-row">
-                <span class="label">Tanggal Bongkar:</span>
-                <span class="value">${formatDate(buangan.tanggal_bongkar)}</span>
-            </div>
-            <div class="card-row">
-                <span class="label">Jam Bongkar:</span>
-                <span class="value">${buangan.jam_bongkar || '-'}</span>
-            </div>
-            <div class="card-row">
-                <span class="label">Buangan (Lokasi):</span>
-                <span class="value">${buangan.lokasi_bongkar || '-'}</span>
-            </div>
-            <div class="card-row">
-                <span class="label">KM Akhir:</span>
-                <span class="value">${formatKilometer(buangan.km_akhir)}</span>
-            </div>
-            <div class="card-row">
-                <span class="label">Jarak KM:</span>
-                <span class="value">${formatKilometer(buangan.jarak_km)}</span>
-            </div>
-            <div class="card-row">
-                <span class="label">Alihan:</span>
-                <span class="value">${buangan.alihan ? 'Ya' : 'Tidak'}</span>
-            </div>
+            <div class="card-row"><span class="label">Tanggal Bongkar:</span><span class="value">${formatDate(buangan.tanggal_bongkar)}</span></div>
+            <div class="card-row"><span class="label">Jam Bongkar:</span><span class="value">${buangan.jam_bongkar || '-'}</span></div>
+            <div class="card-row"><span class="label">Buangan (Lokasi):</span><span class="value">${buangan.lokasi_bongkar || '-'}</span></div>
+            <div class="card-row"><span class="label">KM Akhir:</span><span class="value">${formatKilometer(buangan.km_akhir)}</span></div>
+            <div class="card-row"><span class="label">Jarak KM:</span><span class="value">${formatKilometer(buangan.jarak_km)}</span></div>
+            <div class="card-row"><span class="label">Alihan:</span><span class="value">${buangan.alihan ? 'Ya' : 'Tidak'}</span></div>
             ${buangan.alihan ? `
-                <div class="card-row">
-                    <span class="label">Galian Alihan:</span>
-                    <span class="value">${buangan.galian_alihan_nama || '-'}</span>
-                </div>
-                <div class="card-row">
-                    <span class="label">Uang Alihan:</span>
-                    <span class="value">${formatCurrency(buangan.uang_alihan)}</span>
-                </div>
+                <div class="card-row"><span class="label">Galian Alihan:</span><span class="value">${buangan.galian_alihan_nama || '-'}</span></div>
+                <div class="card-row"><span class="label">Uang Alihan:</span><span class="value">${formatCurrency(buangan.uang_alihan)}</span></div>
             ` : ''}
-            ${buangan.keterangan ? `
-                <div class="card-row">
-                    <span class="label">Keterangan:</span>
-                    <span class="value">${buangan.keterangan}</span>
-                </div>
-            ` : ''}
+            ${buangan.keterangan ? `<div class="card-row"><span class="label">Keterangan:</span><span class="value">${buangan.keterangan}</span></div>` : ''}
         </div>
     `;
     container.appendChild(card);
@@ -1487,16 +1269,14 @@ function populateOrderInfo(orderData) {
         { label: 'Uang Jalan', value: formatCurrency(orderData.uang_jalan) },
         { label: 'Potongan', value: formatCurrency(orderData.potongan) },
         { label: 'Hasil Akhir', value: formatCurrency(orderData.hasil_akhir) },
-        { label: 'Proyek', value: orderData.proyek_input || '-' },
+        { label: 'Proyek', value: orderData.proyek_display || orderData.proyek_input || '-' },
         { label: 'Status', value: orderData.status || '-' }
     ];
 
     infoItems.forEach(item => {
         const div = document.createElement('div');
         div.className = 'info-item';
-        div.innerHTML = `
-            <strong>${item.label}:</strong> ${item.value}
-        `;
+        div.innerHTML = `<strong>${item.label}:</strong> ${item.value}`;
         grid.appendChild(div);
     });
 }
@@ -1504,16 +1284,18 @@ function populateOrderInfo(orderData) {
 // ============================================================================
 // SUMMARY DISPLAY FUNCTIONS
 // ============================================================================
-function displayOrderSummary(totalUangJalan, totalPotongan, totalHasilAkhir) {
+function displayOrderSummary(totalUangJalan, totalPotongan, totalHasilAkhir, totalRitasi, totalHargaRitasi) {
     const summaryDiv = document.getElementById('summary-order');
     if (!summaryDiv) return;
-
-    const grandTotal = totalHasilAkhir;
 
     summaryDiv.innerHTML = `
         <div class="summary-section">
             <div class="summary-title">📊 Ringkasan Order</div>
             <div class="summary-grid">
+                <div class="summary-item">
+                    <span class="label">Total Ritasi:</span>
+                    <span class="value">${totalRitasi}</span>
+                </div>
                 <div class="summary-item">
                     <span class="label">Total Uang Jalan:</span>
                     <span class="value">${formatCurrency(totalUangJalan)}</span>
@@ -1522,9 +1304,13 @@ function displayOrderSummary(totalUangJalan, totalPotongan, totalHasilAkhir) {
                     <span class="label">Total Potongan:</span>
                     <span class="value">${formatCurrency(totalPotongan)}</span>
                 </div>
+                <div class="summary-item">
+                    <span class="label">Total Harga Ritasi:</span>
+                    <span class="value">${formatCurrency(totalHargaRitasi)}</span>
+                </div>
                 <div class="summary-item grand-total">
                     <span class="label">Grand Total:</span>
-                    <span class="value">${formatCurrency(grandTotal)}</span>
+                    <span class="value">${formatCurrency(totalHasilAkhir)}</span>
                 </div>
             </div>
         </div>
@@ -1548,15 +1334,30 @@ function displayBuanganSummary(totalUangAlihan) {
     `;
 }
 
-function displayGabunganSummary(totalUangJalan, totalPotongan, grandTotal, totalUangAlihan) {
+function displayGabunganSummary(totalUangJalan, totalPotongan, totalUangAlihan, totalRitasi, totalAlihan) {
     const summaryDiv = document.getElementById('summary-gabungan');
     if (!summaryDiv) return;
+
+    const totalUJplusUA = totalUangJalan + totalUangAlihan;
+    const grandTotal = totalUJplusUA - totalPotongan;
 
     summaryDiv.innerHTML = `
         <div class="summary-section">
             <div class="summary-title">📊 Ringkasan Gabungan</div>
             <div class="summary-grid-custom">
                 <div class="summary-row-top">
+                    <div class="summary-item">
+                        <span class="label">Total Ritasi:</span>
+                        <span class="value">${totalRitasi}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="label">Total Alihan:</span>
+                        <span class="value">${totalAlihan}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="label">Total Uang Alihan:</span>
+                        <span class="value">${formatCurrency(totalUangAlihan)}</span>
+                    </div>
                     <div class="summary-item">
                         <span class="label">Total Uang Jalan:</span>
                         <span class="value">${formatCurrency(totalUangJalan)}</span>
@@ -1566,13 +1367,13 @@ function displayGabunganSummary(totalUangJalan, totalPotongan, grandTotal, total
                         <span class="value">${formatCurrency(totalPotongan)}</span>
                     </div>
                 </div>
-                <div class="summary-item grand-total">
-                    <span class="label">Grand Total (Uang Jalan - Potongan):</span>
-                    <span class="value">${formatCurrency(grandTotal)}</span>
-                </div>
                 <div class="summary-item">
-                    <span class="label">Total Uang Alihan:</span>
-                    <span class="value">${formatCurrency(totalUangAlihan)}</span>
+                    <span class="label">Total UJ + Total UA:</span>
+                    <span class="value">${formatCurrency(totalUJplusUA)}</span>
+                </div>
+                <div class="summary-item grand-total">
+                    <span class="label">GRAND TOTAL (UJ + UA - Potongan):</span>
+                    <span class="value">${formatCurrency(grandTotal)}</span>
                 </div>
             </div>
         </div>
@@ -1588,38 +1389,31 @@ function formatCurrency(value) {
 }
 
 function formatKilometer(value) {
-    if (typeof value === 'string' && 
-        (value.toUpperCase() === 'ODO ERROR' || 
+    if (typeof value === 'string' &&
+        (value.toUpperCase() === 'ODO ERROR' ||
          value.toUpperCase() === 'ODOERROR' ||
          value.toUpperCase() === 'ODO ERR' ||
          value.toUpperCase() === 'ODOERR')) {
         return 'ODO ERROR';
     }
 
-    // Treat null/undefined/empty as 0
     if (value === null || value === undefined || value === '') return '0';
     if (value === 0) return '0';
 
-    // If input is a string and contains a decimal separator, preserve the decimal part exactly
     if (typeof value === 'string' && (value.includes('.') || value.includes(','))) {
         const sep = value.includes('.') ? '.' : ',';
         const parts = value.split(sep);
         const intPart = parts[0] || '0';
         const decPart = parts[1] || '';
-
         const intNum = Number(intPart.replace(/\s+/g, ''));
         const formattedInt = isNaN(intNum) ? intPart : intNum.toLocaleString('id-ID');
         return decPart ? `${formattedInt},${decPart}` : formattedInt;
     }
 
-    // For numeric values or strings without explicit decimal part, format while preserving any decimals
     const numValue = Number(value);
     if (isNaN(numValue)) return String(value);
-
-    // If integer, format normally
     if (Number.isInteger(numValue)) return numValue.toLocaleString('id-ID');
 
-    // For decimals, use the string representation to capture decimal digits, then format the integer part
     const numParts = numValue.toString().split('.');
     const formattedInt = Number(numParts[0]).toLocaleString('id-ID');
     const decPart = numParts[1] || '';
@@ -1646,14 +1440,14 @@ function formatDate(dateString) {
 document.addEventListener('DOMContentLoaded', async () => {
     debugLog('Page Initialization', 'Starting...');
 
-    initFilterImprovements();      
+    initFilterImprovements();
     initInputFocusEffects();
-    
+
     console.log('1️⃣ Loading master data...');
     await loadMasterData();
-    
+
     console.log('\n2️⃣ Loading initial data...');
     await loadRekapGabungan();
-    
+
     console.log('\n✅ Initialization complete!\n');
 });

@@ -15,6 +15,7 @@ const itemsPerPage = 10;
 let masterKendaraan = [];
 let masterSupir = [];
 let masterGalian = [];
+let masterProyek = [];
 
 // DOM Elements
 const orderForm = document.getElementById('orderForm');
@@ -35,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadKendaraan();
     loadSupir();
     loadGalian();
+    loadProyek();
     initEventListeners();
     setDefaultDate();
 });
@@ -150,6 +152,20 @@ async function loadGalian() {
         }
     } catch (error) {
         console.error('Error loading galian:', error);
+    }
+}
+
+async function loadProyek() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/master/proyek`);
+        const result = await response.json();
+
+        if (result.status) {
+            masterProyek = result.data;
+            populateDatalist('datalist-proyek', result.data, 'nama_proyek');
+        }
+    } catch (error) {
+        console.error('Error loading proyek:', error);
     }
 }
 
@@ -321,7 +337,7 @@ function renderTable() {
             <td>${formatRupiah(order.uang_jalan)}</td>
             <td>${formatRupiah(order.potongan)}</td>
             <td><strong>${formatRupiah(order.hasil_akhir)}</strong></td>
-            <td>${order.proyek_input || '-'}</td>
+            <td>${order.nama_proyek || order.proyek_input || '-'}</td>
             <td>${getStatusBadge(order.status)}</td>
             <td>
                 <div class="action-buttons">
@@ -390,7 +406,7 @@ async function handleSubmit(e) {
         km_awal: kmParsed,
         uang_jalan: parseRupiah(document.getElementById('uang_jalan').value),
         potongan: parseRupiah(document.getElementById('potongan').value) || 0,
-        proyek_input: document.getElementById('proyek_input').value || null
+        proyek_id: document.getElementById('proyek_id_hidden').value ? parseInt(document.getElementById('proyek_id_hidden').value) : null
     };
 
     try {
@@ -439,6 +455,10 @@ function resetForm() {
     cancelBtn.style.display = 'none';
     setDefaultDate();
     document.getElementById('hasil_akhir').value = 'Rp 0';
+    document.getElementById('kendaraan_id_hidden').value = '';
+    document.getElementById('supir_id_hidden').value = '';
+    document.getElementById('galian_id_hidden').value = '';
+    document.getElementById('proyek_id_hidden').value = '';
 }
 
 function setDefaultDate() {
@@ -514,7 +534,25 @@ async function editOrder(id) {
             }
             document.getElementById('uang_jalan').value = formatRupiah(order.uang_jalan);
             document.getElementById('potongan').value = formatRupiah(order.potongan || 0);
-            document.getElementById('proyek_input').value = order.proyek_input || '';
+
+            // Set proyek dari master
+            const proyekInput = document.getElementById('proyek_id');
+            const proyekHidden = document.getElementById('proyek_id_hidden');
+            if (order.proyek_id) {
+                const proyekData = masterProyek.find(p => p.id === order.proyek_id);
+                if (proyekData) {
+                    proyekInput.value = proyekData.nama_proyek;
+                    proyekHidden.value = proyekData.id;
+                } else {
+                    // Data ada di master tapi mungkin belum di-load, gunakan nama_proyek dari JOIN
+                    proyekInput.value = order.nama_proyek || '';
+                    proyekHidden.value = order.proyek_id;
+                }
+            } else {
+                // Data lama pakai proyek_input teks bebas - tampilkan saja
+                proyekInput.value = order.proyek_input || '';
+                proyekHidden.value = '';
+            }
 
             editingId = id;
             formTitle.textContent = `Edit Order - ${order.no_order}`;
@@ -585,6 +623,7 @@ function handleSearch(e) {
             (order.supir && order.supir.toLowerCase().includes(keyword)) ||
             order.no_do.toLowerCase().includes(keyword) ||
             (order.nama_galian && order.nama_galian.toLowerCase().includes(keyword)) ||
+            (order.nama_proyek && order.nama_proyek.toLowerCase().includes(keyword)) ||
             (order.proyek_input && order.proyek_input.toLowerCase().includes(keyword)) ||
             (order.kategori_waktu && order.kategori_waktu.toLowerCase().includes(keyword))
         );
@@ -849,6 +888,22 @@ function setupAutocompleteListeners() {
         galianInput.addEventListener('change', (e) => {
             const selectedItem = masterGalian.find(item => item.nama_galian === e.target.value);
             galianHidden.value = selectedItem ? selectedItem.id : '';
+        });
+    }
+
+    // Setup untuk proyek
+    const proyekInput = document.getElementById('proyek_id');
+    const proyekHidden = document.getElementById('proyek_id_hidden');
+    const proyekDatalist = document.getElementById('datalist-proyek');
+
+    if (proyekInput && proyekHidden && proyekDatalist) {
+        proyekInput.addEventListener('input', (e) => {
+            filterDatalist(e.target.value, proyekDatalist, masterProyek, 'nama_proyek', proyekHidden);
+        });
+
+        proyekInput.addEventListener('change', (e) => {
+            const selectedItem = masterProyek.find(item => item.nama_proyek === e.target.value);
+            proyekHidden.value = selectedItem ? selectedItem.id : '';
         });
     }
 }

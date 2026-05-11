@@ -107,8 +107,16 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="proyek_input">Proyek</label>
-                        <input type="text" id="proyek_input" placeholder="Nama Proyek">
+                        <label for="proyek_id">Proyek</label>
+                        <input
+                            type="text"
+                            id="proyek_id"
+                            list="datalist-proyek"
+                            placeholder="Ketik untuk mencari proyek..."
+                            autocomplete="off"
+                        >
+                        <datalist id="datalist-proyek"></datalist>
+                        <input type="hidden" id="proyek_id_hidden">
                     </div>
                 </div>
 

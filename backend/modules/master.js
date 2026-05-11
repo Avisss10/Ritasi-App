@@ -148,11 +148,57 @@ router.post("/galian", create("master_galian", ["nama_galian"]));
 router.put("/galian/:id", update("master_galian", ["nama_galian"]));
 router.delete("/galian/:id", remove("master_galian"));
 
-// MASTER PROYEK --------------------------------------------------------------
-router.get("/proyek", getAll("master_proyek"));
+// MASTER PROYEK (custom handlers - harga bisa bernilai 0 sehingga tidak bisa pakai generic create/update)
+router.get("/proyek", async (req, res) => {
+  try {
+    const [rows] = await db.query(`SELECT * FROM master_proyek ORDER BY id DESC`);
+    return success(res, "Data master_proyek", rows);
+  } catch (err) {
+    return error(res, 500, "Gagal mengambil data master_proyek", err);
+  }
+});
+
 router.get("/proyek/:id", getById("master_proyek"));
-router.post("/proyek", create("master_proyek", ["nama_proyek"]));
-router.put("/proyek/:id", update("master_proyek", ["nama_proyek"]));
+
+router.post("/proyek", async (req, res) => {
+  const { nama_proyek, harga } = req.body;
+  if (!nama_proyek || !String(nama_proyek).trim()) {
+    return error(res, 400, "Field 'nama_proyek' wajib diisi");
+  }
+  const hargaValue = (harga !== undefined && harga !== null && harga !== '') ? parseFloat(harga) : 0;
+  try {
+    const [result] = await db.query(
+      `INSERT INTO master_proyek (nama_proyek, harga) VALUES (?, ?)`,
+      [String(nama_proyek).trim(), hargaValue]
+    );
+    return success(res, "Berhasil menambahkan proyek", {
+      id: result.insertId,
+      nama_proyek: String(nama_proyek).trim(),
+      harga: hargaValue
+    });
+  } catch (err) {
+    return error(res, 500, "Gagal menambahkan proyek", err);
+  }
+});
+
+router.put("/proyek/:id", async (req, res) => {
+  const { id } = req.params;
+  const { nama_proyek, harga } = req.body;
+  const fields = [];
+  const values = [];
+  if (nama_proyek !== undefined) { fields.push("nama_proyek = ?"); values.push(String(nama_proyek).trim()); }
+  if (harga !== undefined && harga !== null && harga !== '') { fields.push("harga = ?"); values.push(parseFloat(harga)); }
+  if (fields.length === 0) return error(res, 400, "Tidak ada field yang dikirim");
+  values.push(id);
+  try {
+    const [result] = await db.query(`UPDATE master_proyek SET ${fields.join(", ")} WHERE id = ?`, values);
+    if (result.affectedRows === 0) return error(res, 404, `master_proyek dengan ID ${id} tidak ditemukan`);
+    return success(res, "Berhasil update proyek", { id: parseInt(id), nama_proyek, harga });
+  } catch (err) {
+    return error(res, 500, "Gagal update proyek", err);
+  }
+});
+
 router.delete("/proyek/:id", remove("master_proyek"));
 
 // ============================================================================

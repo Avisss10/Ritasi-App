@@ -16,32 +16,32 @@ function formatKM(value) {
     return "0";
   }
 
-  // If the original value is a string and contains a decimal separator, preserve decimal digits
   if (typeof value === 'string' && (value.indexOf('.') !== -1 || value.indexOf(',') !== -1)) {
     const sep = value.indexOf('.') !== -1 ? '.' : ',';
     const parts = value.split(sep);
     const intPart = parts[0] || '0';
     const decPart = parts[1] || '';
-
     const intNum = Number(intPart.replace(/\s+/g, ''));
     const formattedInt = isNaN(intNum) ? intPart : intNum.toLocaleString('id-ID');
     return decPart ? `${formattedInt},${decPart}` : formattedInt;
   }
 
   const numValue = Number(value);
-  if (isNaN(numValue)) {
-    return value;
-  }
+  if (isNaN(numValue)) return value;
+  if (Number.isInteger(numValue)) return numValue.toLocaleString('id-ID');
 
-  if (Number.isInteger(numValue)) {
-    return numValue.toLocaleString('id-ID');
-  }
-
-  // For decimals (when original was not a string with explicit decimals), preserve decimal digits from toString()
   const parts = numValue.toString().split('.');
   const formattedInt = Number(parts[0]).toLocaleString('id-ID');
   const dec = parts[1] || '';
   return dec ? `${formattedInt},${dec}` : formattedInt;
+}
+
+// Helper: Build IN clause for comma-separated IDs
+function buildInClause(value, column) {
+  const ids = value.split(',').map(id => id.trim()).filter(id => id && id !== 'null' && id !== 'undefined');
+  if (ids.length === 0) return null;
+  if (ids.length === 1) return { sql: `${column} = ?`, values: [ids[0]] };
+  return { sql: `${column} IN (${ids.map(() => '?').join(',')})`, values: ids };
 }
 
 // Helper: Build WHERE clause based on filters for ORDER
@@ -52,11 +52,16 @@ function buildFilters(req, allowedFields) {
   for (const key of allowedFields) {
     const value = req.query[key];
     if (value && value !== '' && value !== 'null' && value !== 'undefined') {
-      if (key === 'proyek_input') {
-        conditions.push(`LOWER(o.${key}) LIKE LOWER(?)`);
-        values.push(`${value}%`);
+      if (key === 'proyek_id') {
+        const clause = buildInClause(value, 'o.proyek_id');
+        if (clause) { conditions.push(clause.sql); values.push(...clause.values); }
+      } else if (key === 'galian_id') {
+        const clause = buildInClause(value, 'o.galian_id');
+        if (clause) { conditions.push(clause.sql); values.push(...clause.values); }
+      } else if (key === 'no_do') {
+        conditions.push(`o.no_do LIKE ?`);
+        values.push(`%${value}%`);
       } else if (key === 'status') {
-        // Normalize spaces/underscores and compare case-insensitively so 'ON PROCESS' and 'ON_PROCESS' both match
         conditions.push(`LOWER(REPLACE(o.status, ' ', '_')) = LOWER(REPLACE(?, ' ', '_'))`);
         values.push(value);
       } else {
@@ -92,11 +97,21 @@ function buildFiltersBuangan(req, allowedFields) {
     const value = req.query[key];
     if (value && value !== '' && value !== 'null' && value !== 'undefined') {
       if (key === 'no_order') {
-        conditions.push(`o.${key} = ?`);
+        conditions.push(`o.no_order = ?`);
+        values.push(value);
+      } else if (key === 'proyek_id') {
+        const clause = buildInClause(value, 'o.proyek_id');
+        if (clause) { conditions.push(clause.sql); values.push(...clause.values); }
+      } else if (key === 'galian_id') {
+        const clause = buildInClause(value, 'o.galian_id');
+        if (clause) { conditions.push(clause.sql); values.push(...clause.values); }
+      } else if (key === 'no_do') {
+        conditions.push(`o.no_do LIKE ?`);
+        values.push(`%${value}%`);
       } else {
         conditions.push(`b.${key} = ?`);
+        values.push(value);
       }
-      values.push(value);
     }
   }
 
@@ -124,9 +139,15 @@ function buildFiltersGabungan(req, allowedFields) {
   for (const key of allowedFields) {
     const value = req.query[key];
     if (value && value !== '' && value !== 'null' && value !== 'undefined') {
-      if (key === 'proyek_input') {
-        conditions.push(`LOWER(o.${key}) LIKE LOWER(?)`);
-        values.push(`${value}%`);
+      if (key === 'proyek_id') {
+        const clause = buildInClause(value, 'o.proyek_id');
+        if (clause) { conditions.push(clause.sql); values.push(...clause.values); }
+      } else if (key === 'galian_id') {
+        const clause = buildInClause(value, 'o.galian_id');
+        if (clause) { conditions.push(clause.sql); values.push(...clause.values); }
+      } else if (key === 'no_do') {
+        conditions.push(`o.no_do LIKE ?`);
+        values.push(`%${value}%`);
       } else if (key === 'lokasi_bongkar') {
         conditions.push(`LOWER(b.${key}) LIKE LOWER(?)`);
         values.push(`${value}%`);
@@ -137,7 +158,6 @@ function buildFiltersGabungan(req, allowedFields) {
         conditions.push(`b.${key} = ?`);
         values.push(value);
       } else if (key === 'status') {
-        // Normalize spaces/underscores and compare case-insensitively so 'ON PROCESS' and 'ON_PROCESS' both match
         conditions.push(`LOWER(REPLACE(o.status, ' ', '_')) = LOWER(REPLACE(?, ' ', '_'))`);
         values.push(value);
       } else {
@@ -147,7 +167,6 @@ function buildFiltersGabungan(req, allowedFields) {
     }
   }
 
-  // Tanggal Order Range
   if (req.query.tanggal_order_dari && req.query.tanggal_order_sampai) {
     conditions.push(`o.tanggal_order BETWEEN ? AND ?`);
     values.push(req.query.tanggal_order_dari, req.query.tanggal_order_sampai);
@@ -159,7 +178,6 @@ function buildFiltersGabungan(req, allowedFields) {
     values.push(req.query.tanggal_order_sampai);
   }
 
-  // Tanggal Bongkar Range
   if (req.query.tanggal_bongkar_dari && req.query.tanggal_bongkar_sampai) {
     conditions.push(`b.tanggal_bongkar BETWEEN ? AND ?`);
     values.push(req.query.tanggal_bongkar_dari, req.query.tanggal_bongkar_sampai);
@@ -196,129 +214,112 @@ async function generateFilterInfo(req, type) {
     filename = "Rekap_Gabungan";
   }
 
-  // Build filters object with names for ALL types
-  
-  // Proyek (untuk order dan gabungan)
-  if (req.query.proyek_input && req.query.proyek_input.trim() !== '') {
-    filters["Proyek"] = req.query.proyek_input;
+  // Proyek (untuk order dan gabungan) - handle comma-separated IDs
+  if (req.query.proyek_id && req.query.proyek_id !== '' && req.query.proyek_id !== '0') {
+    const ids = req.query.proyek_id.split(',').map(id => id.trim()).filter(id => id);
+    if (ids.length > 0) {
+      try {
+        const names = [];
+        for (const id of ids) {
+          const [rows] = await db.query("SELECT nama_proyek FROM master_proyek WHERE id = ?", [id]);
+          names.push(rows.length > 0 ? rows[0].nama_proyek : id);
+        }
+        filters["Proyek"] = names.join(', ');
+      } catch (err) {
+        filters["Proyek"] = req.query.proyek_id;
+      }
+    }
   }
-  
+
+  // Galian - handle comma-separated IDs
+  if (req.query.galian_id && req.query.galian_id !== '' && req.query.galian_id !== '0') {
+    const ids = req.query.galian_id.split(',').map(id => id.trim()).filter(id => id);
+    if (ids.length > 0) {
+      try {
+        const names = [];
+        for (const id of ids) {
+          const [rows] = await db.query("SELECT nama_galian FROM master_galian WHERE id = ?", [id]);
+          names.push(rows.length > 0 ? rows[0].nama_galian : id);
+        }
+        filters["Galian"] = names.join(', ');
+      } catch (err) {
+        filters["Galian"] = req.query.galian_id;
+      }
+    }
+  }
+
+  // No DO
+  if (req.query.no_do && req.query.no_do.trim() !== '') {
+    filters["No DO"] = req.query.no_do;
+  }
+
   // Petugas (untuk order dan gabungan)
   if (req.query.petugas_order && req.query.petugas_order.trim() !== '') {
     filters["Petugas"] = req.query.petugas_order;
   }
-  
+
   // Lokasi Bongkar (untuk gabungan)
   if (req.query.lokasi_bongkar && req.query.lokasi_bongkar.trim() !== '') {
     filters["Lokasi Bongkar"] = req.query.lokasi_bongkar;
   }
-  
+
   // Kendaraan (untuk semua)
   if (req.query.kendaraan_id && req.query.kendaraan_id !== '' && req.query.kendaraan_id !== '0') {
     try {
-      const kendaraanResult = await db.query(
-        "SELECT no_pintu FROM master_kendaraan WHERE id = ?",
-        [req.query.kendaraan_id]
-      );
-      if (kendaraanResult[0] && kendaraanResult[0].length > 0) {
-        filters["Kendaraan"] = kendaraanResult[0][0].no_pintu;
-      } else {
-        filters["Kendaraan"] = req.query.kendaraan_id;
-      }
+      const [rows] = await db.query("SELECT no_pintu FROM master_kendaraan WHERE id = ?", [req.query.kendaraan_id]);
+      filters["Kendaraan"] = rows.length > 0 ? rows[0].no_pintu : req.query.kendaraan_id;
     } catch (err) {
       filters["Kendaraan"] = req.query.kendaraan_id;
     }
   }
-  
+
   // Supir (untuk order dan gabungan)
   if (req.query.supir_id && req.query.supir_id !== '' && req.query.supir_id !== '0') {
     try {
-      const supirResult = await db.query(
-        "SELECT nama FROM master_supir WHERE id = ?",
-        [req.query.supir_id]
-      );
-      if (supirResult[0] && supirResult[0].length > 0) {
-        filters["Supir"] = supirResult[0][0].nama;
-      } else {
-        filters["Supir"] = req.query.supir_id;
-      }
+      const [rows] = await db.query("SELECT nama FROM master_supir WHERE id = ?", [req.query.supir_id]);
+      filters["Supir"] = rows.length > 0 ? rows[0].nama : req.query.supir_id;
     } catch (err) {
       filters["Supir"] = req.query.supir_id;
     }
   }
-  
-  // Galian (untuk order dan gabungan)
-  if (req.query.galian_id && req.query.galian_id !== '' && req.query.galian_id !== '0') {
-    try {
-      const galianResult = await db.query(
-        "SELECT nama_galian FROM master_galian WHERE id = ?",
-        [req.query.galian_id]
-      );
-      if (galianResult[0] && galianResult[0].length > 0) {
-        filters["Galian"] = galianResult[0][0].nama_galian;
-      } else {
-        filters["Galian"] = req.query.galian_id;
-      }
-    } catch (err) {
-      filters["Galian"] = req.query.galian_id;
-    }
-  }
-  
+
   // Galian Alihan (untuk gabungan)
   if (req.query.galian_alihan_id && req.query.galian_alihan_id !== '' && req.query.galian_alihan_id !== '0') {
     try {
-      const galianAlihanResult = await db.query(
-        "SELECT nama_galian FROM master_galian WHERE id = ?",
-        [req.query.galian_alihan_id]
-      );
-      if (galianAlihanResult[0] && galianAlihanResult[0].length > 0) {
-        filters["Galian Alihan"] = galianAlihanResult[0][0].nama_galian;
-      } else {
-        filters["Galian Alihan"] = req.query.galian_alihan_id;
-      }
+      const [rows] = await db.query("SELECT nama_galian FROM master_galian WHERE id = ?", [req.query.galian_alihan_id]);
+      filters["Galian Alihan"] = rows.length > 0 ? rows[0].nama_galian : req.query.galian_alihan_id;
     } catch (err) {
       filters["Galian Alihan"] = req.query.galian_alihan_id;
     }
   }
-  
+
   // Status (untuk semua)
   if (req.query.status && req.query.status !== '') {
     filters["Status"] = req.query.status.toUpperCase();
   }
-  
+
   // Alihan (untuk buangan dan gabungan)
   if (req.query.alihan !== undefined && req.query.alihan !== null && req.query.alihan !== '') {
     filters["Alihan"] = req.query.alihan === "1" || req.query.alihan === "true" ? "Ya" : "Tidak";
   }
-  
+
   // No Order (untuk buangan dan gabungan)
   if (req.query.no_order && req.query.no_order.trim() !== '') {
     filters["No Order"] = req.query.no_order;
   }
 
-  // ========== DATE RANGE FILTERS ==========
-  
-  // Helper function untuk format tanggal
-  const getTodayDate = () => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  };
-  
+  const getTodayDate = () => new Date().toISOString().split('T')[0];
   const get2DaysAgoDate = () => {
     const today = new Date();
     today.setDate(today.getDate() - 2);
     return today.toISOString().split('T')[0];
   };
-  
-  // Date range umum (untuk order dan buangan)
+
   if (req.query.tanggal_dari && req.query.tanggal_sampai) {
     const dari = formatDate(req.query.tanggal_dari);
     const sampai = formatDate(req.query.tanggal_sampai);
-    
-    // Check if it's 2 days range (default)
     const twoDaysAgo = get2DaysAgoDate();
     const today = getTodayDate();
-    
     if (req.query.tanggal_dari === twoDaysAgo && req.query.tanggal_sampai === today) {
       filters["Periode"] = "2 Hari Terakhir";
     } else if (req.query.tanggal_dari === today && req.query.tanggal_sampai === today) {
@@ -332,15 +333,11 @@ async function generateFilterInfo(req, type) {
     filters["Tanggal Sampai"] = formatDate(req.query.tanggal_sampai);
   }
 
-  // Date range untuk gabungan (order)
   if (req.query.tanggal_order_dari && req.query.tanggal_order_sampai) {
     const dari = formatDate(req.query.tanggal_order_dari);
     const sampai = formatDate(req.query.tanggal_order_sampai);
-    
-    // Check if it's 2 days range (default)
     const twoDaysAgo = get2DaysAgoDate();
     const today = getTodayDate();
-    
     if (req.query.tanggal_order_dari === twoDaysAgo && req.query.tanggal_order_sampai === today) {
       filters["Periode Order"] = "2 Hari Terakhir";
     } else if (req.query.tanggal_order_dari === today && req.query.tanggal_order_sampai === today) {
@@ -354,15 +351,11 @@ async function generateFilterInfo(req, type) {
     filters["Tanggal Order Sampai"] = formatDate(req.query.tanggal_order_sampai);
   }
 
-  // Date range untuk gabungan (bongkar)
   if (req.query.tanggal_bongkar_dari && req.query.tanggal_bongkar_sampai) {
     const dari = formatDate(req.query.tanggal_bongkar_dari);
     const sampai = formatDate(req.query.tanggal_bongkar_sampai);
-    
-    // Check if it's 2 days range (default)
     const twoDaysAgo = get2DaysAgoDate();
     const today = getTodayDate();
-    
     if (req.query.tanggal_bongkar_dari === twoDaysAgo && req.query.tanggal_bongkar_sampai === today) {
       filters["Periode Bongkar"] = "2 Hari Terakhir";
     } else if (req.query.tanggal_bongkar_dari === today && req.query.tanggal_bongkar_sampai === today) {
@@ -380,11 +373,7 @@ async function generateFilterInfo(req, type) {
     filters["Periode"] = "2 Hari Terakhir (Default)";
   }
 
-  return {
-    title,
-    filename,
-    filters
-  };
+  return { title, filename, filters };
 }
 
 // Helper: Format date to Indonesian format
@@ -393,12 +382,7 @@ function formatDate(dateString) {
   try {
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return dateString;
-    
-    return date.toLocaleDateString('id-ID', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+    return date.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
   } catch (e) {
     return dateString;
   }
@@ -410,12 +394,7 @@ function formatDate(dateString) {
 router.get("/order", async (req, res) => {
   try {
     const { where, values } = buildFilters(req, [
-      "proyek_input",
-      "petugas_order",
-      "kendaraan_id",
-      "supir_id",
-      "galian_id",
-      "status"
+      "proyek_id", "petugas_order", "kendaraan_id", "supir_id", "galian_id", "no_do", "status"
     ]);
 
     const sql = `
@@ -434,23 +413,23 @@ router.get("/order", async (req, res) => {
         o.uang_jalan,
         o.potongan,
         o.hasil_akhir,
-        o.proyek_input,
+        COALESCE(p.nama_proyek, o.proyek_input) AS proyek_display,
+        o.proyek_id,
+        o.proyek_harga,
         o.status,
         b.keterangan AS keterangan_buangan
       FROM orders o
       LEFT JOIN master_kendaraan k ON o.kendaraan_id = k.id
       LEFT JOIN master_supir s ON o.supir_id = s.id
       LEFT JOIN master_galian g ON o.galian_id = g.id
+      LEFT JOIN master_proyek p ON o.proyek_id = p.id
       LEFT JOIN buangan b ON o.id = b.order_id
       ${where}
       ORDER BY o.tanggal_order DESC, o.id DESC
     `;
 
     const rows = await db.query(sql, values);
-    const formattedRows = rows[0].map(row => ({
-      ...row,
-      km_awal: formatKM(row.km_awal)
-    }));
+    const formattedRows = rows[0].map(row => ({ ...row, km_awal: formatKM(row.km_awal) }));
     return success(res, "Berhasil mengambil rekap order", formattedRows);
   } catch (err) {
     console.error("Error in /rekap/order:", err);
@@ -464,7 +443,7 @@ router.get("/order", async (req, res) => {
 router.get("/order/:id", async (req, res) => {
   try {
     const orderId = req.params.id;
-    
+
     const sql = `
       SELECT
         o.id,
@@ -483,26 +462,22 @@ router.get("/order/:id", async (req, res) => {
         o.uang_jalan,
         o.potongan,
         o.hasil_akhir,
-        o.proyek_input,
+        COALESCE(p.nama_proyek, o.proyek_input) AS proyek_display,
+        o.proyek_id,
+        o.proyek_harga,
         o.status
       FROM orders o
       LEFT JOIN master_kendaraan k ON o.kendaraan_id = k.id
       LEFT JOIN master_supir s ON o.supir_id = s.id
       LEFT JOIN master_galian g ON o.galian_id = g.id
+      LEFT JOIN master_proyek p ON o.proyek_id = p.id
       WHERE o.id = ?
     `;
 
     const rows = await db.query(sql, [orderId]);
-    
-    if (!rows[0] || rows[0].length === 0) {
-      return error(res, 404, "Order tidak ditemukan");
-    }
-    
-    const formattedRow = {
-      ...rows[0][0],
-      km_awal: formatKM(rows[0][0].km_awal)
-    };
-    
+    if (!rows[0] || rows[0].length === 0) return error(res, 404, "Order tidak ditemukan");
+
+    const formattedRow = { ...rows[0][0], km_awal: formatKM(rows[0][0].km_awal) };
     return success(res, "Berhasil mengambil detail order", formattedRow);
   } catch (err) {
     console.error("Error in /rekap/order/:id:", err);
@@ -511,12 +486,12 @@ router.get("/order/:id", async (req, res) => {
 });
 
 // ============================================================================
-// REKAP ORDER - GET BUANGAN BY ORDER ID (DENGAN LOKASI_BONGKAR)
+// REKAP ORDER - GET BUANGAN BY ORDER ID
 // ============================================================================
 router.get("/buangan/by-order/:orderId", async (req, res) => {
   try {
     const orderId = req.params.orderId;
-    
+
     const sql = `
       SELECT
         b.id,
@@ -557,12 +532,7 @@ router.get("/buangan/by-order/:orderId", async (req, res) => {
 router.get("/order/export/excel", async (req, res) => {
   try {
     const { where, values } = buildFilters(req, [
-      "proyek_input",
-      "petugas_order",
-      "kendaraan_id",
-      "supir_id",
-      "galian_id",
-      "status"
+      "proyek_id", "petugas_order", "kendaraan_id", "supir_id", "galian_id", "no_do", "status"
     ]);
 
     const sql = `
@@ -580,25 +550,23 @@ router.get("/order/export/excel", async (req, res) => {
         o.uang_jalan,
         o.potongan,
         o.hasil_akhir,
-        o.proyek_input,
+        COALESCE(p.nama_proyek, o.proyek_input) AS proyek_display,
+        o.proyek_harga,
         b.keterangan AS keterangan_buangan,
         o.status
       FROM orders o
       LEFT JOIN master_kendaraan k ON o.kendaraan_id = k.id
       LEFT JOIN master_supir s ON o.supir_id = s.id
       LEFT JOIN master_galian g ON o.galian_id = g.id
+      LEFT JOIN master_proyek p ON o.proyek_id = p.id
       LEFT JOIN buangan b ON o.id = b.order_id
       ${where}
       ORDER BY o.tanggal_order DESC, o.id DESC
     `;
 
     const rows = await db.query(sql, values);
-    const formattedRows = rows[0].map(row => ({
-      ...row,
-      km_awal: formatKM(row.km_awal)
-    }));
+    const formattedRows = rows[0].map(row => ({ ...row, km_awal: formatKM(row.km_awal) }));
 
-    // Adjusted headers for LANDSCAPE view
     const headers = [
       { label: "No", key: "no", width: 8 },
       { label: "Tanggal Order", key: "tanggal_order", width: 15 },
@@ -613,7 +581,8 @@ router.get("/order/export/excel", async (req, res) => {
       { label: "Uang Jalan", key: "uang_jalan", width: 15 },
       { label: "Potongan", key: "potongan", width: 15 },
       { label: "Hasil Akhir", key: "hasil_akhir", width: 15 },
-      { label: "Proyek", key: "proyek_input", width: 25 },
+      { label: "Proyek", key: "proyek_display", width: 25 },
+      { label: "Harga Proyek", key: "proyek_harga", width: 18 },
       { label: "Keterangan", key: "keterangan_buangan", width: 25 },
       { label: "Status", key: "status", width: 15 }
     ];
@@ -632,12 +601,7 @@ router.get("/order/export/excel", async (req, res) => {
 router.get("/order/export/pdf", async (req, res) => {
   try {
     const { where, values } = buildFilters(req, [
-      "proyek_input",
-      "petugas_order",
-      "kendaraan_id",
-      "supir_id",
-      "galian_id",
-      "status"
+      "proyek_id", "petugas_order", "kendaraan_id", "supir_id", "galian_id", "no_do", "status"
     ]);
 
     const sql = `
@@ -655,26 +619,23 @@ router.get("/order/export/pdf", async (req, res) => {
         o.uang_jalan,
         o.potongan,
         o.hasil_akhir,
-        o.proyek_input,
+        COALESCE(p.nama_proyek, o.proyek_input) AS proyek_display,
         b.keterangan AS keterangan_buangan,
         o.status
       FROM orders o
       LEFT JOIN master_kendaraan k ON o.kendaraan_id = k.id
       LEFT JOIN master_supir s ON o.supir_id = s.id
       LEFT JOIN master_galian g ON o.galian_id = g.id
+      LEFT JOIN master_proyek p ON o.proyek_id = p.id
       LEFT JOIN buangan b ON o.id = b.order_id
       ${where}
       ORDER BY o.tanggal_order DESC, o.id DESC
     `;
 
     const rows = await db.query(sql, values);
-    const formattedRows = rows[0].map(row => ({
-      ...row,
-      km_awal: formatKM(row.km_awal)
-    }));
-    
+    const formattedRows = rows[0].map(row => ({ ...row, km_awal: formatKM(row.km_awal) }));
+
     const filterInfo = await generateFilterInfo(req, "order");
-    
     generatePDF("LAPORAN REKAP ORDER", formattedRows, filterInfo, res);
   } catch (err) {
     console.error("Error in /rekap/order/export/pdf:", err);
@@ -688,8 +649,7 @@ router.get("/order/export/pdf", async (req, res) => {
 router.get("/buangan", async (req, res) => {
   try {
     const { where, values } = buildFiltersBuangan(req, [
-      "no_order",
-      "alihan"
+      "no_order", "alihan", "proyek_id", "galian_id", "no_do"
     ]);
 
     const sql = `
@@ -729,13 +689,12 @@ router.get("/buangan", async (req, res) => {
 });
 
 // ============================================================================
-// REKAP BUANGAN - EXPORT EXCEL (DENGAN LOKASI_BONGKAR)
+// REKAP BUANGAN - EXPORT EXCEL
 // ============================================================================
 router.get("/buangan/export/excel", async (req, res) => {
   try {
     const { where, values } = buildFiltersBuangan(req, [
-      "no_order",
-      "alihan"
+      "no_order", "alihan", "proyek_id", "galian_id", "no_do"
     ]);
 
     const sql = `
@@ -767,7 +726,6 @@ router.get("/buangan/export/excel", async (req, res) => {
       jarak_km: formatKM(row.jarak_km)
     }));
 
-    // Adjusted headers for LANDSCAPE view
     const headers = [
       { label: "No", key: "no", width: 8 },
       { label: "Tanggal Order", key: "tanggal_order", width: 15 },
@@ -793,13 +751,12 @@ router.get("/buangan/export/excel", async (req, res) => {
 });
 
 // ============================================================================
-// REKAP BUANGAN - EXPORT PDF (DENGAN LOKASI_BONGKAR)
+// REKAP BUANGAN - EXPORT PDF
 // ============================================================================
 router.get("/buangan/export/pdf", async (req, res) => {
   try {
     const { where, values } = buildFiltersBuangan(req, [
-      "no_order",
-      "alihan"
+      "no_order", "alihan", "proyek_id", "galian_id", "no_do"
     ]);
 
     const sql = `
@@ -830,9 +787,8 @@ router.get("/buangan/export/pdf", async (req, res) => {
       km_akhir: formatKM(row.km_akhir),
       jarak_km: formatKM(row.jarak_km)
     }));
-    
+
     const filterInfo = await generateFilterInfo(req, "buangan");
-    
     generatePDF("LAPORAN REKAP BUANGAN", formattedRows, filterInfo, res);
   } catch (err) {
     console.error("Error in /rekap/buangan/export/pdf:", err);
@@ -846,13 +802,8 @@ router.get("/buangan/export/pdf", async (req, res) => {
 router.get("/gabungan", async (req, res) => {
   try {
     const { where, values } = buildFiltersGabungan(req, [
-      "proyek_input",
-      "lokasi_bongkar",
-      "kendaraan_id",
-      "galian_id",
-      "galian_alihan_id",
-      "alihan",
-      "status"
+      "proyek_id", "lokasi_bongkar", "no_do", "kendaraan_id", "galian_id",
+      "galian_alihan_id", "alihan", "status"
     ]);
 
     const sql = `
@@ -875,8 +826,9 @@ router.get("/gabungan", async (req, res) => {
         o.uang_jalan,
         o.potongan,
         o.hasil_akhir AS total,
-        o.proyek_input AS proyek,
+        COALESCE(p.nama_proyek, o.proyek_input) AS proyek,
         b.lokasi_bongkar AS buangan,
+        b.alihan,
         b.uang_alihan,
         b.keterangan,
         o.status
@@ -886,6 +838,7 @@ router.get("/gabungan", async (req, res) => {
       LEFT JOIN master_supir s ON o.supir_id = s.id
       LEFT JOIN master_galian g ON o.galian_id = g.id
       LEFT JOIN master_galian g2 ON b.galian_alihan_id = g2.id
+      LEFT JOIN master_proyek p ON o.proyek_id = p.id
       ${where}
       ORDER BY o.tanggal_order DESC, o.id DESC, b.id DESC
     `;
@@ -905,18 +858,13 @@ router.get("/gabungan", async (req, res) => {
 });
 
 // ============================================================================
-// REKAP GABUNGAN - EXPORT EXCEL (DENGAN LOKASI_BONGKAR sebagai "buangan")
+// REKAP GABUNGAN - EXPORT EXCEL
 // ============================================================================
 router.get("/gabungan/export/excel", async (req, res) => {
   try {
     const { where, values } = buildFiltersGabungan(req, [
-      "proyek_input",
-      "lokasi_bongkar",
-      "kendaraan_id",
-      "galian_id",
-      "galian_alihan_id",
-      "alihan",
-      "status"
+      "proyek_id", "lokasi_bongkar", "no_do", "kendaraan_id", "galian_id",
+      "galian_alihan_id", "alihan", "status"
     ]);
 
     const sql = `
@@ -939,8 +887,9 @@ router.get("/gabungan/export/excel", async (req, res) => {
         o.uang_jalan,
         o.potongan,
         o.hasil_akhir AS total,
-        o.proyek_input AS proyek,
+        COALESCE(p.nama_proyek, o.proyek_input) AS proyek,
         b.lokasi_bongkar AS buangan,
+        b.alihan,
         b.uang_alihan,
         b.keterangan,
         o.status
@@ -950,6 +899,7 @@ router.get("/gabungan/export/excel", async (req, res) => {
       LEFT JOIN master_supir s ON o.supir_id = s.id
       LEFT JOIN master_galian g ON o.galian_id = g.id
       LEFT JOIN master_galian g2 ON b.galian_alihan_id = g2.id
+      LEFT JOIN master_proyek p ON o.proyek_id = p.id
       ${where}
       ORDER BY o.tanggal_order DESC, o.id DESC, b.id DESC
     `;
@@ -969,7 +919,6 @@ router.get("/gabungan/export/excel", async (req, res) => {
       batal: parseInt(req.query.stats_batal) || 0
     };
 
-    // Adjusted headers for LANDSCAPE view
     const headers = [
       { label: "No", key: "no", width: 8 },
       { label: "No Order", key: "no_order", width: 15 },
@@ -991,6 +940,7 @@ router.get("/gabungan/export/excel", async (req, res) => {
       { label: "Total", key: "total", width: 12 },
       { label: "Proyek", key: "proyek", width: 18 },
       { label: "Buangan", key: "buangan", width: 18 },
+      { label: "Alihan", key: "alihan", width: 10 },
       { label: "Uang Alihan", key: "uang_alihan", width: 12 },
       { label: "Keterangan", key: "keterangan", width: 20 },
       { label: "Status", key: "status", width: 10 }
@@ -1006,18 +956,13 @@ router.get("/gabungan/export/excel", async (req, res) => {
 });
 
 // ============================================================================
-// REKAP GABUNGAN - EXPORT PDF (DENGAN LOKASI_BONGKAR sebagai "buangan")
+// REKAP GABUNGAN - EXPORT PDF
 // ============================================================================
 router.get("/gabungan/export/pdf", async (req, res) => {
   try {
     const { where, values } = buildFiltersGabungan(req, [
-      "proyek_input",
-      "lokasi_bongkar",
-      "kendaraan_id",
-      "galian_id",
-      "galian_alihan_id",
-      "alihan",
-      "status"
+      "proyek_id", "lokasi_bongkar", "no_do", "kendaraan_id", "galian_id",
+      "galian_alihan_id", "alihan", "status"
     ]);
 
     const sql = `
@@ -1040,8 +985,9 @@ router.get("/gabungan/export/pdf", async (req, res) => {
         o.uang_jalan,
         o.potongan,
         o.hasil_akhir AS total,
-        o.proyek_input AS proyek,
+        COALESCE(p.nama_proyek, o.proyek_input) AS proyek,
         b.lokasi_bongkar AS buangan,
+        b.alihan,
         b.uang_alihan,
         b.keterangan,
         o.status
@@ -1051,6 +997,7 @@ router.get("/gabungan/export/pdf", async (req, res) => {
       LEFT JOIN master_supir s ON o.supir_id = s.id
       LEFT JOIN master_galian g ON o.galian_id = g.id
       LEFT JOIN master_galian g2 ON b.galian_alihan_id = g2.id
+      LEFT JOIN master_proyek p ON o.proyek_id = p.id
       ${where}
       ORDER BY o.tanggal_order DESC, o.id DESC, b.id DESC
     `;
@@ -1069,10 +1016,9 @@ router.get("/gabungan/export/pdf", async (req, res) => {
       process: parseInt(req.query.stats_process) || 0,
       batal: parseInt(req.query.stats_batal) || 0
     };
-    
+
     const filterInfo = await generateFilterInfo(req, "gabungan");
     filterInfo.stats = stats;
-    
     generatePDF("LAPORAN REKAP GABUNGAN", formattedRows, filterInfo, res);
   } catch (err) {
     console.error("Error in /rekap/gabungan/export/pdf:", err);
@@ -1081,26 +1027,36 @@ router.get("/gabungan/export/pdf", async (req, res) => {
 });
 
 // ============================================================================
-// GET USED GALIAN ALIHAN (Only galian that are actually used in alihan)
+// GET USED GALIAN ALIHAN
 // ============================================================================
 router.get("/galian-alihan-used", async (req, res) => {
   try {
     const sql = `
-      SELECT DISTINCT 
-        g.id,
-        g.nama_galian
+      SELECT DISTINCT g.id, g.nama_galian
       FROM buangan b
       INNER JOIN master_galian g ON b.galian_alihan_id = g.id
-      WHERE b.alihan = 1
-        AND b.galian_alihan_id IS NOT NULL
+      WHERE b.alihan = 1 AND b.galian_alihan_id IS NOT NULL
       ORDER BY g.nama_galian ASC
     `;
-
     const rows = await db.query(sql);
     return success(res, "Berhasil mengambil galian alihan yang digunakan", rows[0]);
   } catch (err) {
     console.error("Error in /rekap/galian-alihan-used:", err);
     return error(res, 500, "Gagal mengambil galian alihan yang digunakan", err);
+  }
+});
+
+// ============================================================================
+// GET DISTINCT NO_DO LIST (for datalist autocomplete)
+// ============================================================================
+router.get("/no-do-list", async (req, res) => {
+  try {
+    const sql = `SELECT DISTINCT no_do FROM orders WHERE no_do IS NOT NULL AND no_do != '' ORDER BY no_do LIMIT 200`;
+    const [rows] = await db.query(sql);
+    return success(res, "Berhasil", rows.map(r => r.no_do));
+  } catch (err) {
+    console.error("Error in /rekap/no-do-list:", err);
+    return error(res, 500, "Gagal", err);
   }
 });
 

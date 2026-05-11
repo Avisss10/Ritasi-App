@@ -64,8 +64,35 @@
                         <div class="filter-group-title">🎯 Filter Utama</div>
                         <div class="filter-grid filter-grid-3">
                             <div class="filter-item">
-                                <label><span class="icon">🏢</span> Proyek:</label>
-                                <input type="text" id="filter-proyek-order" placeholder="Cari proyek...">
+                                <label><span class="icon">🏗️</span> Proyek:</label>
+                                <div class="ms-container" id="ms-proyek-order">
+                                    <div class="ms-input-row">
+                                        <input type="text" class="ms-input" placeholder="Cari proyek...">
+                                        <button type="button" class="ms-clear" title="Hapus semua">✕</button>
+                                    </div>
+                                    <div class="ms-tags"></div>
+                                    <div class="ms-dropdown"></div>
+                                    <input type="hidden" id="filter-proyek-order-ids">
+                                </div>
+                            </div>
+
+                            <div class="filter-item">
+                                <label><span class="icon">⛏️</span> Galian:</label>
+                                <div class="ms-container" id="ms-galian-order">
+                                    <div class="ms-input-row">
+                                        <input type="text" class="ms-input" placeholder="Cari galian...">
+                                        <button type="button" class="ms-clear" title="Hapus semua">✕</button>
+                                    </div>
+                                    <div class="ms-tags"></div>
+                                    <div class="ms-dropdown"></div>
+                                    <input type="hidden" id="filter-galian-order-ids">
+                                </div>
+                            </div>
+
+                            <div class="filter-item">
+                                <label><span class="icon">📄</span> No. DO:</label>
+                                <input type="text" id="filter-no-do-order" list="datalist-no-do-order" placeholder="Cari No. DO...">
+                                <datalist id="datalist-no-do-order"></datalist>
                             </div>
 
                             <div class="filter-item">
@@ -90,13 +117,6 @@
                                 <input type="text" id="filter-supir-order" list="datalist-supir" placeholder="Pilih supir...">
                                 <input type="hidden" id="filter-supir-order-id">
                                 <datalist id="datalist-supir"></datalist>
-                            </div>
-
-                            <div class="filter-item">
-                                <label><span class="icon">⛏️</span> Galian:</label>
-                                <input type="text" id="filter-galian-order" list="datalist-galian" placeholder="Pilih galian...">
-                                <input type="hidden" id="filter-galian-order-id">
-                                <datalist id="datalist-galian"></datalist>
                             </div>
                         </div>
                     </div>
@@ -186,10 +206,16 @@
                     <!-- Filter Group: Data Utama -->
                     <div class="filter-group">
                         <div class="filter-group-title">🎯 Filter Utama</div>
-                        <div class="filter-grid filter-grid-2">
+                        <div class="filter-grid filter-grid-3">
                             <div class="filter-item">
                                 <label><span class="icon">📋</span> No Order:</label>
                                 <input type="text" id="filter-no-order" placeholder="Cari nomor order...">
+                            </div>
+
+                            <div class="filter-item">
+                                <label><span class="icon">📄</span> No. DO:</label>
+                                <input type="text" id="filter-no-do-buangan" list="datalist-no-do-buangan" placeholder="Cari No. DO...">
+                                <datalist id="datalist-no-do-buangan"></datalist>
                             </div>
 
                             <div class="filter-item">
@@ -199,6 +225,32 @@
                                     <option value="1">Ya</option>
                                     <option value="0">Tidak</option>
                                 </select>
+                            </div>
+
+                            <div class="filter-item">
+                                <label><span class="icon">🏗️</span> Proyek:</label>
+                                <div class="ms-container" id="ms-proyek-buangan">
+                                    <div class="ms-input-row">
+                                        <input type="text" class="ms-input" placeholder="Cari proyek...">
+                                        <button type="button" class="ms-clear" title="Hapus semua">✕</button>
+                                    </div>
+                                    <div class="ms-tags"></div>
+                                    <div class="ms-dropdown"></div>
+                                    <input type="hidden" id="filter-proyek-buangan-ids">
+                                </div>
+                            </div>
+
+                            <div class="filter-item">
+                                <label><span class="icon">⛏️</span> Galian:</label>
+                                <div class="ms-container" id="ms-galian-buangan">
+                                    <div class="ms-input-row">
+                                        <input type="text" class="ms-input" placeholder="Cari galian...">
+                                        <button type="button" class="ms-clear" title="Hapus semua">✕</button>
+                                    </div>
+                                    <div class="ms-tags"></div>
+                                    <div class="ms-dropdown"></div>
+                                    <input type="hidden" id="filter-galian-buangan-ids">
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -300,9 +352,21 @@
 
                             <div class="filter-item">
                                 <label><span class="icon">⛏️</span> Galian:</label>
-                                <input type="text" id="filter-galian-gabungan" list="datalist-galian-gabungan" placeholder="Pilih galian...">
-                                <input type="hidden" id="filter-galian-gabungan-id">
-                                <datalist id="datalist-galian-gabungan"></datalist>
+                                <div class="ms-container" id="ms-galian-gabungan">
+                                    <div class="ms-input-row">
+                                        <input type="text" class="ms-input" placeholder="Cari galian...">
+                                        <button type="button" class="ms-clear" title="Hapus semua">✕</button>
+                                    </div>
+                                    <div class="ms-tags"></div>
+                                    <div class="ms-dropdown"></div>
+                                    <input type="hidden" id="filter-galian-gabungan-ids">
+                                </div>
+                            </div>
+
+                            <div class="filter-item">
+                                <label><span class="icon">📄</span> No. DO:</label>
+                                <input type="text" id="filter-no-do-gabungan" list="datalist-no-do-gabungan" placeholder="Cari No. DO...">
+                                <datalist id="datalist-no-do-gabungan"></datalist>
                             </div>
 
                             <div class="filter-item">
@@ -331,8 +395,16 @@
                         <div class="filter-group-title">📍 Filter Lokasi</div>
                         <div class="filter-grid filter-grid-3">
                             <div class="filter-item">
-                                <label><span class="icon">🏢</span> Proyek:</label>
-                                <input type="text" id="filter-proyek-gabungan" placeholder="Cari proyek...">
+                                <label><span class="icon">🏗️</span> Proyek:</label>
+                                <div class="ms-container" id="ms-proyek-gabungan">
+                                    <div class="ms-input-row">
+                                        <input type="text" class="ms-input" placeholder="Cari proyek...">
+                                        <button type="button" class="ms-clear" title="Hapus semua">✕</button>
+                                    </div>
+                                    <div class="ms-tags"></div>
+                                    <div class="ms-dropdown"></div>
+                                    <input type="hidden" id="filter-proyek-gabungan-ids">
+                                </div>
                             </div>
 
                             <div class="filter-item">
@@ -463,13 +535,14 @@
                             <th>Total</th>
                             <th>Proyek</th>
                             <th>Buangan (Lokasi)</th>
+                            <th>Alihan</th>
                             <th>Uang Alihan</th>
                             <th>Keterangan</th>
                             <th>Status</th>
                         </tr>
                     </thead>
                     <tbody id="tbody-gabungan">
-                        <tr><td colspan="23" class="text-center">Klik "Tampilkan Data" untuk memuat...</td></tr>
+                        <tr><td colspan="24" class="text-center">Klik "Tampilkan Data" untuk memuat...</td></tr>
                     </tbody>
                 </table>
             </div>

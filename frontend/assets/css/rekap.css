@@ -1444,6 +1444,173 @@ tbody tr:nth-child(even):hover {
 }
 
 /* ============================================================================
+   MULTI-SELECT COMPONENT
+   ============================================================================ */
+.ms-container {
+    position: relative;
+    width: 100%;
+}
+
+.ms-input-row {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.ms-input {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1px solid var(--gray-400);
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    background: var(--white);
+    color: var(--gray-800);
+    outline: none;
+    transition: border-color var(--transition-fast);
+    min-width: 0;
+}
+
+.ms-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.15);
+}
+
+.ms-clear {
+    background: none;
+    border: 1px solid var(--gray-300);
+    cursor: pointer;
+    color: var(--gray-500);
+    font-size: 0.8rem;
+    padding: 4px 7px;
+    border-radius: var(--radius-sm);
+    line-height: 1;
+    flex-shrink: 0;
+    transition: all var(--transition-fast);
+}
+
+.ms-clear:hover {
+    color: #dc3545;
+    border-color: #dc3545;
+    background: #fff0f0;
+}
+
+.ms-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+    min-height: 0;
+}
+
+.ms-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--primary-color);
+    color: white;
+    padding: 2px 6px 2px 10px;
+    border-radius: 12px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    max-width: 180px;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.ms-tag > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ms-tag-remove {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.8);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    transition: color var(--transition-fast);
+}
+
+.ms-tag-remove:hover {
+    color: white;
+}
+
+.ms-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    right: 0;
+    background: var(--white);
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 9999;
+}
+
+.ms-dropdown.open {
+    display: block;
+}
+
+.ms-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: background var(--transition-fast);
+    border-bottom: 1px solid var(--gray-100);
+    user-select: none;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.ms-option:last-child {
+    border-bottom: none;
+}
+
+.ms-option:hover {
+    background: var(--gray-100);
+}
+
+.ms-option.selected {
+    background: #eef2ff;
+}
+
+.ms-option input[type=checkbox] {
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--primary-color);
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+}
+
+.ms-option span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+    line-height: 1.4;
+}
+
+.ms-empty {
+    padding: 12px;
+    text-align: center;
+    color: var(--gray-500);
+    font-size: 0.85rem;
+}
+
+/* ============================================================================
    PRINT STYLES
    ============================================================================ */
 @media print {

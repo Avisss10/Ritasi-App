@@ -63,16 +63,18 @@ function normalizeKmForStorage(kmValue) {
 router.get("/", async (req, res) => {
   try {
     const [rows] = await db.query(`
-      SELECT 
-        o.*, 
+      SELECT
+        o.*,
         k.no_pintu,
         s.nama AS supir,
         g.nama_galian,
+        p.nama_proyek,
         DATE_FORMAT(o.tanggal_order, '%Y-%m-%d') as tanggal_order
       FROM orders o
       LEFT JOIN master_kendaraan k ON o.kendaraan_id = k.id
       LEFT JOIN master_supir s ON o.supir_id = s.id
       LEFT JOIN master_galian g ON o.galian_id = g.id
+      LEFT JOIN master_proyek p ON o.proyek_id = p.id
       ORDER BY o.id DESC
     `);
 
@@ -97,13 +99,14 @@ router.get('/today-yesterday', async (req, res) => {
     const yesterdayStr = yesterday.toISOString().split('T')[0]; // Format: YYYY-MM-DD
     
     const [rows] = await db.query(`
-      SELECT 
-        o.*, 
+      SELECT
+        o.*,
         k.no_pintu,
         s.nama AS supir,
         g.nama_galian,
+        p.nama_proyek,
         DATE_FORMAT(o.tanggal_order, '%Y-%m-%d') as tanggal_order,
-        CASE 
+        CASE
           WHEN DATE(o.tanggal_order) = ? THEN 'Hari Ini'
           WHEN DATE(o.tanggal_order) = ? THEN 'Kemarin'
           ELSE 'Lainnya'
@@ -112,6 +115,7 @@ router.get('/today-yesterday', async (req, res) => {
       LEFT JOIN master_kendaraan k ON o.kendaraan_id = k.id
       LEFT JOIN master_supir s ON o.supir_id = s.id
       LEFT JOIN master_galian g ON o.galian_id = g.id
+      LEFT JOIN master_proyek p ON o.proyek_id = p.id
       WHERE DATE(o.tanggal_order) IN (?, ?)
       ORDER BY o.tanggal_order DESC, o.id DESC
     `, [todayStr, yesterdayStr, todayStr, yesterdayStr]);
@@ -132,17 +136,19 @@ router.get('/today', async (req, res) => {
     const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
     
     const [rows] = await db.query(`
-      SELECT 
-        o.*, 
+      SELECT
+        o.*,
         k.no_pintu,
         s.nama AS supir,
         g.nama_galian,
+        p.nama_proyek,
         DATE_FORMAT(o.tanggal_order, '%Y-%m-%d') as tanggal_order
       FROM orders o
       LEFT JOIN master_kendaraan k ON o.kendaraan_id = k.id
       LEFT JOIN master_supir s ON o.supir_id = s.id
       LEFT JOIN master_galian g ON o.galian_id = g.id
-      WHERE DATE(o.tanggal_order) = ? 
+      LEFT JOIN master_proyek p ON o.proyek_id = p.id
+      WHERE DATE(o.tanggal_order) = ?
       ORDER BY o.tanggal_order DESC
     `, [today]);
     
@@ -161,16 +167,18 @@ router.get("/:id", async (req, res) => {
 
   try {
     const [rows] = await db.query(`
-      SELECT 
-        o.*, 
+      SELECT
+        o.*,
         k.no_pintu,
         s.nama AS supir,
         g.nama_galian,
+        p.nama_proyek,
         DATE_FORMAT(o.tanggal_order, '%Y-%m-%d') as tanggal_order
       FROM orders o
       LEFT JOIN master_kendaraan k ON o.kendaraan_id = k.id
       LEFT JOIN master_supir s ON o.supir_id = s.id
       LEFT JOIN master_galian g ON o.galian_id = g.id
+      LEFT JOIN master_proyek p ON o.proyek_id = p.id
       WHERE o.id = ?
       LIMIT 1
     `, [id]);
@@ -202,23 +210,27 @@ router.post("/", async (req, res) => {
       km_awal,
       uang_jalan,
       potongan = 0,
-      proyek_input
+      proyek_id
     } = req.body;
 
-    // FIX: Gunakan tanggal langsung tanpa konversi timezone
     const tanggalFixed = fixTanggalForMySQL(tanggal_order);
 
-    // Validasi: terima km_awal baik angka maupun teks (harus ada)
     const kmMissing = km_awal === undefined || km_awal === null || (typeof km_awal === 'string' && km_awal.trim() === '');
     if (!tanggal_order || !no_order || !petugas_order || !kendaraan_id ||
         !supir_id || !galian_id || !no_do || !jam_order || kmMissing || uang_jalan === undefined || uang_jalan === null) {
       return error(res, 400, "Semua field wajib diisi");
     }
 
-    // Normalisasi km sebelum disimpan (jika fuzzy-match ke odo error -> 'ODO ERROR')
     const kmToStore = normalizeKmForStorage(km_awal);
-
     const hasil_akhir = uang_jalan - potongan;
+
+    // Snapshot harga proyek saat order dibuat agar tidak berubah jika master diupdate
+    let proyek_harga = null;
+    const proyekIdToStore = proyek_id ? parseInt(proyek_id) : null;
+    if (proyekIdToStore) {
+      const [proyekRows] = await db.query(`SELECT harga FROM master_proyek WHERE id = ? LIMIT 1`, [proyekIdToStore]);
+      if (proyekRows.length > 0) proyek_harga = proyekRows[0].harga;
+    }
 
     const [result] = await db.query(`
       INSERT INTO orders (
@@ -226,23 +238,16 @@ router.post("/", async (req, res) => {
         kendaraan_id, supir_id, galian_id,
         no_do, jam_order, km_awal,
         uang_jalan, potongan, hasil_akhir,
-        proyek_input, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ON PROCESS')
+        proyek_id, proyek_harga, status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ON PROCESS')
     `, [
-      tanggalFixed,
-      no_order,
-      petugas_order,
-      kendaraan_id,
-      supir_id,
-      galian_id,
-      no_do,
-      jam_order,
-      kmToStore,
-      uang_jalan,
-      potongan,
-      hasil_akhir,
-      proyek_input
+      tanggalFixed, no_order, petugas_order,
+      kendaraan_id, supir_id, galian_id,
+      no_do, jam_order, kmToStore,
+      uang_jalan, potongan, hasil_akhir,
+      proyekIdToStore, proyek_harga
     ]);
+
     return success(res, "Order berhasil dibuat", {
       id: result.insertId,
       hasil_akhir,
@@ -268,12 +273,11 @@ router.put("/:id", async (req, res) => {
       "tanggal_order", "no_order", "petugas_order",
       "kendaraan_id", "supir_id", "galian_id",
       "no_do", "jam_order", "km_awal",
-      "uang_jalan", "potongan", "proyek_input"
+      "uang_jalan", "potongan"
     ];
 
     allowedFields.forEach(f => {
       if (req.body[f] !== undefined) {
-        // FIX: Jika field tanggal_order, gunakan helper function
         let value;
         if (f === "tanggal_order") {
           value = fixTanggalForMySQL(req.body[f]);
@@ -282,17 +286,30 @@ router.put("/:id", async (req, res) => {
         } else {
           value = req.body[f];
         }
-        
         fields.push(`${f} = ?`);
         values.push(value);
       }
     });
 
-    // jika ada perubahan uang_jalan atau potongan → update hasil_akhir
+    // Jika proyek_id diubah, update proyek_id dan snapshot proyek_harga baru
+    if (req.body.proyek_id !== undefined) {
+      const newProyekId = req.body.proyek_id ? parseInt(req.body.proyek_id) : null;
+      fields.push(`proyek_id = ?`);
+      values.push(newProyekId);
+
+      let newProyekHarga = null;
+      if (newProyekId) {
+        const [proyekRows] = await db.query(`SELECT harga FROM master_proyek WHERE id = ? LIMIT 1`, [newProyekId]);
+        if (proyekRows.length > 0) newProyekHarga = proyekRows[0].harga;
+      }
+      fields.push(`proyek_harga = ?`);
+      values.push(newProyekHarga);
+    }
+
+    // Jika ada perubahan uang_jalan atau potongan → update hasil_akhir
     if (req.body.uang_jalan !== undefined || req.body.potongan !== undefined) {
       const uang_jalan = req.body.uang_jalan ?? 0;
       const potongan = req.body.potongan ?? 0;
-
       fields.push(`hasil_akhir = ?`);
       values.push(uang_jalan - potongan);
     }
