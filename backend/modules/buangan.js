@@ -17,6 +17,13 @@ function isExactOdoVariant(s) {
   return u === 'ODOERROR' || u === 'ODOERR';
 }
 
+// Parse km value from DB - strips Indonesian thousand-separator dots before parsing
+function parseKmFromDb(km) {
+  if (km === null || km === undefined || km === '') return NaN;
+  if (isExactOdoVariant(km)) return NaN;
+  return parseInt(String(km).replace(/\./g, '').replace(/,/g, ''), 10);
+}
+
 
 // ============================================================================
 // GET ALL BUANGAN
@@ -202,7 +209,7 @@ router.post("/", async (req, res) => {
           if (typeof jarak_km === 'string' && isExactOdoVariant(jarak_km)) {
             final_jarak_km = 'ODO ERROR';
           } else {
-            const km_awal = parseFloat(order[0].km_awal);
+            const km_awal = parseKmFromDb(order[0].km_awal);
             const jarak_km_calculated = km_akhir_number - km_awal;
 
             const jarak_from_body = (jarak_km !== undefined && jarak_km !== null && jarak_km !== '')
@@ -234,7 +241,7 @@ router.post("/", async (req, res) => {
       if (typeof jarak_km === 'string' && isExactOdoVariant(jarak_km)) {
         final_jarak_km = 'ODO ERROR';
       } else {
-        const km_awal = parseFloat(order[0].km_awal);
+        const km_awal = parseKmFromDb(order[0].km_awal);
         final_jarak_km = (jarak_km !== undefined && jarak_km !== null && jarak_km !== '' && !isNaN(parseFloat(jarak_km)))
           ? parseFloat(jarak_km)
           : (km_akhir_number - km_awal);
@@ -373,7 +380,8 @@ router.put("/:id", async (req, res) => {
               return error(res, 404, "Data tidak valid untuk hitung jarak");
             }
 
-            const jarak_km = km_akhir_number - order.km_awal;
+            const km_awal_parsed = parseKmFromDb(order.km_awal);
+            const jarak_km = !isNaN(km_awal_parsed) ? km_akhir_number - km_awal_parsed : null;
 
             fields.push(`km_akhir = ?`);
             values.push(km_akhir_number);
@@ -390,9 +398,9 @@ router.put("/:id", async (req, res) => {
       } else {
         // numeric value
         const [[order]] = await db.query(
-          `SELECT o.km_awal 
-           FROM buangan b 
-           JOIN orders o ON b.order_id = o.id 
+          `SELECT o.km_awal
+           FROM buangan b
+           JOIN orders o ON b.order_id = o.id
            WHERE b.id = ? LIMIT 1`,
           [id]
         );
@@ -402,7 +410,8 @@ router.put("/:id", async (req, res) => {
         }
 
         const km_akhir_number = parseFloat(km_akhir);
-        const jarak_km = km_akhir_number - order.km_awal;
+        const km_awal_parsed = parseKmFromDb(order.km_awal);
+        const jarak_km = !isNaN(km_awal_parsed) ? km_akhir_number - km_awal_parsed : null;
 
         fields.push(`km_akhir = ?`);
         values.push(km_akhir_number);

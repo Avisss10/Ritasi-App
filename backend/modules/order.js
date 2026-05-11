@@ -22,39 +22,21 @@ function fixTanggalForMySQL(tanggalInput) {
   return tanggal;
 }
 
-// --- normalize km_awal for storage: if fuzzy-match to odo error → 'ODO ERROR', else keep original ---
+// --- normalize km_awal for storage: exact ODO ERROR check, then strip thousand separators and store as integer ---
 function normalizeKmForStorage(kmValue) {
   if (kmValue === undefined || kmValue === null) return kmValue;
   const s = String(kmValue).trim();
   if (!s) return s;
 
-  // normalize: lowercase, remove non-alphanum, replace confusions
-  const norm = s.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/0/g, 'o').replace(/1/g, 'l');
-  const target = 'odoerror';
+  // Exact ODO ERROR check (case-insensitive, ignore spaces)
+  const upper = s.toUpperCase().replace(/\s/g, '');
+  if (upper === 'ODOERROR' || upper === 'ODOERR') return 'ODO ERROR';
 
-  // simple Levenshtein implementation
-  function lev(a, b) {
-    if (a === b) return 0;
-    const al = a.length, bl = b.length;
-    if (al === 0) return bl;
-    if (bl === 0) return al;
-    let v0 = new Array(bl + 1), v1 = new Array(bl + 1);
-    for (let j = 0; j <= bl; j++) v0[j] = j;
-    for (let i = 0; i < al; i++) {
-      v1[0] = i + 1;
-      for (let j = 0; j < bl; j++) {
-        const cost = a[i] === b[j] ? 0 : 1;
-        v1[j + 1] = Math.min(v1[j] + 1, v0[j + 1] + 1, v0[j] + cost);
-      }
-      const tmp = v0; v0 = v1; v1 = tmp;
-    }
-    return v0[bl];
-  }
+  // Strip Indonesian thousand separators (dots) and store as integer
+  const numeric = parseInt(s.replace(/\./g, '').replace(/,/g, ''), 10);
+  if (!isNaN(numeric)) return numeric;
 
-  if (norm === target) return 'ODO ERROR';
-  const dist = lev(norm, target);
-  if (dist <= 1) return 'ODO ERROR';
-  return kmValue;
+  return s;
 }
 
 // ============================================================================

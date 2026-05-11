@@ -490,7 +490,7 @@ async function bukaFormBuangan(orderId) {
             currentKmAwal = 0; // Set ke 0 jika ODO ERROR
             isKmAwalOdoError = true;
         } else {
-            currentKmAwal = parseFloat(order.km_awal) || 0;
+            currentKmAwal = parseInt(String(order.km_awal).replace(/\./g, '').replace(/,/g, ''), 10) || 0;
             isKmAwalOdoError = false;
         }
 
@@ -917,7 +917,7 @@ function editBuangan() {
         order.km_awal.toUpperCase() === 'ODOERR')) {
         currentKmAwalEdit = 0; // Set ke 0 jika ODO ERROR
     } else {
-        currentKmAwalEdit = parseFloat(order.km_awal) || 0;
+        currentKmAwalEdit = parseInt(String(order.km_awal).replace(/\./g, '').replace(/,/g, ''), 10) || 0;
     }
 
     // Isi form edit dengan data buangan
@@ -1241,23 +1241,23 @@ function displayBuanganList(buanganList) {
         const jamBongkarDisplay = buangan.jam_bongkar ? buangan.jam_bongkar : '-';
         
         let kmAkhirDisplay = '-';
-        // Show exactly what's in DB. Treat null/undefined/empty as '-'. If DB has 0, display '0'.
         if (buangan.km_akhir === null || buangan.km_akhir === undefined || buangan.km_akhir === '') {
             kmAkhirDisplay = '-';
         } else if (isExactOdoVariantDisplay(buangan.km_akhir)) {
             kmAkhirDisplay = 'ODO ERROR';
         } else {
-            kmAkhirDisplay = String(buangan.km_akhir);
+            const n = parseInt(String(buangan.km_akhir).replace(/\./g, ''), 10);
+            kmAkhirDisplay = !isNaN(n) ? n.toLocaleString('id-ID') + ' KM' : String(buangan.km_akhir);
         }
-        
+
         let jarakDisplay = '-';
-        // Show exactly what's in DB. Treat null/undefined/empty as '-'. If DB has 0, display '0'.
         if (buangan.jarak_km === null || buangan.jarak_km === undefined || buangan.jarak_km === '') {
             jarakDisplay = '-';
         } else if (isExactOdoVariantDisplay(buangan.jarak_km)) {
             jarakDisplay = 'ODO ERROR';
         } else {
-            jarakDisplay = String(buangan.jarak_km);
+            const n = parseInt(String(buangan.jarak_km).replace(/\./g, ''), 10);
+            jarakDisplay = !isNaN(n) ? n.toLocaleString('id-ID') + ' KM' : String(buangan.jarak_km);
         }
         const lokasiDisplay = buangan.lokasi_bongkar || '-';
 
@@ -1379,7 +1379,7 @@ async function bukaFormEdit() {
     const buangan = currentBuanganDetail;
     const order = buangan.order;
 
-    currentKmAwalEdit = parseFloat(order.km_awal) || 0;
+    currentKmAwalEdit = parseInt(String(order.km_awal).replace(/\./g, '').replace(/,/g, ''), 10) || 0;
 
     // Isi form edit
     document.getElementById('editNoUrut').value = buangan.no_urut;
@@ -1783,39 +1783,26 @@ function showToast(message, type = 'success') {
 
 // Format KM dengan titik ribuan
 function formatKM(km) {
-    if (!km && km !== 0) return '0';
-    
-    const kmValue = parseFloat(km);
-    if (isNaN(kmValue)) return '0';
-    
-    return kmValue.toLocaleString('id-ID', { 
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2 
-    });
+    if (km === null || km === undefined || km === '') return '-';
+    // Strip Indonesian thousand separators (dots) before parsing
+    const kmValue = parseInt(String(km).replace(/\./g, '').replace(/,/g, ''), 10);
+    if (isNaN(kmValue)) return '-';
+    return kmValue.toLocaleString('id-ID');
 }
 
 // Format KM Awal - Handle ODO ERROR
 function formatKMAwal(kmAwal) {
-    // Jika null, undefined, atau kosong
-    if (!kmAwal && kmAwal !== 0) return '-';
-    
+    if (kmAwal === null || kmAwal === undefined || kmAwal === '') return '-';
+
     // Cek apakah string "ODO ERROR"
-    if (typeof kmAwal === 'string' && 
-        (kmAwal.toUpperCase() === 'ODO ERROR' || 
-         kmAwal.toUpperCase() === 'ODOERROR' ||
-         kmAwal.toUpperCase() === 'ODO ERR' ||
-         kmAwal.toUpperCase() === 'ODOERR')) {
-        return 'ODO ERROR';
-    }
-    
-    // Jika angka, format dengan titik ribuan + satuan KM
-    const kmValue = parseFloat(kmAwal);
+    const upper = String(kmAwal).toUpperCase().replace(/\s/g, '');
+    if (upper === 'ODOERROR' || upper === 'ODOERR') return 'ODO ERROR';
+
+    // Strip Indonesian thousand separators (dots) and format
+    const kmValue = parseInt(String(kmAwal).replace(/\./g, '').replace(/,/g, ''), 10);
     if (isNaN(kmValue)) return '-';
-    
-    return kmValue.toLocaleString('id-ID', { 
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2 
-    }) + ' KM';
+
+    return kmValue.toLocaleString('id-ID') + ' KM';
 }
 
 // Parse input KM - hilangkan titik sebelum parsing

@@ -724,7 +724,7 @@ function isLikelyOdoError(input, threshold = 1) {
     return dist <= threshold;
 }
 
-// --- parseKm: return 'ODO ERROR' | trimmed string | null (if empty) ---
+// --- parseKm: return 'ODO ERROR' | integer | trimmed string | null (if empty) ---
 function parseKm(kmString) {
     if (kmString === undefined || kmString === null) return null;
     const trimmed = String(kmString).trim();
@@ -735,7 +735,10 @@ function parseKm(kmString) {
         return 'ODO ERROR';
     }
 
-    // Otherwise return the trimmed string as-is (allow text or numeric string)
+    // Strip Indonesian thousand separators (dots) and return integer
+    const numeric = parseInt(trimmed.replace(/\./g, '').replace(/,/g, ''), 10);
+    if (!isNaN(numeric)) return numeric;
+
     return trimmed;
 }
 
