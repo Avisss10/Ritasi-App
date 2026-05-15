@@ -470,6 +470,159 @@ button:disabled:hover {
     font-weight: 600;
 }
 
+/* ============================================================================
+   FORM MASTER STYLES (kompak)
+   ============================================================================ */
+.master-form-section {
+    background: #f0fdf4;
+    border: 2px solid #86efac;
+    padding: 20px 30px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 6px rgba(76, 175, 80, 0.1);
+}
+
+.master-form-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 0;
+}
+
+.master-form-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #15803d;
+}
+
+.master-status-text {
+    font-size: 12px;
+    color: #16a34a;
+    flex: 1;
+}
+
+.master-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #d1d5db;
+    flex-shrink: 0;
+    transition: background 0.3s;
+}
+
+.master-status-dot.active {
+    background: #4caf50;
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.25);
+    animation: master-dot-pulse 2s ease-in-out infinite;
+}
+
+@keyframes master-dot-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+.btn-toggle-master {
+    padding: 2px 8px;
+    background: transparent;
+    border: 1px solid #86efac;
+    border-radius: 4px;
+    color: #15803d;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.btn-toggle-master:hover {
+    background: #dcfce7;
+}
+
+#masterFormBody {
+    margin-top: 16px;
+}
+
+.master-inline-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.master-field {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 180px;
+}
+
+.master-field label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #15803d;
+    margin-bottom: 8px;
+}
+
+.master-field input {
+    padding: 12px;
+    border: 2px solid #a5d6a7;
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.master-field input:focus {
+    outline: none;
+    border-color: #4caf50;
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.12);
+}
+
+.master-field-btns {
+    display: flex;
+    gap: 8px;
+    align-self: flex-end;
+    padding-bottom: 1px;
+}
+
+.btn-master-apply {
+    padding: 12px 18px;
+    background: #4caf50;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-master-apply:hover {
+    background: #388e3c;
+}
+
+.btn-master-clear {
+    padding: 12px 16px;
+    background: white;
+    color: #dc2626;
+    border: 2px solid #dc2626;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-master-clear:hover {
+    background: #dc2626;
+    color: white;
+}
+
+/* Highlight Form Order fields yang sudah di-auto-fill dari master */
+.auto-filled-from-master {
+    border-color: #66bb6a !important;
+    background-color: #f9fef9 !important;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .form-grid {
@@ -508,5 +661,17 @@ button:disabled:hover {
         min-width: 35px;
         padding: 6px 10px;
         font-size: 13px;
+    }
+
+    .master-inline-row {
+        flex-direction: column;
+    }
+
+    .master-field {
+        min-width: unset;
+    }
+
+    .master-field-btns {
+        align-self: flex-start;
     }
 }

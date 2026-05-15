@@ -7,6 +7,18 @@ let filteredData = []; // Untuk menyimpan hasil filter/search
 let editingId = null;
 let deleteId = null;
 
+// Form Master State (hanya di memori, hilang saat keluar halaman)
+let masterFormState = {
+    tanggal_order: '',
+    petugas_order: '',
+    galian_id: '',
+    galian_name: '',
+    uang_jalan: '',
+    proyek_id: '',
+    proyek_name: ''
+};
+let masterFormVisible = true;
+
 // Pagination State
 let currentPage = 1;
 const itemsPerPage = 10;
@@ -38,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadGalian();
     loadProyek();
     initEventListeners();
+    initMasterForm();
     setDefaultDate();
 });
 
@@ -149,6 +162,7 @@ async function loadGalian() {
         if (result.status) {
             masterGalian = result.data;
             populateDatalist('datalist-galian', result.data, 'nama_galian');
+            populateDatalist('master-datalist-galian', result.data, 'nama_galian');
         }
     } catch (error) {
         console.error('Error loading galian:', error);
@@ -163,6 +177,7 @@ async function loadProyek() {
         if (result.status) {
             masterProyek = result.data;
             populateDatalist('datalist-proyek', result.data, 'nama_proyek');
+            populateDatalist('master-datalist-proyek', result.data, 'nama_proyek');
         }
     } catch (error) {
         console.error('Error loading proyek:', error);
@@ -459,6 +474,9 @@ function resetForm() {
     document.getElementById('supir_id_hidden').value = '';
     document.getElementById('galian_id_hidden').value = '';
     document.getElementById('proyek_id_hidden').value = '';
+
+    // Terapkan ulang Form Master ke Form Order setelah reset
+    applyMasterForm();
 }
 
 function setDefaultDate() {
@@ -841,6 +859,215 @@ document.addEventListener('keydown', (e) => {
         }
     }
 });
+
+// ============================================================================
+// FORM MASTER
+// ============================================================================
+function initMasterForm() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('master_tanggal_order').value = today;
+    masterFormState.tanggal_order = today;
+
+    // Tanggal Order
+    document.getElementById('master_tanggal_order').addEventListener('input', (e) => {
+        masterFormState.tanggal_order = e.target.value;
+        if (e.target.value) {
+            setAutoFilled('tanggal_order', e.target.value);
+        }
+        updateMasterStatus();
+    });
+
+    // Petugas Order
+    document.getElementById('master_petugas_order').addEventListener('input', (e) => {
+        masterFormState.petugas_order = e.target.value;
+        setAutoFilled('petugas_order', e.target.value);
+        updateMasterStatus();
+    });
+
+    // Uang Jalan
+    document.getElementById('master_uang_jalan').addEventListener('input', (e) => {
+        masterFormState.uang_jalan = e.target.value;
+        setAutoFilled('uang_jalan', e.target.value);
+        calculateHasilAkhir();
+        updateMasterStatus();
+    });
+
+    document.getElementById('master_uang_jalan').addEventListener('blur', () => {
+        const input = document.getElementById('master_uang_jalan');
+        const value = parseRupiah(input.value);
+        if (value > 0) {
+            input.value = formatNumber(value);
+            masterFormState.uang_jalan = input.value;
+            setAutoFilled('uang_jalan', input.value);
+            calculateHasilAkhir();
+        }
+    });
+
+    // Galian
+    const masterGalianInput = document.getElementById('master_galian');
+    const masterGalianHidden = document.getElementById('master_galian_hidden');
+    const masterGalianDatalist = document.getElementById('master-datalist-galian');
+
+    masterGalianInput.addEventListener('input', (e) => {
+        filterDatalist(e.target.value, masterGalianDatalist, masterGalian, 'nama_galian', masterGalianHidden);
+        masterFormState.galian_name = e.target.value;
+        masterFormState.galian_id = masterGalianHidden.value;
+        syncMasterGalianToForm();
+        updateMasterStatus();
+    });
+
+    masterGalianInput.addEventListener('change', (e) => {
+        const found = masterGalian.find(item => item.nama_galian === e.target.value);
+        masterGalianHidden.value = found ? found.id : '';
+        masterFormState.galian_id = masterGalianHidden.value;
+        masterFormState.galian_name = e.target.value;
+        syncMasterGalianToForm();
+        updateMasterStatus();
+    });
+
+    // Proyek
+    const masterProyekInput = document.getElementById('master_proyek');
+    const masterProyekHidden = document.getElementById('master_proyek_hidden');
+    const masterProyekDatalist = document.getElementById('master-datalist-proyek');
+
+    masterProyekInput.addEventListener('input', (e) => {
+        filterDatalist(e.target.value, masterProyekDatalist, masterProyek, 'nama_proyek', masterProyekHidden);
+        masterFormState.proyek_name = e.target.value;
+        masterFormState.proyek_id = masterProyekHidden.value;
+        syncMasterProyekToForm();
+        updateMasterStatus();
+    });
+
+    masterProyekInput.addEventListener('change', (e) => {
+        const found = masterProyek.find(item => item.nama_proyek === e.target.value);
+        masterProyekHidden.value = found ? found.id : '';
+        masterFormState.proyek_id = masterProyekHidden.value;
+        masterFormState.proyek_name = e.target.value;
+        syncMasterProyekToForm();
+        updateMasterStatus();
+    });
+
+    updateMasterStatus();
+}
+
+// Sync nilai galian dari master ke form order
+function syncMasterGalianToForm() {
+    document.getElementById('galian_id').value = masterFormState.galian_name;
+    document.getElementById('galian_id_hidden').value = masterFormState.galian_id;
+    markAutoFilled('galian_id', !!masterFormState.galian_name);
+}
+
+// Sync nilai proyek dari master ke form order
+function syncMasterProyekToForm() {
+    document.getElementById('proyek_id').value = masterFormState.proyek_name;
+    document.getElementById('proyek_id_hidden').value = masterFormState.proyek_id;
+    markAutoFilled('proyek_id', !!masterFormState.proyek_name);
+}
+
+// Set nilai field di Form Order dan tandai sebagai auto-filled
+function setAutoFilled(fieldId, value) {
+    const el = document.getElementById(fieldId);
+    if (!el) return;
+    el.value = value;
+    markAutoFilled(fieldId, !!value);
+}
+
+// Tambah/hapus kelas visual auto-filled
+function markAutoFilled(fieldId, active) {
+    const el = document.getElementById(fieldId);
+    if (!el) return;
+    if (active) {
+        el.classList.add('auto-filled-from-master');
+    } else {
+        el.classList.remove('auto-filled-from-master');
+    }
+}
+
+// Terapkan semua nilai Form Master ke Form Order
+function applyMasterForm() {
+    if (masterFormState.tanggal_order) {
+        setAutoFilled('tanggal_order', masterFormState.tanggal_order);
+    }
+    if (masterFormState.petugas_order) {
+        setAutoFilled('petugas_order', masterFormState.petugas_order);
+    }
+    if (masterFormState.galian_name) {
+        syncMasterGalianToForm();
+    }
+    if (masterFormState.uang_jalan) {
+        setAutoFilled('uang_jalan', masterFormState.uang_jalan);
+        calculateHasilAkhir();
+    }
+    if (masterFormState.proyek_name) {
+        syncMasterProyekToForm();
+    }
+}
+
+// Hapus semua data Form Master
+function clearMasterForm() {
+    masterFormState = {
+        tanggal_order: '',
+        petugas_order: '',
+        galian_id: '',
+        galian_name: '',
+        uang_jalan: '',
+        proyek_id: '',
+        proyek_name: ''
+    };
+
+    document.getElementById('master_tanggal_order').value = '';
+    document.getElementById('master_petugas_order').value = '';
+    document.getElementById('master_galian').value = '';
+    document.getElementById('master_galian_hidden').value = '';
+    document.getElementById('master_uang_jalan').value = '';
+    document.getElementById('master_proyek').value = '';
+    document.getElementById('master_proyek_hidden').value = '';
+
+    // Hapus highlight auto-filled dari Form Order
+    ['tanggal_order', 'petugas_order', 'galian_id', 'uang_jalan', 'proyek_id'].forEach(id => {
+        markAutoFilled(id, false);
+    });
+
+    updateMasterStatus();
+}
+
+// Tampilkan / sembunyikan body Form Master
+function toggleMasterForm() {
+    masterFormVisible = !masterFormVisible;
+    const body = document.getElementById('masterFormBody');
+    const btn = document.getElementById('toggleMasterBtn');
+    if (masterFormVisible) {
+        body.style.display = 'block';
+        btn.textContent = '▼ Sembunyikan';
+    } else {
+        body.style.display = 'none';
+        btn.textContent = '▶ Tampilkan';
+    }
+}
+
+// Update indikator status Form Master
+function updateMasterStatus() {
+    const dot = document.getElementById('masterStatusDot');
+    const text = document.getElementById('masterStatusText');
+    if (!dot || !text) return;
+
+    const active = masterFormState.tanggal_order || masterFormState.petugas_order ||
+        masterFormState.galian_name || masterFormState.uang_jalan || masterFormState.proyek_name;
+
+    if (active) {
+        dot.classList.add('active');
+        const parts = [];
+        if (masterFormState.tanggal_order) parts.push('Tanggal');
+        if (masterFormState.petugas_order) parts.push('Petugas');
+        if (masterFormState.galian_name) parts.push('Galian');
+        if (masterFormState.uang_jalan) parts.push('Uang Jalan');
+        if (masterFormState.proyek_name) parts.push('Proyek');
+        text.textContent = `Aktif — ${parts.join(', ')} auto-fill ke Form Order`;
+    } else {
+        dot.classList.remove('active');
+        text.textContent = 'Form Master belum diisi';
+    }
+}
 
 // ============================================================================
 // AUTOCOMPLETE FUNCTIONS
