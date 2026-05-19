@@ -1,43 +1,28 @@
 # Dependencies
 node_modules/
-package-lock.json
-yarn.lock
 
-# Environment variables
+# Environment
 .env
-.env.local
-.env.*.local
-
-# IDE & Editor
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
-Thumbs.db
-*.sublime-project
-*.sublime-workspace
+.env.*
 
 # Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
+*.log
 
-# Build & Runtime
+# Build
 dist/
 build/
-*.pem
-.claude/
 
-# Release & Deployment
+# Release
 RITASI-APP-RELEASE/
+
+# Security
+*.pem
+
+# IDE
+.vscode/
+.idea/
+.claude/
 
 # OS
 .DS_Store
-.AppleDouble
-.LSOverride
-*.bak
-
-
+Thumbs.db
