@@ -963,7 +963,7 @@ async function loadRekapGabungan() {
             }).join('');
 
             updateFilterStats(data, 'gabungan');
-            displayGabunganSummary(totalUangJalan, totalPotongan, totalUangAlihan, totalRitasi, totalAlihan);
+            displayGabunganSummary(totalUangJalan, totalPotongan, totalUangAlihan, totalRitasi, totalAlihan, data);
         } else {
             tbody.innerHTML = '<tr><td colspan="24" class="text-center">Tidak ada data gabungan</td></tr>';
             updateFilterStats([], 'gabungan');
@@ -1334,12 +1334,93 @@ function displayBuanganSummary(totalUangAlihan) {
     `;
 }
 
-function displayGabunganSummary(totalUangJalan, totalPotongan, totalUangAlihan, totalRitasi, totalAlihan) {
+function buildGabunganSummaryByProject(data) {
+    const grouped = {};
+    data.forEach(row => {
+        const proyek = row.proyek || '-';
+        const galian = (row.alihan === 1 || row.alihan === '1' || row.alihan === true || row.alihan === 'true')
+            ? (row.galian_alihan || row.galian || '-')
+            : (row.galian || '-');
+        if (!grouped[proyek]) grouped[proyek] = {};
+        grouped[proyek][galian] = (grouped[proyek][galian] || 0) + 1;
+    });
+    return grouped;
+}
+
+function buildGabunganSummaryByGalian(data) {
+    const grouped = {};
+    data.forEach(row => {
+        const galian = (row.alihan === 1 || row.alihan === '1' || row.alihan === true || row.alihan === 'true')
+            ? (row.galian_alihan || row.galian || '-')
+            : (row.galian || '-');
+        const proyek = row.proyek || '-';
+        if (!grouped[galian]) grouped[galian] = {};
+        grouped[galian][proyek] = (grouped[galian][proyek] || 0) + 1;
+    });
+    return grouped;
+}
+
+function buildAlihanRouteSummary(data) {
+    const grouped = {};
+    data.forEach(row => {
+        const alihan = row.alihan === 1 || row.alihan === '1' || row.alihan === true || row.alihan === 'true';
+        if (!alihan) return;
+        const from = row.galian || '-';
+        const to = row.galian_alihan || '-';
+        const route = `${from} → ${to}`;
+        grouped[route] = (grouped[route] || 0) + 1;
+    });
+    return grouped;
+}
+
+function renderGabunganSummaryList(title, groupedData) {
+    if (!groupedData || Object.keys(groupedData).length === 0) {
+        return `<div class="summary-detail-empty">Tidak ada ringkasan.</div>`;
+    }
+
+    return Object.entries(groupedData).map(([mainLabel, subItems]) => {
+        const totalRitasi = Object.values(subItems).reduce((sum, count) => sum + count, 0);
+        const rows = Object.entries(subItems).map(([subLabel, count]) => {
+            return `<div class="summary-detail-row">
+                        <span>${subLabel}</span>
+                        <span>${count} ritasi</span>
+                    </div>`;
+        }).join('');
+
+        return `
+            <div class="summary-detail-group">
+                <div class="summary-detail-group-title">
+                    <span>${mainLabel}</span>
+                    <span>${totalRitasi} ritasi</span>
+                </div>
+                <div class="summary-detail-list">${rows}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderAlihanRouteSummary(groupedData) {
+    if (!groupedData || Object.keys(groupedData).length === 0) {
+        return `<div class="summary-detail-empty">Tidak ada data alihan.</div>`;
+    }
+
+    return Object.entries(groupedData).map(([route, count]) => `
+        <div class="summary-detail-row">
+            <span>${route}</span>
+            <span>${count} ritasi</span>
+        </div>
+    `).join('');
+}
+
+function displayGabunganSummary(totalUangJalan, totalPotongan, totalUangAlihan, totalRitasi, totalAlihan, dataRows) {
     const summaryDiv = document.getElementById('summary-gabungan');
     if (!summaryDiv) return;
 
     const totalUJplusUA = totalUangJalan + totalUangAlihan;
     const grandTotal = totalUJplusUA - totalPotongan;
+    const byProject = buildGabunganSummaryByProject(dataRows);
+    const byGalian = buildGabunganSummaryByGalian(dataRows);
+    const routeAlihan = buildAlihanRouteSummary(dataRows);
 
     summaryDiv.innerHTML = `
         <div class="summary-section">
@@ -1374,6 +1455,26 @@ function displayGabunganSummary(totalUangJalan, totalPotongan, totalUangAlihan, 
                 <div class="summary-item grand-total">
                     <span class="label">GRAND TOTAL (UJ + UA - Potongan):</span>
                     <span class="value">${formatCurrency(grandTotal)}</span>
+                </div>
+            </div>
+            <div class="summary-detail-grid">
+                <div class="summary-detail-card">
+                    <div class="summary-detail-title">Per Proyek → Galian</div>
+                    <div class="summary-detail-body">
+                        ${renderGabunganSummaryList('Per Proyek', byProject)}
+                    </div>
+                </div>
+                <div class="summary-detail-card">
+                    <div class="summary-detail-title">Per Galian → Proyek</div>
+                    <div class="summary-detail-body">
+                        ${renderGabunganSummaryList('Per Galian', byGalian)}
+                    </div>
+                </div>
+                <div class="summary-detail-card">
+                    <div class="summary-detail-title">Alihan: Dari Galian → Galian Alihan</div>
+                    <div class="summary-detail-body">
+                        ${renderAlihanRouteSummary(routeAlihan)}
+                    </div>
                 </div>
             </div>
         </div>
