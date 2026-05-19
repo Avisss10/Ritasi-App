@@ -21,13 +21,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Set tanggal hari ini sebagai default
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('tanggalOrder').value = today;
+    document.getElementById('tanggalDari').value = today;
+    document.getElementById('tanggalHingga').value = today;
     document.getElementById('tanggalBongkar').value = today;
 
     // Load master galian untuk dropdown
     loadGalianOptions();
 
-    // Load daftar buangan (default view)
-    loadBuanganList();
+    // Load daftar buangan (default view) lalu aktifkan tab Daftar Buangan
+    loadBuanganList().then(() => switchTab('buangan'));
 
     // Setup form submit
     document.getElementById('buanganForm').addEventListener('submit', handleFormSubmit);
@@ -62,6 +64,14 @@ let allBuanganData = [];
 let currentViewMode = 'buangan'; // 'order' atau 'buangan'
 let currentBuanganDetail = null;
 let currentKmAwalEdit = 0;
+
+// Search & tab state
+let currentSearchDate = null;     // tanggal tunggal / tanggal awal rentang
+let currentSearchDateEnd = null;  // tanggal akhir rentang (null = mode satu tanggal)
+let currentDateMode = 'single';   // 'single' atau 'range'
+let allSearchBuanganData = [];    // buangan untuk tanggal yang dicari
+let currentTab = 'order';         // tab aktif: 'order' atau 'buangan'
+let activeStatusFilter = 'all';   // filter status: 'all','on_process','complete','batal'
 
 // Pagination variables
 let currentOrderPage = 1;
@@ -212,14 +222,133 @@ function updateBuanganPagination(dataLength) {
 }
 
 // ============================================================================
+// SWITCH TAB — selalu tampil: 'order' atau 'buangan'
+// ============================================================================
+function switchTab(tab) {
+    currentTab = tab;
+    const tabOrderBtn = document.getElementById('tabOrderBtn');
+    const tabBuanganBtn = document.getElementById('tabBuanganBtn');
+
+    if (tab === 'order') {
+        tabOrderBtn.classList.add('active');
+        tabBuanganBtn.classList.remove('active');
+        document.getElementById('statusFilterBar').style.display = 'none';
+        document.getElementById('orderTableContainer').style.display = 'block';
+        document.getElementById('buanganTableContainer').style.display = 'none';
+
+        if (allOrderData.length > 0) {
+            displayOrderResults(allOrderData);
+        } else {
+            // Belum ada pencarian — tampilkan petunjuk
+            document.getElementById('orderTableBody').innerHTML = `
+                <tr>
+                    <td colspan="9" class="empty-state">
+                        <div class="empty-state-icon">🔍</div>
+                        <div class="empty-state-text">Gunakan form "Cari Order" di atas untuk menampilkan data order</div>
+                    </td>
+                </tr>
+            `;
+            document.getElementById('orderPagination').style.display = 'none';
+        }
+    } else {
+        tabOrderBtn.classList.remove('active');
+        tabBuanganBtn.classList.add('active');
+        document.getElementById('statusFilterBar').style.display = 'flex';
+        document.getElementById('orderTableContainer').style.display = 'none';
+        document.getElementById('buanganTableContainer').style.display = 'block';
+        currentBuanganPage = 1;
+        // Jika sedang dalam mode pencarian, tampilkan buangan untuk tanggal itu saja
+        if (currentSearchDate) {
+            displayBuanganList(allSearchBuanganData);
+        } else {
+            applyBuanganFilter();
+        }
+    }
+}
+
+// Kembali ke hasil pencarian setelah simpan buangan
+async function returnToSearchResults() {
+    document.getElementById('formSection').style.display = 'none';
+    document.getElementById('editSection').style.display = 'none';
+    document.getElementById('detailSection').style.display = 'none';
+    document.getElementById('searchSection').style.display = 'block';
+    document.getElementById('mainTableSection').style.display = 'block';
+
+    // Restore input tanggal sesuai mode
+    if (currentDateMode === 'range' && currentSearchDate && currentSearchDateEnd) {
+        document.getElementById('tanggalDari').value = currentSearchDate;
+        document.getElementById('tanggalHingga').value = currentSearchDateEnd;
+        setDateMode('range');
+    } else if (currentSearchDate) {
+        document.getElementById('tanggalOrder').value = currentSearchDate;
+        setDateMode('single');
+    }
+
+    // Reload data agar buangan yang baru tersimpan ikut muncul
+    await loadBuanganList();
+    await cariOrder();
+    // Pindah ke tab Daftar Buangan supaya user langsung lihat data baru
+    switchTab('buangan');
+}
+
+// ============================================================================
+// TOGGLE MODE TANGGAL
+// ============================================================================
+function setDateMode(mode) {
+    currentDateMode = mode;
+    if (mode === 'single') {
+        document.getElementById('modeSingle').style.display = 'flex';
+        document.getElementById('modeRange').style.display = 'none';
+        document.getElementById('modeSingleBtn').classList.add('active');
+        document.getElementById('modeRangeBtn').classList.remove('active');
+    } else {
+        document.getElementById('modeSingle').style.display = 'none';
+        document.getElementById('modeRange').style.display = 'flex';
+        document.getElementById('modeSingleBtn').classList.remove('active');
+        document.getElementById('modeRangeBtn').classList.add('active');
+    }
+}
+
+// Helper: konversi datetime string ke tanggal lokal (Jakarta UTC+7)
+function toLocalDateStr(datetimeStr) {
+    if (!datetimeStr) return null;
+    const d = new Date(datetimeStr);
+    return new Date(d.getTime() + (7 * 60 * 60 * 1000)).toISOString().substring(0, 10);
+}
+
+// Helper: apakah localDateStr masuk rentang [dari, hingga]
+function isInDateRange(localDateStr, dari, hingga) {
+    if (!localDateStr) return false;
+    if (dari && hingga) return localDateStr >= dari && localDateStr <= hingga;
+    if (dari) return localDateStr >= dari;
+    if (hingga) return localDateStr <= hingga;
+    return true;
+}
+
+// ============================================================================
 // SEARCH ORDER
 // ============================================================================
 async function cariOrder() {
-    const tanggal = document.getElementById('tanggalOrder').value;
-
-    if (!tanggal) {
-        showToast('Mohon pilih tanggal order', 'warning');
-        return;
+    // Ambil parameter sesuai mode
+    let tanggalDari, tanggalHingga;
+    if (currentDateMode === 'range') {
+        tanggalDari = document.getElementById('tanggalDari').value;
+        tanggalHingga = document.getElementById('tanggalHingga').value;
+        if (!tanggalDari || !tanggalHingga) {
+            showToast('Mohon isi kedua tanggal (dari dan hingga)', 'warning');
+            return;
+        }
+        if (tanggalDari > tanggalHingga) {
+            showToast('Tanggal "Dari" tidak boleh lebih besar dari tanggal "Hingga"', 'warning');
+            return;
+        }
+    } else {
+        tanggalDari = document.getElementById('tanggalOrder').value;
+        tanggalHingga = tanggalDari;
+        if (!tanggalDari) {
+            showToast('Mohon pilih tanggal order', 'warning');
+            return;
+        }
     }
 
     try {
@@ -262,77 +391,49 @@ async function cariOrder() {
 
         console.log('Data order yang didapat:', orderData);
 
-        // Filter berdasarkan tanggal - handle timezone dengan benar
+        // Filter berdasarkan tanggal / rentang (handle UTC→WIB)
         const filteredOrders = orderData.filter(order => {
-            if (!order.tanggal_order) return false;
-            
-            // Ambil tanggal dari string (UTC di database)
-            const dbDateStr = order.tanggal_order.substring(0, 10);
-            
-            // Convert tanggal UTC ke timezone lokal (Jakarta = UTC+7)
-            const orderDate = new Date(order.tanggal_order);
-            const localDateStr = new Date(orderDate.getTime() + (7 * 60 * 60 * 1000))
-                .toISOString()
-                .substring(0, 10);
-            
-            console.log(`Order ID ${order.id}: DB="${dbDateStr}", Local="${localDateStr}", Input="${tanggal}"`);
-            
-            // Match dengan tanggal lokal (yang ditampilkan di tabel)
-            return localDateStr === tanggal;
+            const localDateStr = toLocalDateStr(order.tanggal_order);
+            return isInDateRange(localDateStr, tanggalDari, tanggalHingga);
         });
 
-console.log('Filtered orders:', filteredOrders);
-
-        if (filteredOrders.length === 0) {
-            showToast('Tidak ada order pada tanggal ini', 'warning');
-            
-            // Tampilkan pesan "tidak ada data" di tabel order
-            allOrderData = [];
-            currentViewMode = 'order';
-            
-            document.getElementById('tableTitle').textContent = 'Data Order';
-            document.getElementById('orderTableContainer').style.display = 'block';
-            document.getElementById('buanganTableContainer').style.display = 'none';
-            
-            // Tampilkan tabel kosong dengan pesan
-            const tbody = document.getElementById('orderTableBody');
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="8" class="empty-state">
-                        <div class="empty-state-icon">📦</div>
-                        <div class="empty-state-text">Tidak ditemukan data order pada tanggal ini</div>
-                    </td>
-                </tr>
-            `;
-            
-            // Reset filter
-            const filterInput = document.getElementById('filterNoPintu');
-            if (filterInput) {
-                filterInput.value = '';
-            }
-            
-            return;
-        }
-
-        // Simpan data untuk filtering
-        allOrderData = filteredOrders;
+        // Simpan state pencarian
+        currentSearchDate = tanggalDari;
+        currentSearchDateEnd = (currentDateMode === 'range') ? tanggalHingga : null;
         currentViewMode = 'order';
 
-        // Update title dan tampilkan tabel order
-        document.getElementById('tableTitle').textContent = 'Data Order';
-        document.getElementById('orderTableContainer').style.display = 'block';
-        document.getElementById('buanganTableContainer').style.display = 'none';
+        // Filter buangan untuk rentang yang dicari
+        allSearchBuanganData = allBuanganData.filter(b => {
+            const localStr = toLocalDateStr(b.tanggal_order);
+            return isInDateRange(localStr, tanggalDari, tanggalHingga);
+        });
 
-        // Reset filter
-        const filterInput = document.getElementById('filterNoPintu');
-        if (filterInput) {
-            filterInput.value = '';
+        // Update badge tab
+        const tabOrderCount = document.getElementById('tabOrderCount');
+        const tabBuanganCount = document.getElementById('tabBuanganCount');
+        tabOrderCount.textContent = filteredOrders.length;
+        tabOrderCount.style.display = 'inline';
+        tabBuanganCount.textContent = allSearchBuanganData.length;
+        tabBuanganCount.style.display = 'inline';
+
+        if (filteredOrders.length === 0) {
+            const label = currentDateMode === 'range'
+                ? `${tanggalDari} s/d ${tanggalHingga}`
+                : tanggalDari;
+            showToast(`Tidak ada order pada tanggal ${label}`, 'warning');
+            allOrderData = [];
+        } else {
+            allOrderData = filteredOrders;
+            const label = currentDateMode === 'range'
+                ? `${tanggalDari} s/d ${tanggalHingga}`
+                : tanggalDari;
+            showToast(`Ditemukan ${filteredOrders.length} order`, 'success');
         }
 
-        // Tampilkan hasil
-        displayOrderResults(filteredOrders);
+        const filterInput = document.getElementById('filterNoPintu');
+        if (filterInput) filterInput.value = '';
 
-        showToast(`Ditemukan ${filteredOrders.length} order`, 'success');
+        switchTab('order');
 
     } catch (error) {
         console.error('Error:', error);
@@ -344,10 +445,17 @@ console.log('Filtered orders:', filteredOrders);
 // FILTER TABLE (UNIVERSAL)
 // ============================================================================
 function filterTable() {
-    if (currentViewMode === 'order') {
+    // Saat mode pencarian: gunakan tab aktif untuk menentukan filter
+    if (currentSearchDate) {
+        if (currentTab === 'order') {
+            filterByNoPintu();
+        } else {
+            filterBuanganByNoPintu();
+        }
+    } else if (currentViewMode === 'order') {
         filterByNoPintu();
     } else {
-        filterBuanganByNoPintu();
+        applyBuanganFilter();
     }
 }
 
@@ -372,15 +480,17 @@ function filterByNoPintu() {
 // FILTER BUANGAN BY NO PINTU
 // ============================================================================
 function filterBuanganByNoPintu() {
-    currentBuanganPage = 1; // Reset to first page
+    currentBuanganPage = 1;
     const filterValue = document.getElementById('filterNoPintu').value.toLowerCase().trim();
+    // Gunakan data search jika sedang di tab buangan pencarian, atau allBuanganData di mode normal
+    const sourceData = (currentSearchDate && currentTab === 'buangan') ? allSearchBuanganData : allBuanganData;
 
     if (filterValue === '') {
-        displayBuanganList(allBuanganData);
+        displayBuanganList(sourceData);
     } else {
-        const filtered = allBuanganData.filter(buangan => {
-            return buangan.no_pintu && buangan.no_pintu.toLowerCase().includes(filterValue);
-        });
+        const filtered = sourceData.filter(buangan =>
+            buangan.no_pintu && buangan.no_pintu.toLowerCase().includes(filterValue)
+        );
         displayBuanganList(filtered);
     }
 }
@@ -433,7 +543,7 @@ function displayOrderResults(orders) {
             <td>${formatDate(order.tanggal_order)}</td>
             <td>${order.no_pintu || '-'}</td>
             <td>${order.supir || '-'}</td>
-            <td>${order.galian || '-'}</td>
+            <td>${order.nama_galian || order.galian || '-'}</td>
             <td>${formatKMAwal(order.km_awal)}</td>
             <td>${statusBadge}</td>
             <td>${actionButtons}</td>
@@ -557,7 +667,7 @@ function displayOrderInfo(order) {
             </div>
             <div class="order-info-item">
                 <div class="order-info-label">Galian</div>
-                <div class="order-info-value">${order.nama_galian || '-'}</div>
+                <div class="order-info-value">${order.galian || order.nama_galian || '-'}</div>
             </div>
             <div class="order-info-item">
                 <div class="order-info-label">Proyek</div>
@@ -566,6 +676,18 @@ function displayOrderInfo(order) {
             <div class="order-info-item">
                 <div class="order-info-label">KM Awal</div>
                 <div class="order-info-value">${formatKMAwal(order.km_awal)}</div>
+            </div>
+            <div class="order-info-item">
+                <div class="order-info-label">No DO</div>
+                <div class="order-info-value">${order.no_do || '-'}</div>
+            </div>
+            <div class="order-info-item">
+                <div class="order-info-label">Uang Jalan</div>
+                <div class="order-info-value">${formatCurrency(order.uang_jalan)}</div>
+            </div>
+            <div class="order-info-item">
+                <div class="order-info-label">Hasil Akhir</div>
+                <div class="order-info-value">${formatCurrency(order.hasil_akhir)}</div>
             </div>
         </div>
     `;
@@ -738,9 +860,9 @@ async function handleFormSubmit(e) {
         const kmAwal = parseFloat(currentKmAwal);
         jarakKm = kmAkhir - kmAwal;
 
-        if (isNaN(jarakKm) || jarakKm <= 0) {
-            showToast('KM Akhir harus lebih besar dari KM Awal (' + kmAwal + ' KM)', 'warning');
-            return;
+        if (!isKmAwalOdoError && !isNaN(jarakKm) && jarakKm < 0) {
+            // Tampilkan warning tapi tetap simpan
+            showToast(`⚠️ Peringatan: KM Akhir lebih kecil dari KM Awal! Data tetap disimpan.`, 'warning');
         }
     } else if (isExactOdoVariant(kmAkhirInput)) {
         kmAkhir = 'ODO ERROR';
@@ -798,9 +920,7 @@ async function handleFormSubmit(e) {
             : (jarakKm === null ? 'Buangan berhasil disimpan!' : 'Buangan berhasil disimpan! Jarak: ' + formatKM(jarakKm) + ' KM');
         
         showToast(successMsg, 'success');
-        
-        // Immediately go back to main buangan page and refresh
-        goToBuanganMain();
+        await goToBuanganMain();
 
     } catch (error) {
         console.error('Error:', error);
@@ -886,9 +1006,7 @@ async function handleEditFormSubmit(e) {
         }
 
         showToast('Buangan berhasil diupdate!', 'success');
-        
-        // Immediately return to main buangan page and refresh
-        goToBuanganMain();
+        await goToBuanganMain();
 
     } catch (error) {
         console.error('Error:', error);
@@ -1003,56 +1121,62 @@ function displayOrderInfoEdit(order) {
 // BATAL FORM
 // ============================================================================
 function batalForm() {
-    // Show search & main table, hide form
-    document.getElementById('searchSection').style.display = 'block';
-    document.getElementById('mainTableSection').style.display = 'block';
     document.getElementById('formSection').style.display = 'none';
-
-    // Reset ke view buangan
-    currentViewMode = 'buangan';
-    document.getElementById('tableTitle').textContent = 'Daftar Buangan';
-    document.getElementById('orderTableContainer').style.display = 'none';
-    document.getElementById('buanganTableContainer').style.display = 'block';
-    document.getElementById('filterNoPintu').value = '';
-
+    document.getElementById('buanganForm').reset();
     currentOrderData = null;
     currentKmAwal = 0;
 
-    document.getElementById('buanganForm').reset();
+    document.getElementById('searchSection').style.display = 'block';
+    document.getElementById('mainTableSection').style.display = 'block';
+    document.getElementById('filterNoPintu').value = '';
 
-    // Reload buangan list
-    loadBuanganList();
+    // Jika sedang dalam mode pencarian, kembali ke tab Daftar Order
+    if (currentSearchDate) {
+        switchTab('order');
+        return;
+    }
+
+    // Mode normal: kembali ke tab Daftar Buangan
+    currentViewMode = 'buangan';
+    switchTab('buangan');
 }
 
 // Navigate to the Buangan main page and refresh list
-window.goToBuanganMain = function() {
-    // Hide any open overlays or detail/edit sections
+window.goToBuanganMain = async function() {
+    currentOrderData = null;
+    currentKmAwal = 0;
+    currentBuanganDetail = null;
+    if (document.getElementById('buanganForm')) document.getElementById('buanganForm').reset();
+    if (document.getElementById('editBuanganForm')) document.getElementById('editBuanganForm').reset();
+
+    // Jika sedang dalam mode pencarian, kembali ke hasil pencarian yang sudah diupdate
+    if (currentSearchDate) {
+        await returnToSearchResults();
+        return;
+    }
+
+    // Mode normal: tampilkan daftar buangan
     const formSection = document.getElementById('formSection');
     const editSection = document.getElementById('editSection');
     const detailSection = document.getElementById('detailSection');
-
     if (formSection) formSection.style.display = 'none';
     if (editSection) editSection.style.display = 'none';
     if (detailSection) detailSection.style.display = 'none';
 
-    // Show search & main table
     document.getElementById('searchSection').style.display = 'block';
     document.getElementById('mainTableSection').style.display = 'block';
-    document.getElementById('tableTitle').textContent = 'Daftar Buangan';
-    document.getElementById('orderTableContainer').style.display = 'none';
-    document.getElementById('buanganTableContainer').style.display = 'block';
     document.getElementById('filterNoPintu').value = '';
-
     currentViewMode = 'buangan';
-    currentOrderData = null;
-    currentKmAwal = 0;
-    currentBuanganDetail = null;
+    currentSearchDate = null;
+    currentSearchDateEnd = null;
+    allOrderData = [];
+    allSearchBuanganData = [];
+    // Sembunyikan badge tab
+    document.getElementById('tabOrderCount').style.display = 'none';
+    document.getElementById('tabBuanganCount').style.display = 'none';
 
-    if (document.getElementById('buanganForm')) document.getElementById('buanganForm').reset();
-    if (document.getElementById('editBuanganForm')) document.getElementById('editBuanganForm').reset();
-
-    // Reload list
-    loadBuanganList();
+    await loadBuanganList();
+    switchTab('buangan');
 }
 
 // ============================================================================
@@ -1150,46 +1274,116 @@ function getGalianNameById(galianId) {
 }
 
 // ============================================================================
-// LOAD BUANGAN LIST
+// LOAD BUANGAN LIST (includes ON PROCESS orders)
 // ============================================================================
 async function loadBuanganList() {
     try {
-        console.log('Loading buangan list from API...');
-        
-        const response = await fetch(`${API_BASE_URL}/buangan`);
-        
-        console.log('Response status:', response.status);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        
-        console.log('API Response:', result);
+        const [buanganRes, orderRes] = await Promise.all([
+            fetch(`${API_BASE_URL}/buangan`),
+            fetch(`${API_BASE_URL}/order`)
+        ]);
 
-        // Cek apakah result memiliki property success
+        // Normalize buangan
+        const buanganResult = await buanganRes.json();
         let buanganData = [];
-        
-        if (result.hasOwnProperty('success') && result.success) {
-            buanganData = result.data || [];
-        } else if (Array.isArray(result)) {
-            buanganData = result;
-        } else if (result.data && Array.isArray(result.data)) {
-            buanganData = result.data;
+        if (buanganResult.hasOwnProperty('success') && buanganResult.success) {
+            buanganData = buanganResult.data || [];
+        } else if (Array.isArray(buanganResult)) {
+            buanganData = buanganResult;
+        } else if (buanganResult.data && Array.isArray(buanganResult.data)) {
+            buanganData = buanganResult.data;
         }
 
-        console.log('Buangan data to display:', buanganData);
+        // Normalize orders
+        let orderData = [];
+        if (orderRes.ok) {
+            const orderResult = await orderRes.json();
+            if (orderResult.hasOwnProperty('success') && orderResult.success) {
+                orderData = orderResult.data || [];
+            } else if (Array.isArray(orderResult)) {
+                orderData = orderResult;
+            } else if (orderResult.data && Array.isArray(orderResult.data)) {
+                orderData = orderResult.data;
+            }
+        }
 
-        allBuanganData = buanganData;
-        displayBuanganList(buanganData);
+        // Order IDs yang sudah ada buangannya
+        const buanganOrderIds = new Set(buanganData.map(b => b.order_id));
+
+        // ON PROCESS orders yang belum punya buangan
+        const pendingOrders = orderData.filter(o =>
+            (o.status === 'ON PROCESS' || !o.status || o.status === '') &&
+            !buanganOrderIds.has(o.id)
+        );
+
+        // Konversi ke format seperti buangan
+        const pendingAsBuangan = pendingOrders.map(o => ({
+            _isOnProcess: true,
+            _orderId: o.id,
+            order_id: o.id,
+            no_order: o.no_order,
+            tanggal_order: o.tanggal_order,
+            no_pintu: o.no_pintu,
+            supir: o.supir,
+            nama_galian: o.nama_galian || o.galian,
+            status: 'ON PROCESS',
+            tanggal_bongkar: null,
+            jam_bongkar: null,
+            km_akhir: null,
+            jarak_km: null,
+            lokasi_bongkar: null,
+            alihan: false,
+        }));
+
+        // Gabungkan: ON PROCESS dulu, lalu buangan records
+        allBuanganData = [...pendingAsBuangan, ...buanganData];
+
+        applyBuanganFilter();
 
     } catch (error) {
         console.error('Error loading buangan:', error);
-        // Tampilkan tabel kosong jika error
         allBuanganData = [];
         displayBuanganList([]);
     }
+}
+
+// ============================================================================
+// APPLY BUANGAN FILTER BY STATUS
+// ============================================================================
+function applyBuanganFilter() {
+    currentBuanganPage = 1;
+    let filtered = allBuanganData;
+
+    if (activeStatusFilter === 'on_process') {
+        filtered = allBuanganData.filter(b => b._isOnProcess);
+    } else if (activeStatusFilter === 'complete') {
+        filtered = allBuanganData.filter(b => !b._isOnProcess && b.status === 'COMPLETE');
+    } else if (activeStatusFilter === 'batal') {
+        filtered = allBuanganData.filter(b => !b._isOnProcess && b.status === 'BATAL');
+    }
+
+    // Juga terapkan filter no pintu jika ada
+    const pintuFilter = document.getElementById('filterNoPintu')?.value?.toLowerCase().trim();
+    if (pintuFilter) {
+        filtered = filtered.filter(b =>
+            b.no_pintu && b.no_pintu.toLowerCase().includes(pintuFilter)
+        );
+    }
+
+    displayBuanganList(filtered);
+}
+
+function filterByStatus(status) {
+    activeStatusFilter = status;
+
+    // Update active button
+    ['filterBtnAll', 'filterBtnOnProcess', 'filterBtnComplete', 'filterBtnBatal'].forEach(id => {
+        document.getElementById(id)?.classList.remove('active');
+    });
+    const btnMap = { all: 'filterBtnAll', on_process: 'filterBtnOnProcess', complete: 'filterBtnComplete', batal: 'filterBtnBatal' };
+    document.getElementById(btnMap[status])?.classList.add('active');
+
+    applyBuanganFilter();
 }
 
 // ============================================================================
@@ -1221,11 +1415,31 @@ function displayBuanganList(buanganList) {
 
     paginatedData.forEach((buangan, index) => {
         const tr = document.createElement('tr');
-        
-        // Calculate row number (global index)
         const rowNumber = startIndex + index + 1;
 
-        const alihanBadge = buangan.alihan 
+        // Baris ON PROCESS: order yang belum punya buangan
+        if (buangan._isOnProcess) {
+            tr.classList.add('row-on-process');
+            tr.innerHTML = `
+                <td style="text-align: center; font-weight: 600;">${rowNumber}</td>
+                <td>${buangan.no_order || '-'}</td>
+                <td>${formatDate(buangan.tanggal_order)}</td>
+                <td>${buangan.no_pintu || '-'}</td>
+                <td>${buangan.supir || '-'}</td>
+                <td>${buangan.nama_galian || '-'}</td>
+                <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+                <td><span class="badge badge-pending">ON PROCESS</span></td>
+                <td>
+                    <button class="btn btn-warning btn-small" onclick="bukaFormBuangan(${buangan._orderId})">
+                        <span class="icon">📋</span> Buangan
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+            return;
+        }
+
+        const alihanBadge = buangan.alihan
             ? '<span class="badge badge-yes">Ya</span>'
             : '<span class="badge badge-no">Tidak</span>';
 
@@ -1239,7 +1453,7 @@ function displayBuanganList(buanganList) {
         const noUrutDisplay = (buangan.no_urut === 0 || buangan.no_urut == null) ? '-' : `#${buangan.no_urut}`;
         const tanggalBongkarDisplay = buangan.tanggal_bongkar ? formatDate(buangan.tanggal_bongkar) : '-';
         const jamBongkarDisplay = buangan.jam_bongkar ? buangan.jam_bongkar : '-';
-        
+
         let kmAkhirDisplay = '-';
         if (buangan.km_akhir === null || buangan.km_akhir === undefined || buangan.km_akhir === '') {
             kmAkhirDisplay = '-';
@@ -1587,11 +1801,12 @@ function displayDetailBuangan(buangan) {
 // TUTUP DETAIL
 // ============================================================================
 function tutupDetail() {
+    document.getElementById('detailSection').style.display = 'none';
     document.getElementById('searchSection').style.display = 'block';
     document.getElementById('mainTableSection').style.display = 'block';
-    document.getElementById('detailSection').style.display = 'none';
-    
     currentBuanganDetail = null;
+    // Kembalikan ke tab yang sebelumnya aktif
+    switchTab(currentTab);
 }
 async function hapusBuangan(id) {
     if (!confirm('Yakin ingin menghapus buangan ini?')) {
@@ -1620,9 +1835,7 @@ async function hapusBuangan(id) {
         }
 
         showToast('Buangan berhasil dihapus', 'success');
-        
-        // Immediately go to main page and refresh
-        goToBuanganMain();
+        await goToBuanganMain();
 
     } catch (error) {
         console.error('Error:', error);
@@ -1660,9 +1873,8 @@ async function hapusRitasi(id) {
         }
 
         showToast('Ritasi dan order berhasil dihapus', 'success');
-        
-        // Immediately go to main page and refresh
-        goToBuanganMain();
+        currentSearchDate = null; // Order sudah dihapus, reset ke mode normal
+        await goToBuanganMain();
 
     } catch (error) {
         console.error('Error:', error);
@@ -1717,10 +1929,8 @@ async function konfirmasiBatalOrder() {
         const result = await response.json();
 
         showToast('Order berhasil dibatalkan', 'success');
-        
-        // Tutup modal and go to main buangan page
         tutupModalBatal();
-        goToBuanganMain();
+        await goToBuanganMain();
 
     } catch (error) {
         console.error('Error:', error);

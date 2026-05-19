@@ -3,7 +3,9 @@
     "allow": [
       "Bash(Select-String -Path \"c:\\\\Users\\\\Tsana Vella\\\\ritasi-app\\\\frontend\\\\assets\\\\js\\\\rekap.js\" -Pattern \"supir_id\")",
       "Bash(Select-Object -ExpandProperty Line)",
-      "Bash(git rm *)"
+      "Bash(git rm *)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Tsana Vella\\\\ritasi-app\\\\frontend\\\\pages\" -File)",
+      "Bash(Select-Object Name)"
     ]
   }
 }

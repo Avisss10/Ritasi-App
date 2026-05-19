@@ -278,6 +278,140 @@ h3 {
 }
 
 /* ============================================================================
+   DATE MODE TOGGLE
+   ============================================================================ */
+
+.date-mode-toggle {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.date-mode-btn {
+    padding: 8px 20px;
+    border: 2px solid #dee2e6;
+    border-radius: 20px;
+    background: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    color: #6c757d;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.date-mode-btn:hover {
+    border-color: #667eea;
+    color: #667eea;
+}
+
+.date-mode-btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-color: transparent;
+    color: white;
+    box-shadow: 0 3px 8px rgba(102, 126, 234, 0.4);
+}
+
+/* ============================================================================
+   STATUS FILTER BAR
+   ============================================================================ */
+
+.status-filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 10px 0 6px;
+    margin-bottom: 4px;
+}
+
+.filter-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #6c757d;
+    white-space: nowrap;
+}
+
+.filter-status-btn {
+    padding: 6px 16px;
+    border: 2px solid #dee2e6;
+    border-radius: 20px;
+    background: white;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    color: #6c757d;
+    transition: all 0.2s ease;
+}
+
+.filter-status-btn:hover {
+    border-color: #667eea;
+    color: #667eea;
+}
+
+.filter-status-btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-color: transparent;
+    color: white;
+    box-shadow: 0 3px 8px rgba(102, 126, 234, 0.4);
+}
+
+/* ============================================================================
+   TAB NAVIGATION
+   ============================================================================ */
+
+.tab-nav {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid #e9ecef;
+    margin-bottom: 16px;
+}
+
+.tab-nav-btn {
+    padding: 10px 24px;
+    border: none;
+    border-bottom: 3px solid transparent;
+    background: transparent;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    color: #6c757d;
+    transition: all 0.2s ease;
+    margin-bottom: -2px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tab-nav-btn:hover {
+    color: #667eea;
+    background: rgba(102, 126, 234, 0.05);
+}
+
+.tab-nav-btn.active {
+    color: #667eea;
+    border-bottom-color: #667eea;
+}
+
+.tab-badge {
+    background: #667eea;
+    color: white;
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+/* ON PROCESS row highlight */
+tr.row-on-process {
+    background: #fffbeb;
+}
+
+tr.row-on-process:hover {
+    background: #fef3c7 !important;
+}
+
+/* ============================================================================
    TABLE STYLES
    ============================================================================ */
 

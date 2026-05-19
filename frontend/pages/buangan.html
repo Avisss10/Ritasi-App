@@ -13,10 +13,37 @@
         <!-- KOTAK 1: CARI ORDER -->
         <div class="card" id="searchSection">
             <h2>Cari Order</h2>
-            <div class="form-group-inline">
+
+            <!-- Toggle mode tanggal -->
+            <div class="date-mode-toggle">
+                <button class="date-mode-btn active" id="modeSingleBtn" onclick="setDateMode('single')">
+                    📅 Satu Tanggal
+                </button>
+                <button class="date-mode-btn" id="modeRangeBtn" onclick="setDateMode('range')">
+                    📅 Rentang Tanggal
+                </button>
+            </div>
+
+            <!-- Mode: Satu Tanggal -->
+            <div id="modeSingle" class="form-group-inline">
                 <div class="form-group">
                     <label for="tanggalOrder">Tanggal Order <span class="required">*</span></label>
-                    <input type="date" id="tanggalOrder" required>
+                    <input type="date" id="tanggalOrder">
+                </div>
+                <button class="btn btn-primary" onclick="cariOrder()">
+                    <span class="icon">🔍</span> Cari Order
+                </button>
+            </div>
+
+            <!-- Mode: Rentang Tanggal -->
+            <div id="modeRange" class="form-group-inline" style="display:none;">
+                <div class="form-group">
+                    <label for="tanggalDari">Dari Tanggal <span class="required">*</span></label>
+                    <input type="date" id="tanggalDari">
+                </div>
+                <div class="form-group">
+                    <label for="tanggalHingga">Hingga Tanggal <span class="required">*</span></label>
+                    <input type="date" id="tanggalHingga">
                 </div>
                 <button class="btn btn-primary" onclick="cariOrder()">
                     <span class="icon">🔍</span> Cari Order
@@ -29,13 +56,34 @@
             <div class="table-header">
                 <h2 id="tableTitle">Daftar Buangan</h2>
                 <div class="form-group" style="margin-bottom: 0; max-width: 400px;">
-                    <input 
-                        type="text" 
-                        id="filterNoPintu" 
-                        placeholder="🔍 Filter berdasarkan No Pintu..." 
+                    <input
+                        type="text"
+                        id="filterNoPintu"
+                        placeholder="🔍 Filter berdasarkan No Pintu..."
                         oninput="filterTable()"
                     >
                 </div>
+            </div>
+
+            <!-- Tab navigasi (selalu tampil) -->
+            <div id="tabNavigation">
+                <div class="tab-nav">
+                    <button class="tab-nav-btn" id="tabOrderBtn" onclick="switchTab('order')">
+                        📋 Daftar Order <span id="tabOrderCount" class="tab-badge" style="display:none;"></span>
+                    </button>
+                    <button class="tab-nav-btn active" id="tabBuanganBtn" onclick="switchTab('buangan')">
+                        🚛 Daftar Buangan <span id="tabBuanganCount" class="tab-badge" style="display:none;"></span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filter status (hanya tampil di tab Daftar Buangan) -->
+            <div id="statusFilterBar" class="status-filter-bar">
+                <span class="filter-label">Filter Status:</span>
+                <button class="filter-status-btn active" id="filterBtnAll" onclick="filterByStatus('all')">Semua</button>
+                <button class="filter-status-btn" id="filterBtnOnProcess" onclick="filterByStatus('on_process')">ON PROCESS</button>
+                <button class="filter-status-btn" id="filterBtnComplete" onclick="filterByStatus('complete')">COMPLETE</button>
+                <button class="filter-status-btn" id="filterBtnBatal" onclick="filterByStatus('batal')">BATAL</button>
             </div>
 
             <!-- TABLE DATA ORDER -->
