@@ -1,0 +1,208 @@
+############################################
+# BASE URL
+############################################
+@baseUrl = http://localhost:3000/api
+
+############################################
+# MASTER DATA - KENDARAAN BERHASIL
+############################################
+
+### Get all kendaraan
+GET {{baseUrl}}/master/kendaraan
+
+### Create kendaraan
+POST {{baseUrl}}/master/kendaraan
+Content-Type: application/json
+
+{
+  "no_pintu": "B-1234-XY"
+}
+
+### Update kendaraan
+PUT {{baseUrl}}/master/kendaraan/1
+Content-Type: application/json
+
+{
+  "no_pintu": "B-9999-ZZ"
+}
+
+### Delete kendaraan
+DELETE {{baseUrl}}/master/kendaraan/1
+
+
+############################################
+# MASTER DATA - SUPIR BERHASIL
+############################################
+
+### Get all supir
+GET {{baseUrl}}/master/supir
+
+### Create supir
+POST {{baseUrl}}/master/supir
+Content-Type: application/json
+
+{
+  "nama": "Joko Santoso"
+}
+
+### Update supir
+PUT {{baseUrl}}/master/supir/1
+Content-Type: application/json
+
+{
+  "nama": "Ahmad"
+}
+
+### Delete supir
+DELETE {{baseUrl}}/master/supir/1
+
+
+############################################
+# MASTER DATA - GALIAN BERHASIL
+############################################
+
+### Get all galian
+GET {{baseUrl}}/master/galian
+
+### Create galian
+POST {{baseUrl}}/master/galian
+Content-Type: application/json
+
+{
+  "nama_galian": "Galian C Pasir"
+}
+
+### Update galian
+PUT {{baseUrl}}/master/galian/1
+Content-Type: application/json
+
+{
+  "nama_galian": "Galian Batu"
+}
+
+### Delete galian
+DELETE {{baseUrl}}/master/galian/1
+
+
+
+############################################
+# MASTER DATA - PROYEK BERHASIL
+############################################
+
+### Get all proyek
+GET {{baseUrl}}/master/proyek
+
+### Create proyek
+POST {{baseUrl}}/master/proyek
+Content-Type: application/json
+
+{
+  "nama_proyek": "Tol Serang - Panimbang"
+}
+
+### Update proyek
+PUT {{baseUrl}}/master/proyek/1
+Content-Type: application/json
+
+{
+  "nama_proyek": "Bandara Kulon Progo"
+}
+
+### Delete proyek
+DELETE {{baseUrl}}/master/proyek/1
+
+
+
+############################################
+# ORDER
+############################################
+
+### Get semua order
+GET {{baseUrl}}/order
+
+### Create order
+POST {{baseUrl}}/order
+Content-Type: application/json
+
+{
+  "tanggal_order": "2023-10-01",
+  "no_order": "ORD001",
+  "petugas_order": "Admin",
+  "kendaraan_id": 1,
+  "supir_id": 1,
+  "galian_id": 1,
+  "no_do": "DO001",
+  "jam_order": "08:00",
+  "km_awal": 1000,
+  "uang_jalan": 500000,
+  "potongan": 0,
+  "proyek_input": "Proyek A"
+}
+
+### Update order
+PUT {{baseUrl}}/order/1
+Content-Type: application/json
+
+{
+  "tanggal_order": "2023-10-01",
+  "no_order": "ORD001",
+  "petugas_order": "Admin",
+  "kendaraan_id": 1,
+  "supir_id": 1,
+  "galian_id": 1,
+  "no_do": "DO001",
+  "jam_order": "08:00",
+  "km_awal": 1000,
+  "uang_jalan": 500000,
+  "potongan": 10000,
+  "proyek_input": "Proyek A"
+}
+
+### Delete order
+DELETE {{baseUrl}}/order/1
+
+
+############################################
+# BUANGAN (RITASI)
+############################################
+
+### Get all buangan
+GET {{baseUrl}}/buangan
+
+### Get buangan by ID
+GET {{baseUrl}}/buangan/1
+
+### Create buangan
+POST {{baseUrl}}/buangan
+Content-Type: application/json
+
+{
+  "order_id": 1,
+  "tanggal_bongkar": "2023-10-01",
+  "jam_bongkar": "10:00",
+  "km_akhir": 1050,
+  "alihan": false,
+  "galian_alihan_id": null,
+  "keterangan": "Ritasi pertama",
+  "uang_alihan": null,
+  "no_urut": 1
+}
+
+### Update buangan
+PUT {{baseUrl}}/buangan/1
+Content-Type: application/json
+
+{
+  "tanggal_bongkar": "2023-10-02",
+  "jam_bongkar": "11:00",
+  "km_akhir": 1100,
+  "alihan": true,
+  "galian_alihan_id": 1,
+  "keterangan": "Ritasi diperbarui",
+  "uang_alihan": 50000,
+  "no_urut": 1
+}
+
+### Delete buangan
+DELETE {{baseUrl}}/buangan/1
+
