@@ -61,6 +61,9 @@ function buildFilters(req, allowedFields) {
       } else if (key === 'no_do') {
         conditions.push(`o.no_do LIKE ?`);
         values.push(`%${value}%`);
+      } else if (key === 'petugas_order') {
+        conditions.push(`o.petugas_order LIKE ?`);
+        values.push(`%${value}%`);
       } else if (key === 'status') {
         conditions.push(`LOWER(REPLACE(o.status, ' ', '_')) = LOWER(REPLACE(?, ' ', '_'))`);
         values.push(value);
@@ -108,6 +111,9 @@ function buildFiltersBuangan(req, allowedFields) {
       } else if (key === 'no_do') {
         conditions.push(`o.no_do LIKE ?`);
         values.push(`%${value}%`);
+      } else if (key === 'lokasi_bongkar') {
+        conditions.push(`LOWER(b.${key}) LIKE LOWER(?)`);
+        values.push(`${value}%`);
       } else {
         conditions.push(`b.${key} = ?`);
         values.push(value);
@@ -255,7 +261,7 @@ async function generateFilterInfo(req, type) {
 
   // Petugas (untuk order dan gabungan)
   if (req.query.petugas_order && req.query.petugas_order.trim() !== '') {
-    filters["Petugas"] = req.query.petugas_order;
+    filters["Petugas Order"] = req.query.petugas_order;
   }
 
   // Lokasi Bongkar (untuk gabungan)
@@ -649,7 +655,7 @@ router.get("/order/export/pdf", async (req, res) => {
 router.get("/buangan", async (req, res) => {
   try {
     const { where, values } = buildFiltersBuangan(req, [
-      "no_order", "alihan", "proyek_id", "galian_id", "no_do"
+      "no_order", "alihan", "proyek_id", "galian_id", "no_do", "lokasi_bongkar"
     ]);
 
     const sql = `
@@ -694,7 +700,7 @@ router.get("/buangan", async (req, res) => {
 router.get("/buangan/export/excel", async (req, res) => {
   try {
     const { where, values } = buildFiltersBuangan(req, [
-      "no_order", "alihan", "proyek_id", "galian_id", "no_do"
+      "no_order", "alihan", "proyek_id", "galian_id", "no_do", "lokasi_bongkar"
     ]);
 
     const sql = `
@@ -756,7 +762,7 @@ router.get("/buangan/export/excel", async (req, res) => {
 router.get("/buangan/export/pdf", async (req, res) => {
   try {
     const { where, values } = buildFiltersBuangan(req, [
-      "no_order", "alihan", "proyek_id", "galian_id", "no_do"
+      "no_order", "alihan", "proyek_id", "galian_id", "no_do", "lokasi_bongkar"
     ]);
 
     const sql = `
@@ -802,7 +808,7 @@ router.get("/buangan/export/pdf", async (req, res) => {
 router.get("/gabungan", async (req, res) => {
   try {
     const { where, values } = buildFiltersGabungan(req, [
-      "proyek_id", "lokasi_bongkar", "no_do", "kendaraan_id", "galian_id",
+      "proyek_id", "lokasi_bongkar", "no_do", "kendaraan_id", "supir_id", "petugas_order", "galian_id",
       "galian_alihan_id", "alihan", "status"
     ]);
 
@@ -863,7 +869,7 @@ router.get("/gabungan", async (req, res) => {
 router.get("/gabungan/export/excel", async (req, res) => {
   try {
     const { where, values } = buildFiltersGabungan(req, [
-      "proyek_id", "lokasi_bongkar", "no_do", "kendaraan_id", "galian_id",
+      "proyek_id", "lokasi_bongkar", "no_do", "kendaraan_id", "supir_id", "petugas_order", "galian_id",
       "galian_alihan_id", "alihan", "status"
     ]);
 
@@ -961,7 +967,7 @@ router.get("/gabungan/export/excel", async (req, res) => {
 router.get("/gabungan/export/pdf", async (req, res) => {
   try {
     const { where, values } = buildFiltersGabungan(req, [
-      "proyek_id", "lokasi_bongkar", "no_do", "kendaraan_id", "galian_id",
+      "proyek_id", "lokasi_bongkar", "no_do", "kendaraan_id", "supir_id", "petugas_order", "galian_id",
       "galian_alihan_id", "alihan", "status"
     ]);
 
@@ -1057,6 +1063,30 @@ router.get("/no-do-list", async (req, res) => {
   } catch (err) {
     console.error("Error in /rekap/no-do-list:", err);
     return error(res, 500, "Gagal", err);
+  }
+});
+
+// ============================================================================
+// GET FILTER OPTIONS FOR REKAP AUTOCOMPLETE LISTS
+// ============================================================================
+router.get("/filter-options", async (req, res) => {
+  try {
+    const noDoSql = `SELECT DISTINCT no_do FROM orders WHERE no_do IS NOT NULL AND no_do != '' ORDER BY no_do LIMIT 200`;
+    const petugasSql = `SELECT DISTINCT petugas_order FROM orders WHERE petugas_order IS NOT NULL AND petugas_order != '' ORDER BY petugas_order LIMIT 200`;
+    const lokasiSql = `SELECT DISTINCT lokasi_bongkar FROM buangan WHERE lokasi_bongkar IS NOT NULL AND lokasi_bongkar != '' ORDER BY lokasi_bongkar LIMIT 200`;
+
+    const [noDoRows] = await db.query(noDoSql);
+    const [petugasRows] = await db.query(petugasSql);
+    const [lokasiRows] = await db.query(lokasiSql);
+
+    return success(res, "Berhasil mengambil filter options", {
+      no_do: noDoRows.map(r => r.no_do),
+      petugas_order: petugasRows.map(r => r.petugas_order),
+      lokasi_bongkar: lokasiRows.map(r => r.lokasi_bongkar),
+    });
+  } catch (err) {
+    console.error("Error in /rekap/filter-options:", err);
+    return error(res, 500, "Gagal mengambil opsi filter", err);
   }
 });
 

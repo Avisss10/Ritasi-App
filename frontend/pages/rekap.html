@@ -64,6 +64,12 @@
                         <div class="filter-group-title">🎯 Filter Utama</div>
                         <div class="filter-grid filter-grid-3">
                             <div class="filter-item">
+                                <label><span class="icon">👤</span> Petugas Order:</label>
+                                <input type="text" id="filter-petugas-order-order" list="datalist-petugas-order-order" placeholder="Cari petugas order...">
+                                <datalist id="datalist-petugas-order-order"></datalist>
+                            </div>
+
+                            <div class="filter-item">
                                 <label><span class="icon">🏗️</span> Proyek:</label>
                                 <div class="ms-container" id="ms-proyek-order">
                                     <div class="ms-input-row">
@@ -113,7 +119,7 @@
                             </div>
 
                             <div class="filter-item">
-                                <label><span class="icon">👤</span> Supir:</label>
+                                <label><span class="icon">👥</span> Supir:</label>
                                 <input type="text" id="filter-supir-order" list="datalist-supir" placeholder="Pilih supir...">
                                 <input type="hidden" id="filter-supir-order-id">
                                 <datalist id="datalist-supir"></datalist>
@@ -216,6 +222,12 @@
                                 <label><span class="icon">📄</span> No. DO:</label>
                                 <input type="text" id="filter-no-do-buangan" list="datalist-no-do-buangan" placeholder="Cari No. DO...">
                                 <datalist id="datalist-no-do-buangan"></datalist>
+                            </div>
+
+                            <div class="filter-item">
+                                <label><span class="icon">📦</span> Buangan (Lokasi):</label>
+                                <input type="text" id="filter-buangan-lokasi" list="datalist-buangan-lokasi" placeholder="Cari lokasi buangan...">
+                                <datalist id="datalist-buangan-lokasi"></datalist>
                             </div>
 
                             <div class="filter-item">
@@ -364,6 +376,19 @@
                             </div>
 
                             <div class="filter-item">
+                                <label><span class="icon">👤</span> Supir:</label>
+                                <input type="text" id="filter-supir-gabungan" list="datalist-supir-gabungan" placeholder="Pilih supir...">
+                                <input type="hidden" id="filter-supir-gabungan-id">
+                                <datalist id="datalist-supir-gabungan"></datalist>
+                            </div>
+
+                            <div class="filter-item">
+                                <label><span class="icon">👥</span> Petugas Order:</label>
+                                <input type="text" id="filter-petugas-order-gabungan" list="datalist-petugas-order-gabungan" placeholder="Cari petugas order...">
+                                <datalist id="datalist-petugas-order-gabungan"></datalist>
+                            </div>
+
+                            <div class="filter-item">
                                 <label><span class="icon">📄</span> No. DO:</label>
                                 <input type="text" id="filter-no-do-gabungan" list="datalist-no-do-gabungan" placeholder="Cari No. DO...">
                                 <datalist id="datalist-no-do-gabungan"></datalist>
@@ -409,7 +434,8 @@
 
                             <div class="filter-item">
                                 <label><span class="icon">📦</span> Buangan (Lokasi):</label>
-                                <input type="text" id="filter-lokasi-bongkar-gabungan" placeholder="Cari lokasi bongkar...">
+                                <input type="text" id="filter-lokasi-bongkar-gabungan" list="datalist-lokasi-bongkar-gabungan" placeholder="Cari lokasi bongkar...">
+                                <datalist id="datalist-lokasi-bongkar-gabungan"></datalist>
                             </div>
 
                             <div class="filter-item">

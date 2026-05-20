@@ -433,11 +433,96 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     setupAutocompleteListeners();
+    setupTableFilterListeners();
 });
 
 // ============================================================================
 // AUTOCOMPLETE SETUP (kendaraan, supir, galian-alihan only - proyek/galian use multiselect)
 // ============================================================================
+function extractUniqueValuesFromTable(columnIndex, tableBodyId) {
+    const tbody = document.getElementById(tableBodyId);
+    if (!tbody) return [];
+    const rows = tbody.querySelectorAll('tr');
+    const values = [];
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells[columnIndex]) {
+            const value = cells[columnIndex].textContent.trim();
+            if (value && value !== '-' && value !== 'Memuat data...' && value !== 'Tidak ada data order' && !values.includes(value)) {
+                values.push(value);
+            }
+        }
+    });
+    return values;
+}
+
+function setupTableFilterListeners() {
+    const petugasOrderInput = document.getElementById('filter-petugas-order-order');
+    const noDoOrderInput = document.getElementById('filter-no-do-order');
+    const buanganLokasiInput = document.getElementById('filter-buangan-lokasi');
+    const petugasGabunganInput = document.getElementById('filter-petugas-order-gabungan');
+    const noDoGabunganInput = document.getElementById('filter-no-do-gabungan');
+    const buanganGabunganInput = document.getElementById('filter-lokasi-bongkar-gabungan');
+
+    if (petugasOrderInput) {
+        petugasOrderInput.addEventListener('input', function() {
+            const uniqueValues = extractUniqueValuesFromTable(3, 'tbody-order');
+            populateDatalistFromArray('datalist-petugas-order-order', uniqueValues.filter(v => v.toLowerCase().includes(this.value.toLowerCase())));
+        });
+    }
+
+    if (noDoOrderInput) {
+        noDoOrderInput.addEventListener('input', function() {
+            const uniqueValues = extractUniqueValuesFromTable(7, 'tbody-order');
+            populateDatalistFromArray('datalist-no-do-order', uniqueValues.filter(v => v.toLowerCase().includes(this.value.toLowerCase())));
+        });
+    }
+
+    if (buanganLokasiInput) {
+        buanganLokasiInput.addEventListener('input', function() {
+            const uniqueValues = extractUniqueValuesFromTable(7, 'tbody-buangan');
+            populateDatalistFromArray('datalist-buangan-lokasi', uniqueValues.filter(v => v.toLowerCase().includes(this.value.toLowerCase())));
+        });
+    }
+
+    if (petugasGabunganInput) {
+        petugasGabunganInput.addEventListener('input', function() {
+            const uniqueValues = extractUniqueValuesFromTable(3, 'tbody-gabungan');
+            populateDatalistFromArray('datalist-petugas-order-gabungan', uniqueValues.filter(v => v.toLowerCase().includes(this.value.toLowerCase())));
+        });
+    }
+
+    if (noDoGabunganInput) {
+        noDoGabunganInput.addEventListener('input', function() {
+            const uniqueValues = extractUniqueValuesFromTable(6, 'tbody-gabungan');
+            populateDatalistFromArray('datalist-no-do-gabungan', uniqueValues.filter(v => v.toLowerCase().includes(this.value.toLowerCase())));
+        });
+    }
+
+    if (buanganGabunganInput) {
+        buanganGabunganInput.addEventListener('input', function() {
+            const uniqueValues = extractUniqueValuesFromTable(19, 'tbody-gabungan');
+            populateDatalistFromArray('datalist-lokasi-bongkar-gabungan', uniqueValues.filter(v => v.toLowerCase().includes(this.value.toLowerCase())));
+        });
+    }
+}
+
+function populateTableDatalists() {
+    const petugasValuesOrder = extractUniqueValuesFromTable(3, 'tbody-order');
+    const noDoValuesOrder = extractUniqueValuesFromTable(7, 'tbody-order');
+    const buanganValues = extractUniqueValuesFromTable(7, 'tbody-buangan');
+    const petugasValuesGabungan = extractUniqueValuesFromTable(3, 'tbody-gabungan');
+    const noDoValuesGabungan = extractUniqueValuesFromTable(6, 'tbody-gabungan');
+    const buanganValuesGabungan = extractUniqueValuesFromTable(19, 'tbody-gabungan');
+
+    populateDatalistFromArray('datalist-petugas-order-order', petugasValuesOrder);
+    populateDatalistFromArray('datalist-no-do-order', noDoValuesOrder);
+    populateDatalistFromArray('datalist-buangan-lokasi', buanganValues);
+    populateDatalistFromArray('datalist-petugas-order-gabungan', petugasValuesGabungan);
+    populateDatalistFromArray('datalist-no-do-gabungan', noDoValuesGabungan);
+    populateDatalistFromArray('datalist-lokasi-bongkar-gabungan', buanganValuesGabungan);
+}
+
 function setupAutocompleteListeners() {
     const kendaraanInput = document.getElementById('filter-kendaraan-order');
     if (kendaraanInput) {
@@ -472,25 +557,53 @@ function setupAutocompleteListeners() {
         });
     }
 
+    const supirGabunganInput = document.getElementById('filter-supir-gabungan');
+    const petugasOrderGabunganInput = document.getElementById('filter-petugas-order-gabungan');
+    const noDoGabunganInput = document.getElementById('filter-no-do-gabungan');
+    const lokasiBongkarGabunganInput = document.getElementById('filter-lokasi-bongkar-gabungan');
+    let gabunganTypingTimer;
+    const scheduleGabunganLoad = () => {
+        clearTimeout(gabunganTypingTimer);
+        gabunganTypingTimer = setTimeout(loadRekapGabungan, 500);
+    };
+
+    if (supirGabunganInput) {
+        supirGabunganInput.addEventListener('input', function() {
+            filterDatalist(this.value, masterSupir, 'datalist-supir-gabungan', 'nama');
+            scheduleGabunganLoad();
+        });
+        supirGabunganInput.addEventListener('change', function() {
+            const selectedItem = masterSupir.find(s => s.nama === this.value);
+            document.getElementById('filter-supir-gabungan-id').value = selectedItem ? selectedItem.id : '';
+            scheduleGabunganLoad();
+        });
+    }
+
+    if (petugasOrderGabunganInput) {
+        petugasOrderGabunganInput.addEventListener('input', scheduleGabunganLoad);
+    }
+
+    if (noDoGabunganInput) {
+        noDoGabunganInput.addEventListener('input', scheduleGabunganLoad);
+    }
+
     const galianAlihanGabunganInput = document.getElementById('filter-galian-alihan-gabungan');
     if (galianAlihanGabunganInput) {
         galianAlihanGabunganInput.addEventListener('input', function() {
             filterDatalist(this.value, masterGalian, 'datalist-galian-alihan-gabungan', 'nama_galian');
+            scheduleGabunganLoad();
         });
         galianAlihanGabunganInput.addEventListener('change', function() {
             const selectedItem = masterGalian.find(g => g.nama_galian === this.value);
             document.getElementById('filter-galian-alihan-gabungan-id').value = selectedItem ? selectedItem.id : '';
+            scheduleGabunganLoad();
         });
     }
 
-    const lokasiBongkarGabunganInput = document.getElementById('filter-lokasi-bongkar-gabungan');
     if (lokasiBongkarGabunganInput) {
-        let typingTimer;
-        lokasiBongkarGabunganInput.addEventListener('input', () => {
-            clearTimeout(typingTimer);
-            typingTimer = setTimeout(() => loadRekapGabungan(), 500);
-        });
+        lokasiBongkarGabunganInput.addEventListener('input', scheduleGabunganLoad);
     }
+}
 }
 
 // ============================================================================
@@ -523,10 +636,13 @@ async function loadMasterData() {
     await loadSupir();
     await loadGalian();
     await loadProyek();
-    await loadNodOList();
+    await loadFilterOptions();
 
     if (masterKendaraan.length > 0) {
         populateDatalist('datalist-kendaraan-gabungan', masterKendaraan, 'no_pintu');
+    }
+    if (masterSupir.length > 0) {
+        populateDatalist('datalist-supir-gabungan', masterSupir, 'nama');
     }
     if (masterGalian.length > 0) {
         populateDatalist('datalist-galian-alihan-gabungan', masterGalian, 'nama_galian');
@@ -650,6 +766,45 @@ async function loadNodOList() {
     }
 }
 
+async function loadFilterOptions() {
+    try {
+        const response = await fetch(`${API_URL}/rekap/filter-options`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const result = await response.json();
+        let data = null;
+        if (result && result.success && result.data) data = result.data;
+        else if (result && typeof result === 'object') data = result;
+        if (!data) return;
+
+        if (Array.isArray(data.no_do)) {
+            populateDatalistFromArray('datalist-no-do-order', data.no_do);
+            populateDatalistFromArray('datalist-no-do-buangan', data.no_do);
+            populateDatalistFromArray('datalist-no-do-gabungan', data.no_do);
+        }
+        if (Array.isArray(data.petugas_order)) {
+            populateDatalistFromArray('datalist-petugas-order-gabungan', data.petugas_order);
+        }
+        if (Array.isArray(data.lokasi_bongkar)) {
+            populateDatalistFromArray('datalist-lokasi-bongkar-gabungan', data.lokasi_bongkar);
+        }
+    } catch (err) {
+        console.error('❌ Error loading filter options:', err.message);
+    }
+}
+
+function populateDatalistFromArray(datalistId, data) {
+    const datalist = document.getElementById(datalistId);
+    if (!datalist || !Array.isArray(data)) return;
+    datalist.innerHTML = '';
+    data.slice(0, 200).forEach(item => {
+        if (item !== null && item !== undefined && String(item).trim() !== '') {
+            const option = document.createElement('option');
+            option.value = String(item);
+            datalist.appendChild(option);
+        }
+    });
+}
+
 function populateDatalist(datalistId, data, textKey) {
     const datalist = document.getElementById(datalistId);
     if (!datalist) return;
@@ -680,6 +835,7 @@ async function loadRekapOrder() {
             proyek_id: getMsIds('ms-proyek-order'),
             galian_id: getMsIds('ms-galian-order'),
             no_do: document.getElementById('filter-no-do-order').value.trim(),
+            petugas_order: document.getElementById('filter-petugas-order-order').value.trim(),
             status: document.getElementById('filter-status-order').value,
             kendaraan_id: document.getElementById('filter-kendaraan-order-id').value,
             supir_id: document.getElementById('filter-supir-order-id').value
@@ -751,6 +907,7 @@ async function loadRekapOrder() {
                 `;
             }).join('');
 
+            populateTableDatalists();
             displayOrderSummary(totalUangJalan, totalPotongan, totalHasilAkhir, totalRitasi, totalHargaRitasi);
         } else {
             tbody.innerHTML = '<tr><td colspan="17" class="text-center">Tidak ada data order</td></tr>';
@@ -768,6 +925,7 @@ function resetFilterOrder() {
     document.getElementById('filter-tanggal-dari-order').value = get2DaysAgo();
     document.getElementById('filter-tanggal-sampai-order').value = getToday();
     document.getElementById('filter-no-do-order').value = '';
+    document.getElementById('filter-petugas-order-order').value = '';
     document.getElementById('filter-status-order').value = '';
     document.getElementById('filter-kendaraan-order').value = '';
     document.getElementById('filter-kendaraan-order-id').value = '';
@@ -841,6 +999,7 @@ async function loadRekapBuangan() {
             `).join('');
 
             data.forEach(row => { totalUangAlihan += parseFloat(row.uang_alihan || 0); });
+            populateTableDatalists();
             displayBuanganSummary(totalUangAlihan);
         } else {
             tbody.innerHTML = '<tr><td colspan="13" class="text-center">Tidak ada data buangan</td></tr>';
@@ -859,6 +1018,7 @@ function resetFilterBuangan() {
     document.getElementById('filter-tanggal-sampai-buangan').value = getToday();
     document.getElementById('filter-no-order').value = '';
     document.getElementById('filter-no-do-buangan').value = '';
+    document.getElementById('filter-buangan-lokasi').value = '';
     document.getElementById('filter-alihan').value = '';
     clearMultiSelect('ms-proyek-buangan');
     clearMultiSelect('ms-galian-buangan');
@@ -887,6 +1047,8 @@ async function loadRekapGabungan() {
             lokasi_bongkar: document.getElementById('filter-lokasi-bongkar-gabungan').value.trim(),
             status: document.getElementById('filter-status-gabungan').value,
             kendaraan_id: document.getElementById('filter-kendaraan-gabungan-id').value,
+            supir_id: document.getElementById('filter-supir-gabungan-id').value,
+            petugas_order: document.getElementById('filter-petugas-order-gabungan').value.trim(),
             alihan: document.getElementById('filter-alihan-gabungan').value,
             galian_alihan_id: document.getElementById('filter-galian-alihan-gabungan-id').value
         };
@@ -985,10 +1147,13 @@ function resetFilterGabungan() {
     document.getElementById('filter-tanggal-bongkar-sampai-gabungan').value = '';
     toggleDateRangeBongkarGabungan();
     document.getElementById('filter-no-do-gabungan').value = '';
+    document.getElementById('filter-petugas-order-gabungan').value = '';
     document.getElementById('filter-lokasi-bongkar-gabungan').value = '';
     document.getElementById('filter-status-gabungan').value = '';
     document.getElementById('filter-kendaraan-gabungan').value = '';
     document.getElementById('filter-kendaraan-gabungan-id').value = '';
+    document.getElementById('filter-supir-gabungan').value = '';
+    document.getElementById('filter-supir-gabungan-id').value = '';
     document.getElementById('filter-alihan-gabungan').value = '';
     document.getElementById('filter-galian-alihan-gabungan').value = '';
     document.getElementById('filter-galian-alihan-gabungan-id').value = '';
@@ -1023,6 +1188,7 @@ async function exportToExcel(type) {
                 proyek_id: getMsIds('ms-proyek-order'),
                 galian_id: getMsIds('ms-galian-order'),
                 no_do: document.getElementById('filter-no-do-order')?.value.trim() || "",
+                petugas_order: document.getElementById('filter-petugas-order-order')?.value.trim() || "",
                 status: document.getElementById('filter-status-order')?.value || "",
                 kendaraan_id: document.getElementById('filter-kendaraan-order-id')?.value || "",
                 supir_id: document.getElementById('filter-supir-order-id')?.value || ""
@@ -1036,6 +1202,7 @@ async function exportToExcel(type) {
                 tanggal_sampai: document.getElementById('filter-tanggal-sampai-buangan')?.value || "",
                 no_order: document.getElementById('filter-no-order')?.value.trim() || "",
                 no_do: document.getElementById('filter-no-do-buangan')?.value.trim() || "",
+                lokasi_bongkar: document.getElementById('filter-buangan-lokasi')?.value.trim() || "",
                 alihan: document.getElementById('filter-alihan')?.value || "",
                 proyek_id: getMsIds('ms-proyek-buangan'),
                 galian_id: getMsIds('ms-galian-buangan')
@@ -1104,6 +1271,7 @@ async function exportToPDF(type) {
                 proyek_id: getMsIds('ms-proyek-order'),
                 galian_id: getMsIds('ms-galian-order'),
                 no_do: document.getElementById('filter-no-do-order')?.value.trim() || "",
+                petugas_order: document.getElementById('filter-petugas-order-order')?.value.trim() || "",
                 status: document.getElementById('filter-status-order')?.value || "",
                 kendaraan_id: document.getElementById('filter-kendaraan-order-id')?.value || "",
                 supir_id: document.getElementById('filter-supir-order-id')?.value || ""
@@ -1117,6 +1285,7 @@ async function exportToPDF(type) {
                 tanggal_sampai: document.getElementById('filter-tanggal-sampai-buangan')?.value || "",
                 no_order: document.getElementById('filter-no-order')?.value.trim() || "",
                 no_do: document.getElementById('filter-no-do-buangan')?.value.trim() || "",
+                lokasi_bongkar: document.getElementById('filter-buangan-lokasi')?.value.trim() || "",
                 alihan: document.getElementById('filter-alihan')?.value || "",
                 proyek_id: getMsIds('ms-proyek-buangan'),
                 galian_id: getMsIds('ms-galian-buangan')
