@@ -457,52 +457,12 @@ function extractUniqueValuesFromTable(columnIndex, tableBodyId) {
 }
 
 function setupTableFilterListeners() {
-    const petugasOrderInput = document.getElementById('filter-petugas-order-order');
     const noDoOrderInput = document.getElementById('filter-no-do-order');
-    const buanganLokasiInput = document.getElementById('filter-buangan-lokasi');
-    const petugasGabunganInput = document.getElementById('filter-petugas-order-gabungan');
-    const noDoGabunganInput = document.getElementById('filter-no-do-gabungan');
-    const buanganGabunganInput = document.getElementById('filter-lokasi-bongkar-gabungan');
-
-    if (petugasOrderInput) {
-        petugasOrderInput.addEventListener('input', function() {
-            const uniqueValues = extractUniqueValuesFromTable(3, 'tbody-order');
-            populateDatalistFromArray('datalist-petugas-order-order', uniqueValues.filter(v => v.toLowerCase().includes(this.value.toLowerCase())));
-        });
-    }
 
     if (noDoOrderInput) {
         noDoOrderInput.addEventListener('input', function() {
             const uniqueValues = extractUniqueValuesFromTable(7, 'tbody-order');
             populateDatalistFromArray('datalist-no-do-order', uniqueValues.filter(v => v.toLowerCase().includes(this.value.toLowerCase())));
-        });
-    }
-
-    if (buanganLokasiInput) {
-        buanganLokasiInput.addEventListener('input', function() {
-            const uniqueValues = extractUniqueValuesFromTable(7, 'tbody-buangan');
-            populateDatalistFromArray('datalist-buangan-lokasi', uniqueValues.filter(v => v.toLowerCase().includes(this.value.toLowerCase())));
-        });
-    }
-
-    if (petugasGabunganInput) {
-        petugasGabunganInput.addEventListener('input', function() {
-            const uniqueValues = extractUniqueValuesFromTable(3, 'tbody-gabungan');
-            populateDatalistFromArray('datalist-petugas-order-gabungan', uniqueValues.filter(v => v.toLowerCase().includes(this.value.toLowerCase())));
-        });
-    }
-
-    if (noDoGabunganInput) {
-        noDoGabunganInput.addEventListener('input', function() {
-            const uniqueValues = extractUniqueValuesFromTable(6, 'tbody-gabungan');
-            populateDatalistFromArray('datalist-no-do-gabungan', uniqueValues.filter(v => v.toLowerCase().includes(this.value.toLowerCase())));
-        });
-    }
-
-    if (buanganGabunganInput) {
-        buanganGabunganInput.addEventListener('input', function() {
-            const uniqueValues = extractUniqueValuesFromTable(19, 'tbody-gabungan');
-            populateDatalistFromArray('datalist-lokasi-bongkar-gabungan', uniqueValues.filter(v => v.toLowerCase().includes(this.value.toLowerCase())));
         });
     }
 }
@@ -558,9 +518,7 @@ function setupAutocompleteListeners() {
     }
 
     const supirGabunganInput = document.getElementById('filter-supir-gabungan');
-    const petugasOrderGabunganInput = document.getElementById('filter-petugas-order-gabungan');
-    const noDoGabunganInput = document.getElementById('filter-no-do-gabungan');
-    const lokasiBongkarGabunganInput = document.getElementById('filter-lokasi-bongkar-gabungan');
+    const galianAlihanGabunganInput = document.getElementById('filter-galian-alihan-gabungan');
     let gabunganTypingTimer;
     const scheduleGabunganLoad = () => {
         clearTimeout(gabunganTypingTimer);
@@ -579,15 +537,6 @@ function setupAutocompleteListeners() {
         });
     }
 
-    if (petugasOrderGabunganInput) {
-        petugasOrderGabunganInput.addEventListener('input', scheduleGabunganLoad);
-    }
-
-    if (noDoGabunganInput) {
-        noDoGabunganInput.addEventListener('input', scheduleGabunganLoad);
-    }
-
-    const galianAlihanGabunganInput = document.getElementById('filter-galian-alihan-gabungan');
     if (galianAlihanGabunganInput) {
         galianAlihanGabunganInput.addEventListener('input', function() {
             filterDatalist(this.value, masterGalian, 'datalist-galian-alihan-gabungan', 'nama_galian');
@@ -599,12 +548,8 @@ function setupAutocompleteListeners() {
             scheduleGabunganLoad();
         });
     }
+}
 
-    if (lokasiBongkarGabunganInput) {
-        lokasiBongkarGabunganInput.addEventListener('input', scheduleGabunganLoad);
-    }
-}
-}
 
 // ============================================================================
 // FILTER DATALIST FUNCTION
