@@ -7,6 +7,32 @@ let masterSupir = [];
 let masterGalian = [];
 let masterProyek = [];
 
+// Storage untuk current table data used by datalist filters
+let currentOrderData = [];
+let currentBuanganData = [];
+let currentGabunganData = [];
+
+function getUniqueFieldValues(rows, fields) {
+    if (!Array.isArray(rows)) return [];
+    const fieldList = Array.isArray(fields) ? fields : [fields];
+    const values = rows.map(row => {
+        if (!row || typeof row !== 'object') return '';
+        for (const field of fieldList) {
+            const value = row[field];
+            if (value !== undefined && value !== null && String(value).trim() !== '') {
+                return String(value).trim();
+            }
+        }
+        return '';
+    }).filter(v => v !== '' && v !== '-' && v.toLowerCase() !== 'null');
+    return Array.from(new Set(values));
+}
+
+function populateDatalistFromRows(datalistId, rows, fields) {
+    const values = getUniqueFieldValues(rows, fields);
+    populateDatalistFromArray(datalistId, values);
+}
+
 // ============================================================================
 // MULTI-SELECT COMPONENT
 // ============================================================================
@@ -359,6 +385,9 @@ function toggleGalianAlihanFilter() {
 
     if (alihanSelect.value === '1') {
         galianAlihanDiv.classList.add('show');
+        // immediately populate from displayed table for instant UX
+        try { populateTableDatalists(); } catch (e) { /* ignore */ }
+        // also refresh server-side used list in background
         loadUsedGalianAlihan();
     } else {
         galianAlihanDiv.classList.remove('show');
@@ -457,33 +486,23 @@ function extractUniqueValuesFromTable(columnIndex, tableBodyId) {
 }
 
 function setupTableFilterListeners() {
-    const noDoOrderInput = document.getElementById('filter-no-do-order');
 
-    if (noDoOrderInput) {
-        noDoOrderInput.addEventListener('input', function() {
-            const uniqueValues = extractUniqueValuesFromTable(7, 'tbody-order');
-            populateDatalistFromArray('datalist-no-do-order', uniqueValues.filter(v => v.toLowerCase().includes(this.value.toLowerCase())));
-        });
-    }
 }
 
 function populateTableDatalists() {
-    const petugasValuesOrder = extractUniqueValuesFromTable(3, 'tbody-order');
-    const noDoValuesOrder = extractUniqueValuesFromTable(7, 'tbody-order');
-    const buanganValues = extractUniqueValuesFromTable(7, 'tbody-buangan');
-    const petugasValuesGabungan = extractUniqueValuesFromTable(3, 'tbody-gabungan');
-    const noDoValuesGabungan = extractUniqueValuesFromTable(6, 'tbody-gabungan');
-    const buanganValuesGabungan = extractUniqueValuesFromTable(19, 'tbody-gabungan');
-
-    populateDatalistFromArray('datalist-petugas-order-order', petugasValuesOrder);
-    populateDatalistFromArray('datalist-no-do-order', noDoValuesOrder);
-    populateDatalistFromArray('datalist-buangan-lokasi', buanganValues);
-    populateDatalistFromArray('datalist-petugas-order-gabungan', petugasValuesGabungan);
-    populateDatalistFromArray('datalist-no-do-gabungan', noDoValuesGabungan);
-    populateDatalistFromArray('datalist-lokasi-bongkar-gabungan', buanganValuesGabungan);
+    populateDatalistFromRows('datalist-petugas-order-order', currentOrderData, 'petugas_order');
+    populateDatalistFromRows('datalist-no-do-order', currentOrderData, 'no_do');
+    populateDatalistFromRows('datalist-no-do-buangan', currentBuanganData, 'no_do');
+    populateDatalistFromRows('datalist-buangan-lokasi', currentBuanganData, ['lokasi_bongkar', 'buangan']);
+    populateDatalistFromRows('datalist-petugas-order-gabungan', currentGabunganData, 'petugas');
+    populateDatalistFromRows('datalist-no-do-gabungan', currentGabunganData, 'no_do');
+    populateDatalistFromRows('datalist-lokasi-bongkar-gabungan', currentGabunganData, ['lokasi_bongkar', 'buangan']);
+    const galianAlihanVals = getUniqueFieldValues(currentGabunganData, 'galian_alihan');
+    populateDatalistFromArray('datalist-galian-alihan-gabungan', galianAlihanVals);
 }
 
 function setupAutocompleteListeners() {
+    // ---- Kendaraan Order ----
     const kendaraanInput = document.getElementById('filter-kendaraan-order');
     if (kendaraanInput) {
         kendaraanInput.addEventListener('input', function() {
@@ -495,6 +514,7 @@ function setupAutocompleteListeners() {
         });
     }
 
+    // ---- Supir Order ----
     const supirInput = document.getElementById('filter-supir-order');
     if (supirInput) {
         supirInput.addEventListener('input', function() {
@@ -506,6 +526,7 @@ function setupAutocompleteListeners() {
         });
     }
 
+    // ---- Kendaraan Gabungan ----
     const kendaraanGabunganInput = document.getElementById('filter-kendaraan-gabungan');
     if (kendaraanGabunganInput) {
         kendaraanGabunganInput.addEventListener('input', function() {
@@ -517,35 +538,125 @@ function setupAutocompleteListeners() {
         });
     }
 
+    // ---- Supir Gabungan ----
+    // Hanya update hidden ID, TIDAK auto-trigger reload
     const supirGabunganInput = document.getElementById('filter-supir-gabungan');
-    const galianAlihanGabunganInput = document.getElementById('filter-galian-alihan-gabungan');
-    let gabunganTypingTimer;
-    const scheduleGabunganLoad = () => {
-        clearTimeout(gabunganTypingTimer);
-        gabunganTypingTimer = setTimeout(loadRekapGabungan, 500);
-    };
-
     if (supirGabunganInput) {
         supirGabunganInput.addEventListener('input', function() {
             filterDatalist(this.value, masterSupir, 'datalist-supir-gabungan', 'nama');
-            scheduleGabunganLoad();
         });
         supirGabunganInput.addEventListener('change', function() {
             const selectedItem = masterSupir.find(s => s.nama === this.value);
             document.getElementById('filter-supir-gabungan-id').value = selectedItem ? selectedItem.id : '';
-            scheduleGabunganLoad();
+            // TIDAK memanggil loadRekapGabungan() — user harus klik Tampilkan Data
         });
     }
 
+    // ---- Galian Alihan Gabungan ----
+    // Hanya update hidden ID, TIDAK auto-trigger reload
+    const galianAlihanGabunganInput = document.getElementById('filter-galian-alihan-gabungan');
     if (galianAlihanGabunganInput) {
+        galianAlihanGabunganInput.addEventListener('focus', function() {
+            const vals = extractUniqueValuesFromTable(5, 'tbody-gabungan');
+            populateDatalistFromArray('datalist-galian-alihan-gabungan', vals);
+        });
         galianAlihanGabunganInput.addEventListener('input', function() {
-            filterDatalist(this.value, masterGalian, 'datalist-galian-alihan-gabungan', 'nama_galian');
-            scheduleGabunganLoad();
+            const tableVals = extractUniqueValuesFromTable(5, 'tbody-gabungan');
+            if (tableVals && tableVals.length > 0) {
+                const filtered = tableVals.filter(v => v.toLowerCase().includes(this.value.toLowerCase()));
+                populateDatalistFromArray('datalist-galian-alihan-gabungan', filtered);
+            } else {
+                filterDatalist(this.value, masterGalian, 'datalist-galian-alihan-gabungan', 'nama_galian');
+            }
         });
         galianAlihanGabunganInput.addEventListener('change', function() {
             const selectedItem = masterGalian.find(g => g.nama_galian === this.value);
             document.getElementById('filter-galian-alihan-gabungan-id').value = selectedItem ? selectedItem.id : '';
-            scheduleGabunganLoad();
+            // TIDAK memanggil loadRekapGabungan()
+        });
+    }
+
+    // ---- Petugas Order (semua tab) ----
+    const petugasOrderInput = document.getElementById('filter-petugas-order-order');
+    if (petugasOrderInput) {
+        petugasOrderInput.addEventListener('focus', function() {
+            populateDatalistFromRows('datalist-petugas-order-order', currentOrderData, 'petugas_order');
+        });
+    }
+
+    // ---- Petugas Order Gabungan (dengan focus event untuk update dari tabel) ----
+    const petugasGabunganInput = document.getElementById('filter-petugas-order-gabungan');
+    if (petugasGabunganInput) {
+        petugasGabunganInput.addEventListener('focus', function() {
+            const petugasGabVals = extractUniqueValuesFromTable(3, 'tbody-gabungan');
+            populateDatalistFromArray('datalist-petugas-order-gabungan', petugasGabVals);
+        });
+        petugasGabunganInput.addEventListener('input', function() {
+            const petugasGabVals = extractUniqueValuesFromTable(3, 'tbody-gabungan');
+            const filtered = petugasGabVals.filter(v => v.toLowerCase().includes(this.value.toLowerCase()));
+            populateDatalistFromArray('datalist-petugas-order-gabungan', filtered);
+        });
+    }
+
+    // ---- Lokasi Bongkar Gabungan (Buangan - dengan focus event untuk update dari tabel) ----
+    const lokasiBongkarGabunganInput = document.getElementById('filter-lokasi-bongkar-gabungan');
+    if (lokasiBongkarGabunganInput) {
+        lokasiBongkarGabunganInput.addEventListener('focus', function() {
+            const lokasiGabVals = extractUniqueValuesFromTable(19, 'tbody-gabungan');
+            populateDatalistFromArray('datalist-lokasi-bongkar-gabungan', lokasiGabVals);
+        });
+        lokasiBongkarGabunganInput.addEventListener('input', function() {
+            const lokasiGabVals = extractUniqueValuesFromTable(19, 'tbody-gabungan');
+            const filtered = lokasiGabVals.filter(v => v.toLowerCase().includes(this.value.toLowerCase()));
+            populateDatalistFromArray('datalist-lokasi-bongkar-gabungan', filtered);
+        });
+    }
+
+    const noDoOrderInput = document.getElementById('filter-no-do-order');
+    if (noDoOrderInput) {
+        noDoOrderInput.addEventListener('focus', function() {
+            populateDatalistFromRows('datalist-no-do-order', currentOrderData, 'no_do');
+        });
+        noDoOrderInput.addEventListener('input', function() {
+            const allVals = getUniqueFieldValues(currentOrderData, 'no_do');
+            const filtered = allVals.filter(v => v.toLowerCase().includes(this.value.toLowerCase()));
+            populateDatalistFromArray('datalist-no-do-order', filtered);
+        });
+    }
+
+    const noDoGabunganInput = document.getElementById('filter-no-do-gabungan');
+    if (noDoGabunganInput) {
+        noDoGabunganInput.addEventListener('focus', function() {
+            populateDatalistFromRows('datalist-no-do-gabungan', currentGabunganData, 'no_do');
+        });
+        noDoGabunganInput.addEventListener('input', function() {
+            const allVals = getUniqueFieldValues(currentGabunganData, 'no_do');
+            const filtered = allVals.filter(v => v.toLowerCase().includes(this.value.toLowerCase()));
+            populateDatalistFromArray('datalist-no-do-gabungan', filtered);
+        });
+    }
+
+    const noDoBuanganInput = document.getElementById('filter-no-do-buangan');
+    if (noDoBuanganInput) {
+        noDoBuanganInput.addEventListener('focus', function() {
+            populateDatalistFromRows('datalist-no-do-buangan', currentBuanganData, 'no_do');
+        });
+        noDoBuanganInput.addEventListener('input', function() {
+            const allVals = getUniqueFieldValues(currentBuanganData, 'no_do');
+            const filtered = allVals.filter(v => v.toLowerCase().includes(this.value.toLowerCase()));
+            populateDatalistFromArray('datalist-no-do-buangan', filtered);
+        });
+    }
+
+    const lokasiBuanganInput = document.getElementById('filter-buangan-lokasi');
+    if (lokasiBuanganInput) {
+        lokasiBuanganInput.addEventListener('focus', function() {
+            populateDatalistFromRows('datalist-buangan-lokasi', currentBuanganData, ['lokasi_bongkar', 'buangan']);
+        });
+        lokasiBuanganInput.addEventListener('input', function() {
+            const allVals = getUniqueFieldValues(currentBuanganData, ['lokasi_bongkar', 'buangan']);
+            const filtered = allVals.filter(v => v.toLowerCase().includes(this.value.toLowerCase()));
+            populateDatalistFromArray('datalist-buangan-lokasi', filtered);
         });
     }
 }
@@ -806,6 +917,8 @@ async function loadRekapOrder() {
         else if (result && Array.isArray(result.rows)) data = result.rows;
         else if (result && Array.isArray(result.data)) data = result.data;
 
+        currentOrderData = Array.isArray(data) ? data : [];
+
         if (data && Array.isArray(data) && data.length > 0) {
             let totalUangJalan = 0, totalPotongan = 0, totalHasilAkhir = 0, totalHargaRitasi = 0;
             const totalRitasi = data.length;
@@ -922,6 +1035,8 @@ async function loadRekapBuangan() {
         else if (result && Array.isArray(result.rows)) data = result.rows;
         else if (result && Array.isArray(result.data)) data = result.data;
 
+        currentBuanganData = Array.isArray(data) ? data : [];
+
         if (data && Array.isArray(data) && data.length > 0) {
             let totalUangAlihan = 0;
 
@@ -1018,6 +1133,8 @@ async function loadRekapGabungan() {
         else if (result && Array.isArray(result.rows)) data = result.rows;
         else if (result && Array.isArray(result.data)) data = result.data;
 
+        currentGabunganData = Array.isArray(data) ? data : [];
+
         if (data && Array.isArray(data) && data.length > 0) {
             let totalUangJalan = 0, totalPotongan = 0, totalUangAlihan = 0, totalAlihan = 0;
             const totalRitasi = data.length;
@@ -1069,6 +1186,7 @@ async function loadRekapGabungan() {
                 `;
             }).join('');
 
+            populateTableDatalists();
             updateFilterStats(data, 'gabungan');
             displayGabunganSummary(totalUangJalan, totalPotongan, totalUangAlihan, totalRitasi, totalAlihan, data);
         } else {
