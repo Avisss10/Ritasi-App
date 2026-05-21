@@ -137,6 +137,12 @@
                 </div>
             </div>
 
+            <!-- Active Filters -->
+            <div class="active-filter-summary" id="active-filters-order">
+                <div class="summary-label">Filter Aktif:</div>
+                <div class="summary-values">Semua data</div>
+            </div>
+
             <!-- Table Order -->
             <div class="table-wrapper">
                 <table>
@@ -276,6 +282,11 @@
                     </div>
                 </div>
             </div>
+            <!-- Active Filters -->
+            <div class="active-filter-summary" id="active-filters-buangan">
+                <div class="summary-label">Filter Aktif:</div>
+                <div class="summary-values">Semua data</div>
+            </div>
 
             <!-- Table -->
             <div class="table-wrapper">
@@ -309,40 +320,6 @@
 
         <!-- TAB 3: REKAP GABUNGAN -->
         <div id="gabungan-tab" class="tab-content active">
-            <!-- Summary Stats Section (Outside Filter) -->
-            <div class="summary-stats-section">
-                <div class="summary-stats-grid">
-                    <div class="summary-stat-card">
-                        <div class="stat-icon">📊</div>
-                        <div class="stat-content">
-                            <div class="stat-label">Total Data</div>
-                            <div class="stat-value" id="stat-total-gabungan">0</div>
-                        </div>
-                    </div>
-                    <div class="summary-stat-card">
-                        <div class="stat-icon">✅</div>
-                        <div class="stat-content">
-                            <div class="stat-label">Complete</div>
-                            <div class="stat-value complete" id="stat-complete-gabungan">0</div>
-                        </div>
-                    </div>
-                    <div class="summary-stat-card">
-                        <div class="stat-icon">⏳</div>
-                        <div class="stat-content">
-                            <div class="stat-label">On Process</div>
-                            <div class="stat-value process" id="stat-process-gabungan">0</div>
-                        </div>
-                    </div>
-                    <div class="summary-stat-card">
-                        <div class="stat-icon">❌</div>
-                        <div class="stat-content">
-                            <div class="stat-label">Batal</div>
-                            <div class="stat-value batal" id="stat-batal-gabungan">0</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Filter Section -->
             <div class="filter-section">
                 <div class="filter-header" onclick="toggleFilterSection(this)">
@@ -532,6 +509,44 @@
                         <button class="btn btn-secondary" onclick="resetFilterGabungan()">🔄 Reset Filter</button>
                         <button class="btn btn-success" onclick="exportToExcel('gabungan')">📊 Export Excel</button>
                         <button class="btn btn-success" onclick="exportToPDF('gabungan')">📄 Export PDF</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Filters -->
+            <div class="active-filter-summary" id="active-filters-gabungan">
+                <div class="summary-label">Filter Aktif:</div>
+                <div class="summary-values">Semua data</div>
+            </div>
+            <div class="summary-stats-section">
+                <div class="summary-stats-grid">
+                    <div class="summary-stat-card">
+                        <div class="stat-icon">📊</div>
+                        <div class="stat-content">
+                            <div class="stat-label">Total Data</div>
+                            <div class="stat-value" id="stat-total-gabungan">0</div>
+                        </div>
+                    </div>
+                    <div class="summary-stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-content">
+                            <div class="stat-label">Complete</div>
+                            <div class="stat-value complete" id="stat-complete-gabungan">0</div>
+                        </div>
+                    </div>
+                    <div class="summary-stat-card">
+                        <div class="stat-icon">⏳</div>
+                        <div class="stat-content">
+                            <div class="stat-label">On Process</div>
+                            <div class="stat-value process" id="stat-process-gabungan">0</div>
+                        </div>
+                    </div>
+                    <div class="summary-stat-card">
+                        <div class="stat-icon">❌</div>
+                        <div class="stat-content">
+                            <div class="stat-label">Batal</div>
+                            <div class="stat-value batal" id="stat-batal-gabungan">0</div>
+                        </div>
                     </div>
                 </div>
             </div>

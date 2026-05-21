@@ -80,9 +80,6 @@ function initMultiSelect(containerId, data, labelKey, hiddenInputId) {
     });
 }
 
-function updateMsData(containerId, newData) {
-    if (multiSelects[containerId]) multiSelects[containerId].data = newData;
-}
 
 function renderMsDropdown(containerId, search = '') {
     const state = multiSelects[containerId];
@@ -233,6 +230,163 @@ function updateFilterStats(data, type = 'order') {
         if (statProcess) statProcess.textContent = process;
         if (statBatal) statBatal.textContent = batal;
     }
+}
+
+function getSelectedMultiLabels(containerId) {
+    const state = multiSelects[containerId];
+    if (!state) return [];
+    return Array.from(state.selected.values());
+}
+
+function renderActiveFilters(containerId, filterItems) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const valuesElement = container.querySelector('.summary-values');
+    if (!valuesElement) return;
+
+    if (!filterItems || filterItems.length === 0) {
+        valuesElement.textContent = 'Semua data';
+        return;
+    }
+
+    valuesElement.innerHTML = filterItems.map(item => `<span class="filter-chip">${item}</span>`).join('');
+}
+
+function getPeriodLabel(type, from, to) {
+    if (type === 'manual') {
+        if (from && to) return `Periode: ${from} - ${to}`;
+        if (from) return `Dari: ${from}`;
+        if (to) return `Sampai: ${to}`;
+        return null;
+    }
+
+    switch (type) {
+        case 'hari-ini': return 'Periode: Hari Ini';
+        case '7-hari': return 'Periode: 7 Hari Terakhir';
+        case '2-hari': return 'Periode: 2 Hari Terakhir';
+        case 'semua': return null;
+        default: return null;
+    }
+}
+
+function formatFilterValue(field, value) {
+    if (value === undefined || value === null || value === '') return null;
+    if (field === 'aliihan' || field === 'filter-alihan' || field === 'filter-alihan-gabungan') {
+        if (value === '1' || value === 1 || value.toString() === 'Ya') return 'Ya';
+        if (value === '0' || value === 0 || value.toString() === 'Tidak') return 'Tidak';
+    }
+    if (field === 'status' && value === 'ON_PROCESS') return 'On Process';
+    if (field === 'status' && value === 'COMPLETE') return 'Complete';
+    if (field === 'status' && value === 'BATAL') return 'Batal';
+    return value;
+}
+
+function updateActiveFilters(type, data = []) {
+    const filters = [];
+
+    if (type === 'order') {
+        const periode = getPeriodLabel(
+            document.getElementById('filter-tanggal-type-order').value,
+            document.getElementById('filter-tanggal-dari-order').value,
+            document.getElementById('filter-tanggal-sampai-order').value
+        );
+        if (periode) filters.push(periode);
+        const values = [
+            { label: 'No DO', value: document.getElementById('filter-no-do-order').value.trim(), field: 'no_do' },
+            { label: 'Petugas', value: document.getElementById('filter-petugas-order-order').value.trim(), field: 'petugas' },
+            { label: 'Status', value: document.getElementById('filter-status-order').value, field: 'status' },
+            { label: 'Kendaraan', value: document.getElementById('filter-kendaraan-order').value.trim(), field: 'kendaraan' },
+            { label: 'Supir', value: document.getElementById('filter-supir-order').value.trim(), field: 'supir' }
+        ];
+        values.forEach(item => {
+            const formatted = formatFilterValue(item.field, item.value);
+            if (formatted) filters.push(`${item.label}: ${formatted}`);
+        });
+        const proyekLabels = getSelectedMultiLabels('ms-proyek-order');
+        if (proyekLabels.length) filters.push(`Proyek: ${proyekLabels.join(', ')}`);
+        const galianLabels = getSelectedMultiLabels('ms-galian-order');
+        if (galianLabels.length) filters.push(`Galian: ${galianLabels.join(', ')}`);
+
+        renderActiveFilters('active-filters-order', filters);
+    }
+
+    if (type === 'buangan') {
+        const periode = getPeriodLabel(
+            document.getElementById('filter-tanggal-type-buangan').value,
+            document.getElementById('filter-tanggal-dari-buangan').value,
+            document.getElementById('filter-tanggal-sampai-buangan').value
+        );
+        if (periode) filters.push(periode);
+        const values = [
+            { label: 'No Order', value: document.getElementById('filter-no-order').value.trim(), field: 'no_order' },
+            { label: 'No DO', value: document.getElementById('filter-no-do-buangan').value.trim(), field: 'no_do' },
+            { label: 'Lokasi Buangan', value: document.getElementById('filter-buangan-lokasi').value.trim(), field: 'lokasi_bongkar' },
+            { label: 'Alihan', value: document.getElementById('filter-alihan').value, field: 'aliihan' }
+        ];
+        values.forEach(item => {
+            const formatted = formatFilterValue(item.field, item.value);
+            if (formatted !== undefined && formatted !== null && formatted !== '') filters.push(`${item.label}: ${formatted}`);
+        });
+        const proyekLabels = getSelectedMultiLabels('ms-proyek-buangan');
+        if (proyekLabels.length) filters.push(`Proyek: ${proyekLabels.join(', ')}`);
+        const galianLabels = getSelectedMultiLabels('ms-galian-buangan');
+        if (galianLabels.length) filters.push(`Galian: ${galianLabels.join(', ')}`);
+
+        renderActiveFilters('active-filters-buangan', filters);
+    }
+
+    if (type === 'gabungan') {
+        const periodeOrder = getPeriodLabel(
+            document.getElementById('filter-tanggal-type-gabungan').value,
+            document.getElementById('filter-tanggal-order-dari-gabungan').value,
+            document.getElementById('filter-tanggal-order-sampai-gabungan').value
+        );
+        const periodeBongkar = getPeriodLabel(
+            document.getElementById('filter-tanggal-bongkar-type-gabungan').value,
+            document.getElementById('filter-tanggal-bongkar-dari-gabungan').value,
+            document.getElementById('filter-tanggal-bongkar-sampai-gabungan').value
+        );
+        if (periodeOrder) filters.push(`Order: ${periodeOrder.replace('Periode: ', '')}`);
+        if (periodeBongkar) filters.push(`Bongkar: ${periodeBongkar.replace('Periode: ', '')}`);
+        const values = [
+            { label: 'No DO', value: document.getElementById('filter-no-do-gabungan').value.trim(), field: 'no_do' },
+            { label: 'Petugas Order', value: document.getElementById('filter-petugas-order-gabungan').value.trim(), field: 'petugas_order' },
+            { label: 'Lokasi Bongkar', value: document.getElementById('filter-lokasi-bongkar-gabungan').value.trim(), field: 'lokasi_bongkar' },
+            { label: 'Status', value: document.getElementById('filter-status-gabungan').value, field: 'status' },
+            { label: 'Kendaraan', value: document.getElementById('filter-kendaraan-gabungan').value.trim(), field: 'kendaraan' },
+            { label: 'Supir', value: document.getElementById('filter-supir-gabungan').value.trim(), field: 'supir' },
+            { label: 'Alihan', value: document.getElementById('filter-alihan-gabungan').value, field: 'aliihan' }
+        ];
+        values.forEach(item => {
+            const formatted = formatFilterValue(item.field, item.value);
+            if (formatted !== undefined && formatted !== null && formatted !== '') filters.push(`${item.label}: ${formatted}`);
+        });
+        const proyekLabels = getSelectedMultiLabels('ms-proyek-gabungan');
+        if (proyekLabels.length) filters.push(`Proyek: ${proyekLabels.join(', ')}`);
+        const galianLabels = getSelectedMultiLabels('ms-galian-gabungan');
+        if (galianLabels.length) filters.push(`Galian: ${galianLabels.join(', ')}`);
+        const galianAlihanValue = document.getElementById('filter-galian-alihan-gabungan').value.trim();
+        if (galianAlihanValue) filters.push(`Galian Alihan: ${galianAlihanValue}`);
+
+        renderActiveFilters('active-filters-gabungan', filters);
+    }
+}
+
+
+function setupFilterSubmitOnEnter() {
+    const filterControls = document.querySelectorAll('.filter-section input, .filter-section select');
+    filterControls.forEach(control => {
+        control.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                const tab = this.closest('.tab-content');
+                if (!tab) return;
+                if (tab.id === 'order-tab') loadRekapOrder();
+                if (tab.id === 'buangan-tab') loadRekapBuangan();
+                if (tab.id === 'gabungan-tab') loadRekapGabungan();
+            }
+        });
+    });
 }
 
 function initCollapsibleSections() {
@@ -462,7 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     setupAutocompleteListeners();
-    setupTableFilterListeners();
+    setupFilterSubmitOnEnter();
 });
 
 // ============================================================================
@@ -485,9 +639,6 @@ function extractUniqueValuesFromTable(columnIndex, tableBodyId) {
     return values;
 }
 
-function setupTableFilterListeners() {
-
-}
 
 function populateTableDatalists() {
     populateDatalistFromRows('datalist-petugas-order-order', currentOrderData, 'petugas_order');
@@ -507,6 +658,7 @@ function setupAutocompleteListeners() {
     if (kendaraanInput) {
         kendaraanInput.addEventListener('input', function() {
             filterDatalist(this.value, masterKendaraan, 'datalist-kendaraan', 'no_pintu');
+            if (!this.value.trim()) document.getElementById('filter-kendaraan-order-id').value = '';
         });
         kendaraanInput.addEventListener('change', function() {
             const selectedItem = masterKendaraan.find(k => k.no_pintu === this.value);
@@ -519,6 +671,7 @@ function setupAutocompleteListeners() {
     if (supirInput) {
         supirInput.addEventListener('input', function() {
             filterDatalist(this.value, masterSupir, 'datalist-supir', 'nama');
+            if (!this.value.trim()) document.getElementById('filter-supir-order-id').value = '';
         });
         supirInput.addEventListener('change', function() {
             const selectedItem = masterSupir.find(s => s.nama === this.value);
@@ -531,6 +684,7 @@ function setupAutocompleteListeners() {
     if (kendaraanGabunganInput) {
         kendaraanGabunganInput.addEventListener('input', function() {
             filterDatalist(this.value, masterKendaraan, 'datalist-kendaraan-gabungan', 'no_pintu');
+            if (!this.value.trim()) document.getElementById('filter-kendaraan-gabungan-id').value = '';
         });
         kendaraanGabunganInput.addEventListener('change', function() {
             const selectedItem = masterKendaraan.find(k => k.no_pintu === this.value);
@@ -539,21 +693,19 @@ function setupAutocompleteListeners() {
     }
 
     // ---- Supir Gabungan ----
-    // Hanya update hidden ID, TIDAK auto-trigger reload
     const supirGabunganInput = document.getElementById('filter-supir-gabungan');
     if (supirGabunganInput) {
         supirGabunganInput.addEventListener('input', function() {
             filterDatalist(this.value, masterSupir, 'datalist-supir-gabungan', 'nama');
+            if (!this.value.trim()) document.getElementById('filter-supir-gabungan-id').value = '';
         });
         supirGabunganInput.addEventListener('change', function() {
             const selectedItem = masterSupir.find(s => s.nama === this.value);
             document.getElementById('filter-supir-gabungan-id').value = selectedItem ? selectedItem.id : '';
-            // TIDAK memanggil loadRekapGabungan() — user harus klik Tampilkan Data
         });
     }
 
     // ---- Galian Alihan Gabungan ----
-    // Hanya update hidden ID, TIDAK auto-trigger reload
     const galianAlihanGabunganInput = document.getElementById('filter-galian-alihan-gabungan');
     if (galianAlihanGabunganInput) {
         galianAlihanGabunganInput.addEventListener('focus', function() {
@@ -561,6 +713,7 @@ function setupAutocompleteListeners() {
             populateDatalistFromArray('datalist-galian-alihan-gabungan', vals);
         });
         galianAlihanGabunganInput.addEventListener('input', function() {
+            if (!this.value.trim()) document.getElementById('filter-galian-alihan-gabungan-id').value = '';
             const tableVals = extractUniqueValuesFromTable(5, 'tbody-gabungan');
             if (tableVals && tableVals.length > 0) {
                 const filtered = tableVals.filter(v => v.toLowerCase().includes(this.value.toLowerCase()));
@@ -572,7 +725,6 @@ function setupAutocompleteListeners() {
         galianAlihanGabunganInput.addEventListener('change', function() {
             const selectedItem = masterGalian.find(g => g.nama_galian === this.value);
             document.getElementById('filter-galian-alihan-gabungan-id').value = selectedItem ? selectedItem.id : '';
-            // TIDAK memanggil loadRekapGabungan()
         });
     }
 
@@ -795,32 +947,6 @@ async function loadProyek() {
     }
 }
 
-async function loadNodOList() {
-    try {
-        const response = await fetch(`${API_URL}/rekap/no-do-list`);
-        if (!response.ok) return;
-        const result = await response.json();
-        let data = null;
-        if (result && Array.isArray(result.data)) data = result.data;
-        else if (Array.isArray(result)) data = result;
-        if (!data || !Array.isArray(data)) return;
-
-        ['datalist-no-do-order', 'datalist-no-do-buangan', 'datalist-no-do-gabungan'].forEach(id => {
-            const dl = document.getElementById(id);
-            if (!dl) return;
-            dl.innerHTML = '';
-            data.forEach(val => {
-                if (val) {
-                    const opt = document.createElement('option');
-                    opt.value = val;
-                    dl.appendChild(opt);
-                }
-            });
-        });
-    } catch (err) {
-        console.error('❌ Error loading no_do list:', err.message);
-    }
-}
 
 async function loadFilterOptions() {
     try {
@@ -967,10 +1093,12 @@ async function loadRekapOrder() {
 
             populateTableDatalists();
             displayOrderSummary(totalUangJalan, totalPotongan, totalHasilAkhir, totalRitasi, totalHargaRitasi);
+            updateActiveFilters('order', data);
         } else {
             tbody.innerHTML = '<tr><td colspan="17" class="text-center">Tidak ada data order</td></tr>';
             const summaryDiv = document.getElementById('summary-order');
             if (summaryDiv) summaryDiv.innerHTML = '';
+            updateActiveFilters('order', []);
         }
     } catch (err) {
         console.error('❌ Error loading rekap order:', err);
@@ -1010,6 +1138,7 @@ async function loadRekapBuangan() {
             tanggal_sampai: document.getElementById('filter-tanggal-sampai-buangan').value,
             no_order: document.getElementById('filter-no-order').value.trim(),
             no_do: document.getElementById('filter-no-do-buangan').value.trim(),
+            lokasi_bongkar: document.getElementById('filter-buangan-lokasi').value.trim(),
             alihan: document.getElementById('filter-alihan').value,
             proyek_id: getMsIds('ms-proyek-buangan'),
             galian_id: getMsIds('ms-galian-buangan')
@@ -1061,10 +1190,12 @@ async function loadRekapBuangan() {
             data.forEach(row => { totalUangAlihan += parseFloat(row.uang_alihan || 0); });
             populateTableDatalists();
             displayBuanganSummary(totalUangAlihan);
+            updateActiveFilters('buangan', data);
         } else {
             tbody.innerHTML = '<tr><td colspan="13" class="text-center">Tidak ada data buangan</td></tr>';
             const summaryDiv = document.getElementById('summary-buangan');
             if (summaryDiv) summaryDiv.innerHTML = '';
+            updateActiveFilters('buangan', []);
         }
     } catch (err) {
         console.error('❌ Error loading rekap buangan:', err);
@@ -1189,11 +1320,13 @@ async function loadRekapGabungan() {
             populateTableDatalists();
             updateFilterStats(data, 'gabungan');
             displayGabunganSummary(totalUangJalan, totalPotongan, totalUangAlihan, totalRitasi, totalAlihan, data);
+            updateActiveFilters('gabungan', data);
         } else {
             tbody.innerHTML = '<tr><td colspan="24" class="text-center">Tidak ada data gabungan</td></tr>';
             updateFilterStats([], 'gabungan');
             const summaryDiv = document.getElementById('summary-gabungan');
             if (summaryDiv) summaryDiv.innerHTML = '';
+            updateActiveFilters('gabungan', []);
         }
     } catch (err) {
         console.error('❌ Error loading rekap gabungan:', err);
@@ -1285,6 +1418,8 @@ async function exportToExcel(type) {
                 lokasi_bongkar: document.getElementById('filter-lokasi-bongkar-gabungan')?.value.trim() || "",
                 status: document.getElementById('filter-status-gabungan')?.value || "",
                 kendaraan_id: document.getElementById('filter-kendaraan-gabungan-id')?.value || "",
+                supir_id: document.getElementById('filter-supir-gabungan-id')?.value || "",
+                petugas_order: document.getElementById('filter-petugas-order-gabungan')?.value.trim() || "",
                 alihan: document.getElementById('filter-alihan-gabungan')?.value || "",
                 galian_alihan_id: document.getElementById('filter-galian-alihan-gabungan-id')?.value || ""
             };
@@ -1368,6 +1503,8 @@ async function exportToPDF(type) {
                 lokasi_bongkar: document.getElementById('filter-lokasi-bongkar-gabungan')?.value.trim() || "",
                 status: document.getElementById('filter-status-gabungan')?.value || "",
                 kendaraan_id: document.getElementById('filter-kendaraan-gabungan-id')?.value || "",
+                supir_id: document.getElementById('filter-supir-gabungan-id')?.value || "",
+                petugas_order: document.getElementById('filter-petugas-order-gabungan')?.value.trim() || "",
                 alihan: document.getElementById('filter-alihan-gabungan')?.value || "",
                 galian_alihan_id: document.getElementById('filter-galian-alihan-gabungan-id')?.value || ""
             };
