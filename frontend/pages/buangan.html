@@ -203,19 +203,126 @@
         <!-- SECTION: FORM EDIT BUANGAN -->
         <div class="card" id="editSection" style="display: none;">
             <div class="form-header">
-                <h2>Edit Ritasi Buangan</h2>
+                <h2>Edit Ritasi</h2>
                 <button class="btn btn-secondary" onclick="batalEdit()">
                     <span class="icon">←</span> Kembali
                 </button>
             </div>
 
-            <div class="order-info" id="editOrderInfo">
-                <!-- Order info will be displayed here -->
-            </div>
-
             <form id="editBuanganForm">
                 <input type="hidden" id="editBuanganId">
                 <input type="hidden" id="editOrderId">
+
+                <!-- ===== DATA ORDER ===== -->
+                <div class="form-section-divider">
+                    <h3>📋 Data Order</h3>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editOrderTanggal">Tanggal Order <span class="required">*</span></label>
+                        <input type="date" id="editOrderTanggal" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editOrderJamOrder">Jam Order <span class="required">*</span></label>
+                        <input type="time" id="editOrderJamOrder" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editOrderNoOrder">No Order <span class="required">*</span></label>
+                        <input type="text" id="editOrderNoOrder" placeholder="Masukkan nomor order..." required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editOrderPetugasOrder">Petugas Order <span class="required">*</span></label>
+                        <input type="text" id="editOrderPetugasOrder" placeholder="Nama petugas..." required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editOrderNoDo">No DO <span class="required">*</span></label>
+                        <input type="text" id="editOrderNoDo" placeholder="Nomor delivery order..." required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editOrderNoPintu">No Pintu (Kendaraan) <span class="required">*</span></label>
+                        <input
+                            type="text"
+                            id="editOrderNoPintu"
+                            list="editOrderKendaraanDatalist"
+                            placeholder="Ketik untuk mencari kendaraan..."
+                            autocomplete="off"
+                            required
+                        >
+                        <datalist id="editOrderKendaraanDatalist"></datalist>
+                    </div>
+                    <div class="form-group">
+                        <label for="editOrderSupir">Supir <span class="required">*</span></label>
+                        <input
+                            type="text"
+                            id="editOrderSupir"
+                            list="editOrderSupirDatalist"
+                            placeholder="Ketik untuk mencari supir..."
+                            autocomplete="off"
+                            required
+                        >
+                        <datalist id="editOrderSupirDatalist"></datalist>
+                    </div>
+                    <div class="form-group">
+                        <label for="editOrderGalian">Galian <span class="required">*</span></label>
+                        <input
+                            type="text"
+                            id="editOrderGalian"
+                            list="editOrderGalianDatalist"
+                            placeholder="Ketik untuk mencari galian..."
+                            autocomplete="off"
+                            required
+                        >
+                        <datalist id="editOrderGalianDatalist"></datalist>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editOrderKmAwal">KM Awal <span class="required">*</span></label>
+                        <input type="text" id="editOrderKmAwal" placeholder="Masukkan KM atau ketik ODO ERROR">
+                        <small style="color: #6c757d; font-size: 12px; margin-top: 5px; display: block;">
+                            💡 Ketik angka atau "ODO ERROR" jika odometer error
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label for="editOrderProyek">Proyek</label>
+                        <input
+                            type="text"
+                            id="editOrderProyek"
+                            list="editOrderProyekDatalist"
+                            placeholder="Ketik untuk mencari proyek (opsional)..."
+                            autocomplete="off"
+                        >
+                        <datalist id="editOrderProyekDatalist"></datalist>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editOrderUangJalan">Uang Jalan (Rp) <span class="required">*</span></label>
+                        <input type="text" id="editOrderUangJalan" placeholder="Masukkan uang jalan..." required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editOrderPotongan">Potongan (Rp)</label>
+                        <input type="text" id="editOrderPotongan" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="editOrderHasilAkhir">Hasil Akhir (Rp)</label>
+                        <input type="text" id="editOrderHasilAkhir" readonly disabled>
+                    </div>
+                </div>
+
+                <!-- ===== DATA BUANGAN ===== -->
+                <div class="form-section-divider">
+                    <h3>🚛 Data Buangan</h3>
+                </div>
 
                 <div class="form-row">
                     <div class="form-group">
@@ -264,9 +371,9 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label for="editGalianAlihan">Galian Alihan</label>
-                            <input 
-                                type="text" 
-                                id="editGalianAlihan" 
+                            <input
+                                type="text"
+                                id="editGalianAlihan"
                                 list="editGalianDatalist"
                                 placeholder="Ketik untuk mencari galian..."
                                 autocomplete="off"
@@ -277,7 +384,16 @@
                         </div>
                         <div class="form-group">
                             <label for="editUangAlihan">Uang Alihan (Rp)</label>
-                            <input type="text" id="editUangAlihan" step="1000">
+                            <div class="sign-input-group">
+                                <div class="sign-toggle-group">
+                                    <button type="button" class="sign-btn sign-plus active" id="editTipeAlihanPlus" onclick="setTipeAlihanEdit('tambah')">+</button>
+                                    <button type="button" class="sign-btn sign-minus" id="editTipeAlihanMinus" onclick="setTipeAlihanEdit('kurang')">−</button>
+                                </div>
+                                <input type="text" id="editUangAlihan" placeholder="Masukkan nominal...">
+                            </div>
+                            <small style="color: #6c757d; font-size: 12px; margin-top: 5px; display: block;">
+                                + = Uang Jalan ditambah &nbsp;·&nbsp; − = Uang Jalan dikurangi
+                            </small>
                         </div>
                     </div>
                 </div>
@@ -372,7 +488,16 @@
                         </div>
                         <div class="form-group">
                             <label for="uangAlihan">Uang Alihan (Rp)</label>
-                            <input type="text" id="uangAlihan" step="1000">
+                            <div class="sign-input-group">
+                                <div class="sign-toggle-group">
+                                    <button type="button" class="sign-btn sign-plus active" id="tipeAlihanPlus" onclick="setTipeAlihan('tambah')">+</button>
+                                    <button type="button" class="sign-btn sign-minus" id="tipeAlihanMinus" onclick="setTipeAlihan('kurang')">−</button>
+                                </div>
+                                <input type="text" id="uangAlihan" placeholder="Masukkan nominal...">
+                            </div>
+                            <small style="color: #6c757d; font-size: 12px; margin-top: 5px; display: block;">
+                                + = Uang Jalan ditambah &nbsp;·&nbsp; − = Uang Jalan dikurangi
+                            </small>
                         </div>
                     </div>
                 </div>

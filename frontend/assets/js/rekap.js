@@ -220,16 +220,53 @@ function updateFilterStats(data, type = 'order') {
     const process = data.filter(item => item.status === 'ON_PROCESS' || item.status === 'ON PROCESS').length;
     const batal = data.filter(item => item.status === 'BATAL').length;
 
-    if (type === 'gabungan') {
-        const statTotal = document.getElementById('stat-total-gabungan');
-        const statComplete = document.getElementById('stat-complete-gabungan');
-        const statProcess = document.getElementById('stat-process-gabungan');
-        const statBatal = document.getElementById('stat-batal-gabungan');
-        if (statTotal) statTotal.textContent = totalData;
-        if (statComplete) statComplete.textContent = complete;
-        if (statProcess) statProcess.textContent = process;
-        if (statBatal) statBatal.textContent = batal;
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+    if (type === 'gabungan' || type === 'order') {
+        set(`stat-total-${type}`, totalData);
+        set(`stat-complete-${type}`, complete);
+        set(`stat-process-${type}`, process);
+        set(`stat-batal-${type}`, batal);
     }
+
+    if (type === 'buangan') {
+        set('stat-total-buangan', totalData);
+        const alihanCount = data.filter(item => item.alihan === 1 || item.alihan === '1').length;
+        set('stat-alihan-buangan', alihanCount);
+        const totalUangAlihan = data.reduce((sum, row) => sum + parseFloat(row.uang_alihan || 0), 0);
+        set('stat-uang-alihan-buangan', formatCurrencyWithSign(totalUangAlihan));
+    }
+}
+
+function updateTabCount(tab, count) {
+    const badge = document.getElementById(`tab-count-${tab}`);
+    if (badge) badge.textContent = count > 0 ? count : '';
+    const countEl = document.getElementById(`count-${tab}`);
+    if (countEl) countEl.textContent = count;
+}
+
+function getStatusBadge(status) {
+    const s = (status || '').toUpperCase();
+    let cls = 'status-badge';
+    if (s === 'COMPLETE') cls += ' status-complete';
+    else if (s === 'ON PROCESS' || s === 'ON_PROCESS') cls += ' status-process';
+    else if (s === 'BATAL') cls += ' status-cancel';
+    else cls += ' status-other';
+    return `<span class="${cls}">${status || '-'}</span>`;
+}
+
+function getAlihanBadge(value) {
+    if (value === 1 || value === '1' || value === true) return '<span class="badge-ya">🔄 Ya</span>';
+    if (value === 0 || value === '0' || value === false) return '<span class="badge-tidak">Tidak</span>';
+    return '-';
+}
+
+function makeLoadingRow(colspan) {
+    return `<tr><td colspan="${colspan}"><div class="loading-state"><div class="spinner"></div><p>Memuat data...</p></div></td></tr>`;
+}
+
+function makeEmptyRow(colspan, msg = 'Tidak ada data') {
+    return `<tr><td colspan="${colspan}"><div class="empty-state"><div class="empty-state-icon">📭</div><p>${msg}</p></div></td></tr>`;
 }
 
 function getSelectedMultiLabels(containerId) {
@@ -357,7 +394,7 @@ function updateActiveFilters(type, data = []) {
             { label: 'Supir', value: document.getElementById('filter-supir-gabungan').value.trim(), field: 'supir' },
             { label: 'Alihan', value: document.getElementById('filter-alihan-gabungan').value, field: 'aliihan' }
         ];
-        values.forEach(item => {
+            values.forEach(item => {
             const formatted = formatFilterValue(item.field, item.value);
             if (formatted !== undefined && formatted !== null && formatted !== '') filters.push(`${item.label}: ${formatted}`);
         });
@@ -1006,7 +1043,7 @@ function populateDatalist(datalistId, data, textKey) {
 // ============================================================================
 async function loadRekapOrder() {
     const tbody = document.getElementById('tbody-order');
-    tbody.innerHTML = '<tr><td colspan="17" class="text-center loading">Memuat data...</td></tr>';
+    tbody.innerHTML = makeLoadingRow(17);
 
     try {
         const params = new URLSearchParams();
@@ -1057,20 +1094,13 @@ async function loadRekapOrder() {
             });
 
             tbody.innerHTML = data.map((row, index) => {
-                let statusStyle = '';
-                const status = (row.status || '').toUpperCase();
-                if (status === 'COMPLETE') statusStyle = 'background: #28a745; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
-                else if (status === 'ON PROCESS' || status === 'ON_PROCESS') statusStyle = 'background: #ffc107; color: #000; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
-                else if (status === 'BATAL') statusStyle = 'background: #dc3545; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
-                else statusStyle = 'background: #6c757d; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
-
                 const isComplete = (row.status || '').toUpperCase() === 'COMPLETE';
                 const actionButton = (isComplete && row.id) ?
                     `<button class="btn btn-info btn-sm" onclick="showOrderDetail('${row.id}')">Detail</button>` : '-';
 
                 return `
                     <tr>
-                        <td>${index + 1}</td>
+                        <td class="text-center">${index + 1}</td>
                         <td>${formatDate(row.tanggal_order)}</td>
                         <td>${row.no_order || '-'}</td>
                         <td>${row.petugas_order || '-'}</td>
@@ -1078,31 +1108,35 @@ async function loadRekapOrder() {
                         <td>${row.supir_nama || '-'}</td>
                         <td>${row.galian_nama || '-'}</td>
                         <td>${row.no_do || '-'}</td>
-                        <td>${row.jam_order || '-'}</td>
-                        <td>${formatKilometer(row.km_awal)}</td>
-                        <td>${formatCurrency(row.uang_jalan)}</td>
-                        <td>${formatCurrency(row.potongan)}</td>
-                        <td>${formatCurrency(row.hasil_akhir)}</td>
+                        <td class="text-center">${row.jam_order || '-'}</td>
+                        <td class="text-right">${formatKilometer(row.km_awal)}</td>
+                        <td class="text-right">${formatCurrency(row.uang_jalan)}</td>
+                        <td class="text-right">${formatCurrency(row.potongan)}</td>
+                        <td class="text-right">${formatCurrency(row.hasil_akhir)}</td>
                         <td>${row.proyek_display || '-'}</td>
                         <td>${row.keterangan_buangan || '-'}</td>
-                        <td><span style="${statusStyle}">${row.status || '-'}</span></td>
-                        <td>${actionButton}</td>
+                        <td class="text-center">${getStatusBadge(row.status)}</td>
+                        <td class="text-center">${actionButton}</td>
                     </tr>
                 `;
             }).join('');
 
             populateTableDatalists();
+            updateFilterStats(data, 'order');
+            updateTabCount('order', data.length);
             displayOrderSummary(totalUangJalan, totalPotongan, totalHasilAkhir, totalRitasi, totalHargaRitasi);
             updateActiveFilters('order', data);
         } else {
-            tbody.innerHTML = '<tr><td colspan="17" class="text-center">Tidak ada data order</td></tr>';
+            tbody.innerHTML = makeEmptyRow(17, 'Tidak ada data order');
+            updateFilterStats([], 'order');
+            updateTabCount('order', 0);
             const summaryDiv = document.getElementById('summary-order');
             if (summaryDiv) summaryDiv.innerHTML = '';
             updateActiveFilters('order', []);
         }
     } catch (err) {
         console.error('❌ Error loading rekap order:', err);
-        tbody.innerHTML = `<tr><td colspan="17" class="text-center" style="color: red;">Error: ${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="17" class="text-center" style="color: red;">❌ Error: ${err.message}</td></tr>`;
     }
 }
 
@@ -1128,7 +1162,7 @@ function resetFilterOrder() {
 // ============================================================================
 async function loadRekapBuangan() {
     const tbody = document.getElementById('tbody-buangan');
-    tbody.innerHTML = '<tr><td colspan="13" class="text-center loading">Memuat data...</td></tr>';
+    tbody.innerHTML = makeLoadingRow(13);
 
     try {
         const params = new URLSearchParams();
@@ -1171,35 +1205,39 @@ async function loadRekapBuangan() {
 
             tbody.innerHTML = data.map((row, index) => `
                 <tr>
-                    <td>${index + 1}</td>
+                    <td class="text-center">${index + 1}</td>
                     <td>${formatDate(row.tanggal_order)}</td>
                     <td>${row.no_order || '-'}</td>
                     <td>${formatDate(row.tanggal_bongkar)}</td>
-                    <td>${row.jam_bongkar || '-'}</td>
-                    <td>${formatKilometer(row.km_akhir)}</td>
-                    <td>${formatKilometer(row.jarak_km)}</td>
+                    <td class="text-center">${row.jam_bongkar || '-'}</td>
+                    <td class="text-right">${formatKilometer(row.km_akhir)}</td>
+                    <td class="text-right">${formatKilometer(row.jarak_km)}</td>
                     <td>${row.lokasi_bongkar || '-'}</td>
-                    <td>${row.alihan ? 'Ya' : 'Tidak'}</td>
+                    <td class="text-center">${getAlihanBadge(row.alihan)}</td>
                     <td>${row.galian_alihan_nama || '-'}</td>
                     <td>${row.keterangan || '-'}</td>
-                    <td>${formatCurrency(row.uang_alihan)}</td>
-                    <td>${row.no_urut || '-'}</td>
+                    <td class="text-right">${formatCurrencyWithSign(row.uang_alihan)}</td>
+                    <td class="text-center">${row.no_urut || '-'}</td>
                 </tr>
             `).join('');
 
             data.forEach(row => { totalUangAlihan += parseFloat(row.uang_alihan || 0); });
             populateTableDatalists();
-            displayBuanganSummary(totalUangAlihan);
+            updateFilterStats(data, 'buangan');
+            updateTabCount('buangan', data.length);
+            displayBuanganSummary(totalUangAlihan, data);
             updateActiveFilters('buangan', data);
         } else {
-            tbody.innerHTML = '<tr><td colspan="13" class="text-center">Tidak ada data buangan</td></tr>';
+            tbody.innerHTML = makeEmptyRow(13, 'Tidak ada data buangan');
+            updateFilterStats([], 'buangan');
+            updateTabCount('buangan', 0);
             const summaryDiv = document.getElementById('summary-buangan');
             if (summaryDiv) summaryDiv.innerHTML = '';
             updateActiveFilters('buangan', []);
         }
     } catch (err) {
         console.error('❌ Error loading rekap buangan:', err);
-        tbody.innerHTML = `<tr><td colspan="13" class="text-center" style="color: red;">Error: ${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="13" class="text-center" style="color: red;">❌ Error: ${err.message}</td></tr>`;
     }
 }
 
@@ -1222,7 +1260,7 @@ function resetFilterBuangan() {
 // ============================================================================
 async function loadRekapGabungan() {
     const tbody = document.getElementById('tbody-gabungan');
-    tbody.innerHTML = '<tr><td colspan="24" class="text-center loading">Memuat data...</td></tr>';
+    tbody.innerHTML = makeLoadingRow(24);
 
     try {
         const params = new URLSearchParams();
@@ -1278,18 +1316,11 @@ async function loadRekapGabungan() {
             });
 
             tbody.innerHTML = data.map((row, index) => {
-                let statusStyle = '';
-                const status = (row.status || '').toUpperCase();
-                if (status === 'COMPLETE') statusStyle = 'background: #28a745; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
-                else if (status === 'ON PROCESS' || status === 'ON_PROCESS') statusStyle = 'background: #ffc107; color: #000; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
-                else if (status === 'BATAL') statusStyle = 'background: #dc3545; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
-                else statusStyle = 'background: #6c757d; color: white; padding: 4px 12px; border-radius: 6px; font-weight: 600; display: inline-block;';
-
-                const total = (parseFloat(row.uang_jalan || 0) - parseFloat(row.potongan || 0));
+                const total = parseFloat(row.uang_jalan || 0) + parseFloat(row.uang_alihan || 0) - parseFloat(row.potongan || 0);
 
                 return `
                     <tr>
-                        <td>${index + 1}</td>
+                        <td class="text-center">${index + 1}</td>
                         <td>${row.no_order || '-'}</td>
                         <td>${formatDate(row.tanggal_order)}</td>
                         <td>${row.petugas || '-'}</td>
@@ -1298,39 +1329,41 @@ async function loadRekapGabungan() {
                         <td>${row.no_do || '-'}</td>
                         <td>${row.kendaraan || '-'}</td>
                         <td>${row.supir || '-'}</td>
-                        <td>${row.jam_order || '-'}</td>
-                        <td>${formatKilometer(row.km_awal)}</td>
+                        <td class="text-center">${row.jam_order || '-'}</td>
+                        <td class="text-right">${formatKilometer(row.km_awal)}</td>
                         <td>${formatDate(row.tanggal_bongkar)}</td>
-                        <td>${row.jam_bongkar || '-'}</td>
-                        <td>${formatKilometer(row.km_akhir)}</td>
-                        <td>${formatKilometer(row.jarak_km)}</td>
-                        <td>${formatCurrency(row.uang_jalan)}</td>
-                        <td>${formatCurrency(row.potongan)}</td>
-                        <td>${formatCurrency(total)}</td>
+                        <td class="text-center">${row.jam_bongkar || '-'}</td>
+                        <td class="text-right">${formatKilometer(row.km_akhir)}</td>
+                        <td class="text-right">${formatKilometer(row.jarak_km)}</td>
+                        <td class="text-right">${formatCurrency(row.uang_jalan)}</td>
+                        <td class="text-right">${formatCurrency(row.potongan)}</td>
+                        <td class="text-right">${formatCurrency(total)}</td>
                         <td>${row.proyek || '-'}</td>
                         <td>${row.buangan || '-'}</td>
-                        <td>${row.alihan == 1 ? 'Ya' : (row.alihan == 0 ? 'Tidak' : '-')}</td>
-                        <td>${formatCurrency(row.uang_alihan)}</td>
+                        <td class="text-center">${getAlihanBadge(row.alihan)}</td>
+                        <td class="text-right">${formatCurrencyWithSign(row.uang_alihan)}</td>
                         <td>${row.keterangan || '-'}</td>
-                        <td><span style="${statusStyle}">${row.status || '-'}</span></td>
+                        <td class="text-center">${getStatusBadge(row.status)}</td>
                     </tr>
                 `;
             }).join('');
 
             populateTableDatalists();
             updateFilterStats(data, 'gabungan');
+            updateTabCount('gabungan', data.length);
             displayGabunganSummary(totalUangJalan, totalPotongan, totalUangAlihan, totalRitasi, totalAlihan, data);
             updateActiveFilters('gabungan', data);
         } else {
-            tbody.innerHTML = '<tr><td colspan="24" class="text-center">Tidak ada data gabungan</td></tr>';
+            tbody.innerHTML = makeEmptyRow(24, 'Tidak ada data gabungan');
             updateFilterStats([], 'gabungan');
+            updateTabCount('gabungan', 0);
             const summaryDiv = document.getElementById('summary-gabungan');
             if (summaryDiv) summaryDiv.innerHTML = '';
             updateActiveFilters('gabungan', []);
         }
     } catch (err) {
         console.error('❌ Error loading rekap gabungan:', err);
-        tbody.innerHTML = `<tr><td colspan="24" class="text-center" style="color: red;">Error: ${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="24" class="text-center" style="color: red;">❌ Error: ${err.message}</td></tr>`;
     }
 }
 
@@ -1613,7 +1646,7 @@ function populateBuanganCard(buangan, orderData, container) {
             <div class="card-row"><span class="label">Alihan:</span><span class="value">${buangan.alihan ? 'Ya' : 'Tidak'}</span></div>
             ${buangan.alihan ? `
                 <div class="card-row"><span class="label">Galian Alihan:</span><span class="value">${buangan.galian_alihan_nama || '-'}</span></div>
-                <div class="card-row"><span class="label">Uang Alihan:</span><span class="value">${formatCurrency(buangan.uang_alihan)}</span></div>
+                <div class="card-row"><span class="label">Uang Alihan:</span><span class="value">${formatCurrencyWithSign(buangan.uang_alihan)}</span></div>
             ` : ''}
             ${buangan.keterangan ? `<div class="card-row"><span class="label">Keterangan:</span><span class="value">${buangan.keterangan}</span></div>` : ''}
         </div>
@@ -1686,17 +1719,34 @@ function displayOrderSummary(totalUangJalan, totalPotongan, totalHasilAkhir, tot
     `;
 }
 
-function displayBuanganSummary(totalUangAlihan) {
+function displayBuanganSummary(totalUangAlihan, data) {
     const summaryDiv = document.getElementById('summary-buangan');
     if (!summaryDiv) return;
+
+    const totalTambah = (data || []).reduce((sum, r) => {
+        const v = parseFloat(r.uang_alihan || 0);
+        return sum + (v > 0 ? v : 0);
+    }, 0);
+    const totalKurang = (data || []).reduce((sum, r) => {
+        const v = parseFloat(r.uang_alihan || 0);
+        return sum + (v < 0 ? Math.abs(v) : 0);
+    }, 0);
 
     summaryDiv.innerHTML = `
         <div class="summary-section">
             <div class="summary-title">📊 Ringkasan Buangan</div>
             <div class="summary-grid">
+                <div class="summary-item">
+                    <span class="label">Total Uang Alihan (+):</span>
+                    <span class="value" style="color:#28a745">+Rp ${totalTambah.toLocaleString('id-ID')}</span>
+                </div>
+                <div class="summary-item">
+                    <span class="label">Total Uang Alihan (−):</span>
+                    <span class="value" style="color:#dc3545">−Rp ${totalKurang.toLocaleString('id-ID')}</span>
+                </div>
                 <div class="summary-item grand-total">
-                    <span class="label">Total Uang Alihan:</span>
-                    <span class="value">${formatCurrency(totalUangAlihan)}</span>
+                    <span class="label">Net Uang Alihan:</span>
+                    <span class="value">${formatCurrencyWithSign(totalUangAlihan)}</span>
                 </div>
             </div>
         </div>
@@ -1806,7 +1856,7 @@ function displayGabunganSummary(totalUangJalan, totalPotongan, totalUangAlihan, 
                     </div>
                     <div class="summary-item">
                         <span class="label">Total Uang Alihan:</span>
-                        <span class="value">${formatCurrency(totalUangAlihan)}</span>
+                        <span class="value">${formatCurrencyWithSign(totalUangAlihan)}</span>
                     </div>
                     <div class="summary-item">
                         <span class="label">Total Uang Jalan:</span>
@@ -1822,7 +1872,7 @@ function displayGabunganSummary(totalUangJalan, totalPotongan, totalUangAlihan, 
                     <span class="value">${formatCurrency(totalUJplusUA)}</span>
                 </div>
                 <div class="summary-item grand-total">
-                    <span class="label">GRAND TOTAL (UJ + UA - Potongan):</span>
+                    <span class="label">GRAND TOTAL (UJ + UA − Potongan):</span>
                     <span class="value">${formatCurrency(grandTotal)}</span>
                 </div>
             </div>
@@ -1856,6 +1906,15 @@ function displayGabunganSummary(totalUangJalan, totalPotongan, totalUangAlihan, 
 function formatCurrency(value) {
     if (!value || value === 0) return 'Rp 0';
     return 'Rp ' + parseInt(value).toLocaleString('id-ID');
+}
+
+function formatCurrencyWithSign(value) {
+    if (value === null || value === undefined || value === '') return 'Rp 0';
+    const num = parseInt(value);
+    if (isNaN(num) || num === 0) return 'Rp 0';
+    const abs = Math.abs(num);
+    const sign = num >= 0 ? '+' : '−';
+    return `${sign}Rp ${abs.toLocaleString('id-ID')}`;
 }
 
 function formatKilometer(value) {

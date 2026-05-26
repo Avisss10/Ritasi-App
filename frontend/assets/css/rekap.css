@@ -1764,11 +1764,306 @@ tbody tr:nth-child(even):hover td {
 @media print {
     body { background: var(--white); padding: 0; }
     .fullscreen-container { box-shadow: none; border-radius: 0; }
-    .tabs, .filter-section, .filter-actions, .btn, .date-range-inputs, .galian-alihan-filter, .modal { display: none !important; }
+    .tabs, .filter-section, .filter-actions, .btn, .date-range-inputs, .galian-alihan-filter, .modal, .table-toolbar, .toolbar-exports { display: none !important; }
     .tab-content { display: block !important; padding: 0; }
     table { page-break-inside: auto; }
     tr { page-break-inside: avoid; page-break-after: auto; }
     thead { display: table-header-group; }
     .summary-section { page-break-inside: avoid; margin-top: var(--spacing-lg); box-shadow: none; border: 1px solid #000; }
     .summary-item.grand-total { background: #333 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
+/* ============================================================================
+   TAB ENHANCEMENTS — icons & count badges
+   ============================================================================ */
+.tab-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.tab-icon {
+    font-size: 1.1em;
+    line-height: 1;
+}
+
+.tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    font-size: 0.75em;
+    font-weight: 700;
+    background: rgba(0, 0, 0, 0.12);
+    color: var(--gray-600);
+    transition: all var(--transition-normal);
+    line-height: 1;
+}
+
+.tab-btn.active .tab-count {
+    background: var(--primary-color);
+    color: white;
+}
+
+.tab-count:empty {
+    display: none;
+}
+
+/* ============================================================================
+   TABLE TOOLBAR — count + active filters + export buttons
+   ============================================================================ */
+.table-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-md);
+    box-shadow: var(--shadow-sm);
+    flex-wrap: wrap;
+}
+
+.toolbar-info {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    flex: 1;
+    min-width: 0;
+    flex-wrap: wrap;
+}
+
+.toolbar-count {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9em;
+    color: var(--gray-600);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.toolbar-count strong {
+    font-size: 1.2em;
+    color: var(--primary-color);
+    font-weight: 700;
+}
+
+.count-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    flex-shrink: 0;
+}
+
+/* Active filters inside toolbar — override standalone card styles */
+.table-toolbar .active-filter-summary {
+    background: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.table-toolbar .active-filter-summary .summary-label {
+    font-size: 0.82em;
+    color: var(--gray-500);
+    min-width: auto;
+}
+
+.table-toolbar .active-filter-summary .filter-chip {
+    font-size: 0.8em;
+    padding: 3px 9px;
+}
+
+.toolbar-exports {
+    display: flex;
+    gap: var(--spacing-xs);
+    flex-shrink: 0;
+}
+
+.btn-export {
+    padding: 7px 14px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 0.85em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--success-gradient);
+    color: white;
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-export:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.35);
+}
+
+.btn-export-pdf {
+    background: linear-gradient(135deg, #e84393 0%, #c82333 100%);
+}
+
+.btn-export-pdf:hover {
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.35);
+}
+
+@media (max-width: 768px) {
+    .table-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-sm);
+    }
+    .toolbar-exports {
+        width: 100%;
+    }
+    .btn-export {
+        flex: 1;
+        justify-content: center;
+    }
+}
+
+/* ============================================================================
+   STATUS BADGES — CSS classes replacing inline styles
+   ============================================================================ */
+.status-badge {
+    padding: 4px 11px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.83em;
+    display: inline-block;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+.status-complete  { background: #28a745; color: white; }
+.status-process   { background: #ffc107; color: #212529; }
+.status-cancel    { background: #dc3545; color: white; }
+.status-other     { background: #6c757d; color: white; }
+
+/* ============================================================================
+   ALIHAN BADGE
+   ============================================================================ */
+.badge-ya {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px 9px;
+    border-radius: 99px;
+    font-size: 0.8em;
+    font-weight: 600;
+    background: linear-gradient(135deg, #17a2b8, #138496);
+    color: white;
+}
+
+.badge-tidak {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
+    border-radius: 99px;
+    font-size: 0.8em;
+    font-weight: 600;
+    background: var(--gray-200);
+    color: var(--gray-600);
+}
+
+/* ============================================================================
+   LOADING SPINNER & EMPTY STATE
+   ============================================================================ */
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-md);
+    padding: 50px 20px;
+    color: var(--primary-color);
+}
+
+.spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid var(--gray-200);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-state p {
+    font-weight: 600;
+    font-size: 0.95em;
+    color: var(--gray-600);
+    margin: 0;
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    text-align: center;
+}
+
+.empty-state-icon {
+    font-size: 3.5em;
+    opacity: 0.5;
+    margin-bottom: var(--spacing-md);
+}
+
+.empty-state p {
+    font-size: 1em;
+    color: var(--gray-500);
+    margin: 0;
+    font-style: italic;
+}
+
+/* ============================================================================
+   STAT VALUE CURRENCY (smaller font for long currency values)
+   ============================================================================ */
+.stat-value-currency {
+    font-size: 1.2em !important;
+    word-break: break-all;
+}
+
+/* ============================================================================
+   FILTER ACTIONS — compact with only 2 buttons
+   ============================================================================ */
+.filter-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+    margin-top: var(--spacing-xl);
+    padding-top: var(--spacing-lg);
+    border-top: 2px dashed var(--gray-300);
+}
+
+.filter-actions .btn {
+    flex: 1;
+    min-width: 160px;
+    justify-content: center;
+}
+
+@media (max-width: 480px) {
+    .filter-actions { flex-direction: column; }
+    .filter-actions .btn { width: 100%; min-width: unset; }
 }

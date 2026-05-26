@@ -56,11 +56,31 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('editUangAlihan').addEventListener('input', function(e) {
         formatNumberInput(e.target);
     });
+
+    // KM Awal (Form Edit Order) - update currentKmAwalEdit dan recalculate jarak
+    document.getElementById('editOrderKmAwal').addEventListener('input', function(e) {
+        handleKmAwalEditInput(e.target.value);
+    });
+
+    // Uang Jalan / Potongan auto-calculate hasil akhir
+    document.getElementById('editOrderUangJalan').addEventListener('input', function() {
+        formatNumberInput(this);
+        hitungHasilAkhirEdit();
+    });
+    document.getElementById('editOrderPotongan').addEventListener('input', function() {
+        formatNumberInput(this);
+        hitungHasilAkhirEdit();
+    });
+
+    // Load master data untuk form edit order
+    loadMasterOptions();
 });
 
 // Global variable untuk menyimpan semua data
 let allOrderData = [];
 let allBuanganData = [];
+let currentTipeAlihan = 'tambah';     // 'tambah' (+) atau 'kurang' (-)
+let currentTipeAlihanEdit = 'tambah'; // 'tambah' (+) atau 'kurang' (-)
 let currentViewMode = 'buangan'; // 'order' atau 'buangan'
 let currentBuanganDetail = null;
 let currentKmAwalEdit = 0;
@@ -626,6 +646,7 @@ async function bukaFormBuangan(orderId) {
         document.getElementById('uangAlihan').value = '';
         document.getElementById('keterangan').value = '';
         document.getElementById('alihanFields').style.display = 'none';
+        setTipeAlihan('tambah');
 
         // Show form
         document.getElementById('searchSection').style.display = 'none';
@@ -699,10 +720,11 @@ function displayOrderInfo(order) {
 function toggleAlihan() {
     const alihan = document.getElementById('alihan').checked;
     document.getElementById('alihanFields').style.display = alihan ? 'block' : 'none';
-    
+
     if (!alihan) {
         document.getElementById('galianAlihan').value = '';
         document.getElementById('uangAlihan').value = '';
+        setTipeAlihan('tambah');
     }
 }
 
@@ -712,11 +734,31 @@ function toggleAlihan() {
 function toggleAlihanEdit() {
     const alihan = document.getElementById('editAlihan').checked;
     document.getElementById('editAlihanFields').style.display = alihan ? 'block' : 'none';
-    
+
     if (!alihan) {
         document.getElementById('editGalianAlihan').value = '';
         document.getElementById('editUangAlihan').value = '';
+        setTipeAlihanEdit('tambah');
     }
+}
+
+// ============================================================================
+// SET TIPE ALIHAN (+/-)
+// ============================================================================
+function setTipeAlihan(tipe) {
+    currentTipeAlihan = tipe;
+    const plusBtn = document.getElementById('tipeAlihanPlus');
+    const minusBtn = document.getElementById('tipeAlihanMinus');
+    if (plusBtn) plusBtn.classList.toggle('active', tipe === 'tambah');
+    if (minusBtn) minusBtn.classList.toggle('active', tipe === 'kurang');
+}
+
+function setTipeAlihanEdit(tipe) {
+    currentTipeAlihanEdit = tipe;
+    const plusBtn = document.getElementById('editTipeAlihanPlus');
+    const minusBtn = document.getElementById('editTipeAlihanMinus');
+    if (plusBtn) plusBtn.classList.toggle('active', tipe === 'tambah');
+    if (minusBtn) minusBtn.classList.toggle('active', tipe === 'kurang');
 }
 
 // ============================================================================
@@ -887,9 +929,13 @@ async function handleFormSubmit(e) {
         lokasi_bongkar: lokasiBongkar,
         alihan: document.getElementById('alihan').checked,
         galian_alihan_id: galianAlihanId,
-        uang_alihan: document.getElementById('uangAlihan').value
-            ? parseKMInput(document.getElementById('uangAlihan').value)
-            : null,
+        uang_alihan: (() => {
+            const raw = document.getElementById('uangAlihan').value;
+            if (!raw) return null;
+            const val = parseKMInput(raw);
+            if (isNaN(val)) return null;
+            return currentTipeAlihan === 'kurang' ? -Math.abs(val) : Math.abs(val);
+        })(),
         keterangan: document.getElementById('keterangan').value || null
     };
 
@@ -935,43 +981,108 @@ async function handleEditFormSubmit(e) {
     e.preventDefault();
 
     const buanganId = currentBuanganDetail.id;
+    const orderId = currentBuanganDetail.order_id;
+
+    function isExactOdoVariant(input) {
+        if (!input) return false;
+        const s = input.toString().toUpperCase().replace(/\s/g, '').trim();
+        return s === 'ODOERROR' || s === 'ODOERR';
+    }
+
+    // ===== Validasi & kumpulkan DATA ORDER =====
+    const orderNoPintu = document.getElementById('editOrderNoPintu').value.trim();
+    const orderSupirNama = document.getElementById('editOrderSupir').value.trim();
+    const orderGalianNama = document.getElementById('editOrderGalian').value.trim();
+    const orderProyekNama = document.getElementById('editOrderProyek').value.trim();
+
+    const kendaraanId = getKendaraanIdByNoPintu(orderNoPintu);
+    const supirId = getSupirIdByName(orderSupirNama);
+    const galianId = getGalianIdByName(orderGalianNama);
+
+    if (!kendaraanId) {
+        showToast('Kendaraan tidak valid, pilih dari daftar yang tersedia', 'warning');
+        return;
+    }
+    if (!supirId) {
+        showToast('Supir tidak valid, pilih dari daftar yang tersedia', 'warning');
+        return;
+    }
+    if (!galianId) {
+        showToast('Galian tidak valid, pilih dari daftar yang tersedia', 'warning');
+        return;
+    }
+
+    const uangJalan = parseKMInput(document.getElementById('editOrderUangJalan').value);
+    if (isNaN(uangJalan)) {
+        showToast('Uang jalan harus diisi dengan angka', 'warning');
+        return;
+    }
+    const potongan = parseKMInput(document.getElementById('editOrderPotongan').value) || 0;
+
+    const kmAwalInput = document.getElementById('editOrderKmAwal').value.trim();
+    const kmAwalUpper = kmAwalInput.toUpperCase().replace(/\s/g, '');
+
+    // Update currentKmAwalEdit dari input (untuk validasi km_akhir)
+    if (kmAwalUpper === 'ODOERROR' || kmAwalUpper === 'ODOERR') {
+        currentKmAwalEdit = 0;
+    } else {
+        const n = parseInt(kmAwalInput.replace(/\./g, '').replace(/,/g, ''), 10);
+        currentKmAwalEdit = isNaN(n) ? 0 : n;
+    }
+
+    const orderData = {
+        tanggal_order: document.getElementById('editOrderTanggal').value,
+        jam_order: document.getElementById('editOrderJamOrder').value,
+        no_order: document.getElementById('editOrderNoOrder').value.trim(),
+        petugas_order: document.getElementById('editOrderPetugasOrder').value.trim(),
+        no_do: document.getElementById('editOrderNoDo').value.trim(),
+        kendaraan_id: kendaraanId,
+        supir_id: supirId,
+        galian_id: galianId,
+        km_awal: kmAwalInput,
+        uang_jalan: uangJalan,
+        potongan: potongan
+    };
+
+    // Tambahkan proyek_id hanya jika field diisi atau dikosongkan
+    if (orderProyekNama === '') {
+        orderData.proyek_id = null;
+    } else {
+        const proyekId = getProyekIdByName(orderProyekNama);
+        if (proyekId !== null) {
+            orderData.proyek_id = proyekId;
+        }
+        // Jika proyek diisi tapi tidak ditemukan di master, biarkan proyek_id tidak berubah
+    }
+
+    // ===== Validasi & kumpulkan DATA BUANGAN =====
     const kmAkhirInput = document.getElementById('editKmAkhir').value.trim();
     const lokasiBongkar = document.getElementById('editLokasiBongkar').value.trim();
 
-    // Validasi lokasi buangan wajib diisi
     if (!lokasiBongkar) {
         showToast('Lokasi buangan wajib diisi', 'warning');
         return;
     }
-    
+
     let kmAkhir = null;
-
-    // Exact match for 'ODO ERROR' (no fuzzy autocorrect)
-    function isExactOdoVariant(input){
-        if(!input) return false;
-        const s = input.toString().toUpperCase().replace(/\s/g,'').trim();
-        return s === 'ODOERROR' || s === 'ODOERR';
-    }
-
     const maybeNumber = parseKMInput(kmAkhirInput);
     if (!isNaN(maybeNumber)) {
         kmAkhir = maybeNumber;
-        if (kmAkhir <= currentKmAwalEdit) {
+        // Validasi km_akhir > km_awal (hanya jika km_awal bukan ODO ERROR)
+        if (kmAwalUpper !== 'ODOERROR' && kmAwalUpper !== 'ODOERR' && kmAkhir <= currentKmAwalEdit) {
             showToast('KM Akhir harus lebih besar dari KM Awal', 'warning');
             return;
         }
     } else if (isExactOdoVariant(kmAkhirInput)) {
         kmAkhir = 'ODO ERROR';
     } else {
-        // arbitrary text -> accept and send as-is
         kmAkhir = kmAkhirInput;
     }
-    
-    // Get galian_alihan_id dari nama
+
     const galianAlihanName = document.getElementById('editGalianAlihan').value;
     const galianAlihanId = galianAlihanName ? getGalianIdByName(galianAlihanName) : null;
-    
-    const formData = {
+
+    const buanganData = {
         no_urut: parseInt(document.getElementById('editNoUrut').value),
         tanggal_bongkar: document.getElementById('editTanggalBongkar').value,
         jam_bongkar: document.getElementById('editJamBongkar').value,
@@ -979,38 +1090,52 @@ async function handleEditFormSubmit(e) {
         lokasi_bongkar: lokasiBongkar,
         alihan: document.getElementById('editAlihan').checked,
         galian_alihan_id: galianAlihanId,
-        uang_alihan: document.getElementById('editUangAlihan').value
-            ? parseKMInput(document.getElementById('editUangAlihan').value)
-            : null,
+        uang_alihan: (() => {
+            const raw = document.getElementById('editUangAlihan').value;
+            if (!raw) return null;
+            const val = parseKMInput(raw);
+            if (isNaN(val)) return null;
+            return currentTipeAlihanEdit === 'kurang' ? -Math.abs(val) : Math.abs(val);
+        })(),
         keterangan: document.getElementById('editKeterangan').value || null
     };
 
-    // Validasi
-    if (formData.alihan && !formData.galian_alihan_id) {
+    if (buanganData.alihan && !galianAlihanId) {
         showToast('Pilih galian alihan jika galian alihan dicentang', 'warning');
         return;
     }
 
     try {
-        const response = await fetch(`${API_BASE_URL}/buangan/${buanganId}`, {
+        // 1. Update order terlebih dahulu
+        const orderResponse = await fetch(`${API_BASE_URL}/order/${orderId}`, {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(formData)
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(orderData)
         });
 
-        if (!response.ok) {
-            const errorResult = await response.json();
-            throw new Error(errorResult.message || `HTTP error! status: ${response.status}`);
+        if (!orderResponse.ok) {
+            const errorResult = await orderResponse.json();
+            throw new Error('Gagal update order: ' + (errorResult.message || orderResponse.status));
         }
 
-        showToast('Buangan berhasil diupdate!', 'success');
+        // 2. Update buangan (backend akan recalculate jarak_km dari km_awal yang baru)
+        const buanganResponse = await fetch(`${API_BASE_URL}/buangan/${buanganId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(buanganData)
+        });
+
+        if (!buanganResponse.ok) {
+            const errorResult = await buanganResponse.json();
+            throw new Error('Gagal update buangan: ' + (errorResult.message || buanganResponse.status));
+        }
+
+        showToast('Ritasi berhasil diupdate!', 'success');
         await goToBuanganMain();
 
     } catch (error) {
         console.error('Error:', error);
-        showToast('Gagal update buangan: ' + error.message, 'error');
+        showToast('Gagal update ritasi: ' + error.message, 'error');
     }
 }
 
@@ -1038,22 +1163,65 @@ function editBuangan() {
         currentKmAwalEdit = parseInt(String(order.km_awal).replace(/\./g, '').replace(/,/g, ''), 10) || 0;
     }
 
-    // Isi form edit dengan data buangan
+    // ===== Isi field DATA ORDER =====
+    document.getElementById('editOrderTanggal').value = order.tanggal_order ? order.tanggal_order.substring(0, 10) : '';
+    document.getElementById('editOrderJamOrder').value = order.jam_order || '';
+    document.getElementById('editOrderNoOrder').value = order.no_order || '';
+    document.getElementById('editOrderPetugasOrder').value = order.petugas_order || '';
+    document.getElementById('editOrderNoDo').value = order.no_do || '';
+    document.getElementById('editOrderNoPintu').value = order.no_pintu || '';
+    document.getElementById('editOrderSupir').value = order.supir || '';
+    document.getElementById('editOrderGalian').value = order.nama_galian || '';
+
+    // KM Awal - display sebagai angka terformat atau ODO ERROR
+    const kmAwalStr = String(order.km_awal || '');
+    const kmAwalUpper = kmAwalStr.toUpperCase().replace(/\s/g, '');
+    if (kmAwalUpper === 'ODOERROR' || kmAwalUpper === 'ODOERR') {
+        document.getElementById('editOrderKmAwal').value = 'ODO ERROR';
+    } else {
+        const kmAwalNum = parseInt(kmAwalStr.replace(/\./g, '').replace(/,/g, ''), 10);
+        document.getElementById('editOrderKmAwal').value = isNaN(kmAwalNum) ? '' : kmAwalNum.toLocaleString('id-ID');
+    }
+
+    // Proyek - gunakan nama_proyek dari JOIN (lebih akurat untuk lookup)
+    document.getElementById('editOrderProyek').value = order.nama_proyek || '';
+
+    // Uang Jalan & Potongan
+    const uangJalan = parseFloat(order.uang_jalan) || 0;
+    const potongan = parseFloat(order.potongan) || 0;
+    document.getElementById('editOrderUangJalan').value = uangJalan > 0 ? uangJalan.toLocaleString('id-ID') : '';
+    document.getElementById('editOrderPotongan').value = potongan > 0 ? potongan.toLocaleString('id-ID') : '';
+    hitungHasilAkhirEdit();
+
+    // ===== Isi field DATA BUANGAN =====
     document.getElementById('editNoUrut').value = (buangan.no_urut === 0 || buangan.no_urut == null) ? '' : buangan.no_urut;
     document.getElementById('editTanggalBongkar').value = buangan.tanggal_bongkar ? buangan.tanggal_bongkar.substring(0, 10) : '';
     document.getElementById('editJamBongkar').value = buangan.jam_bongkar || '';
-    
+
     // Handle KM Akhir (bisa angka atau ODO ERROR)
     const kmAkhirValue = (buangan.km_akhir === 0 || buangan.km_akhir == null) ? '' : buangan.km_akhir;
     document.getElementById('editKmAkhir').value = kmAkhirValue;
-    
+
     document.getElementById('editLokasiBongkar').value = buangan.lokasi_bongkar || '';
     document.getElementById('editAlihan').checked = buangan.alihan;
-    
+
     // Set galian alihan name (bukan ID)
     document.getElementById('editGalianAlihan').value = getGalianNameById(buangan.galian_alihan_id);
-    
-    document.getElementById('editUangAlihan').value = buangan.uang_alihan || '';
+
+    // Set uang alihan: tampilkan nilai absolut, set toggle +/- dari tanda
+    const storedUA = parseFloat(buangan.uang_alihan);
+    if (!isNaN(storedUA) && storedUA !== 0) {
+        if (storedUA < 0) {
+            setTipeAlihanEdit('kurang');
+            document.getElementById('editUangAlihan').value = Math.abs(storedUA).toLocaleString('id-ID');
+        } else {
+            setTipeAlihanEdit('tambah');
+            document.getElementById('editUangAlihan').value = storedUA.toLocaleString('id-ID');
+        }
+    } else {
+        setTipeAlihanEdit('tambah');
+        document.getElementById('editUangAlihan').value = '';
+    }
     document.getElementById('editKeterangan').value = buangan.keterangan || '';
 
     // Toggle alihan fields
@@ -1061,9 +1229,6 @@ function editBuangan() {
 
     // Hitung jarak
     hitungJarakEdit();
-
-    // Tampilkan info order di form edit
-    displayOrderInfoEdit(order);
 
     // Hide detail, show edit form
     document.getElementById('detailSection').style.display = 'none';
@@ -1229,7 +1394,7 @@ async function loadGalianOptions() {
             }
         }
 
-        // Populate datalist untuk form edit
+        // Populate datalist untuk form edit (alihan)
         const datalistEditGalianAlihan = document.getElementById('editGalianDatalist');
         if (datalistEditGalianAlihan) {
             datalistEditGalianAlihan.innerHTML = '';
@@ -1245,11 +1410,144 @@ async function loadGalianOptions() {
             }
         }
 
+        // Populate datalist galian untuk form edit order
+        const datalistEditOrderGalian = document.getElementById('editOrderGalianDatalist');
+        if (datalistEditOrderGalian) {
+            datalistEditOrderGalian.innerHTML = '';
+            if (Array.isArray(galianData) && galianData.length > 0) {
+                galianData.forEach(galian => {
+                    const option = document.createElement('option');
+                    option.value = galian.nama_galian;
+                    option.setAttribute('data-id', galian.id);
+                    datalistEditOrderGalian.appendChild(option);
+                });
+            }
+        }
+
         // Simpan data galian ke global variable untuk lookup ID
         window.galianMasterData = galianData;
 
     } catch (error) {
         console.error('❌ Error loading galian options:', error);
+    }
+}
+
+// ============================================================================
+// LOAD MASTER OPTIONS (Kendaraan, Supir, Proyek) untuk Form Edit Order
+// ============================================================================
+async function loadMasterOptions() {
+    try {
+        const [kendaraanRes, supirRes, proyekRes] = await Promise.all([
+            fetch(`${API_BASE_URL}/master/kendaraan`),
+            fetch(`${API_BASE_URL}/master/supir`),
+            fetch(`${API_BASE_URL}/master/proyek`)
+        ]);
+
+        if (kendaraanRes.ok) {
+            const result = await kendaraanRes.json();
+            const data = (result.data && Array.isArray(result.data)) ? result.data : (Array.isArray(result) ? result : []);
+            window.kendaraanMasterData = data;
+            const datalist = document.getElementById('editOrderKendaraanDatalist');
+            if (datalist) {
+                datalist.innerHTML = '';
+                data.forEach(k => {
+                    const option = document.createElement('option');
+                    option.value = k.no_pintu;
+                    option.setAttribute('data-id', k.id);
+                    datalist.appendChild(option);
+                });
+            }
+        }
+
+        if (supirRes.ok) {
+            const result = await supirRes.json();
+            const data = (result.data && Array.isArray(result.data)) ? result.data : (Array.isArray(result) ? result : []);
+            window.supirMasterData = data;
+            const datalist = document.getElementById('editOrderSupirDatalist');
+            if (datalist) {
+                datalist.innerHTML = '';
+                data.forEach(s => {
+                    const option = document.createElement('option');
+                    option.value = s.nama;
+                    option.setAttribute('data-id', s.id);
+                    datalist.appendChild(option);
+                });
+            }
+        }
+
+        if (proyekRes.ok) {
+            const result = await proyekRes.json();
+            const data = (result.data && Array.isArray(result.data)) ? result.data : (Array.isArray(result) ? result : []);
+            window.proyekMasterData = data;
+            const datalist = document.getElementById('editOrderProyekDatalist');
+            if (datalist) {
+                datalist.innerHTML = '';
+                data.forEach(p => {
+                    const option = document.createElement('option');
+                    option.value = p.nama_proyek;
+                    option.setAttribute('data-id', p.id);
+                    datalist.appendChild(option);
+                });
+            }
+        }
+    } catch (err) {
+        console.error('Error loading master options:', err);
+    }
+}
+
+// ============================================================================
+// GET KENDARAAN ID FROM NO PINTU
+// ============================================================================
+function getKendaraanIdByNoPintu(noPintu) {
+    if (!window.kendaraanMasterData || !noPintu) return null;
+    const k = window.kendaraanMasterData.find(item => item.no_pintu === noPintu);
+    return k ? k.id : null;
+}
+
+// ============================================================================
+// GET SUPIR ID FROM NAME
+// ============================================================================
+function getSupirIdByName(nama) {
+    if (!window.supirMasterData || !nama) return null;
+    const s = window.supirMasterData.find(item => item.nama === nama);
+    return s ? s.id : null;
+}
+
+// ============================================================================
+// GET PROYEK ID FROM NAME
+// ============================================================================
+function getProyekIdByName(namaProyek) {
+    if (!window.proyekMasterData || !namaProyek) return null;
+    const p = window.proyekMasterData.find(item => item.nama_proyek === namaProyek);
+    return p ? p.id : null;
+}
+
+// ============================================================================
+// HITUNG HASIL AKHIR (Form Edit Order)
+// ============================================================================
+function hitungHasilAkhirEdit() {
+    const uangJalan = parseKMInput(document.getElementById('editOrderUangJalan').value) || 0;
+    const potongan = parseKMInput(document.getElementById('editOrderPotongan').value) || 0;
+    const hasil = uangJalan - potongan;
+    document.getElementById('editOrderHasilAkhir').value = 'Rp ' + Math.max(0, hasil).toLocaleString('id-ID');
+}
+
+// ============================================================================
+// HANDLE KM AWAL EDIT INPUT - update currentKmAwalEdit dan recalculate jarak
+// ============================================================================
+function handleKmAwalEditInput(value) {
+    const trimmed = value.trim();
+    const upper = trimmed.toUpperCase().replace(/\s/g, '');
+    if (upper === 'ODOERROR' || upper === 'ODOERR') {
+        currentKmAwalEdit = 0;
+    } else {
+        const n = parseInt(trimmed.replace(/\./g, '').replace(/,/g, ''), 10);
+        currentKmAwalEdit = isNaN(n) ? 0 : n;
+    }
+    // Recalculate jarak dengan km_akhir yang sudah ada
+    const kmAkhirEl = document.getElementById('editKmAkhir');
+    if (kmAkhirEl && kmAkhirEl.value) {
+        handleKmAkhirInputWithODO(kmAkhirEl, 'editJarakKm');
     }
 }
 
@@ -1780,7 +2078,7 @@ function displayDetailBuangan(buangan) {
             </div>
             <div class="detail-item">
                 <div class="detail-label">Uang Alihan</div>
-                <div class="detail-value">${formatCurrency(buangan.uang_alihan)}</div>
+                <div class="detail-value">${formatCurrencyWithSign(buangan.uang_alihan)}</div>
             </div>
         `;
     }
@@ -1977,8 +2275,16 @@ function formatNumberInput(input) {
 
 function formatCurrency(amount) {
     if (!amount) return 'Rp 0';
-    
     return 'Rp ' + parseFloat(amount).toLocaleString('id-ID');
+}
+
+function formatCurrencyWithSign(amount) {
+    if (amount === null || amount === undefined || amount === '') return 'Rp 0';
+    const num = parseFloat(amount);
+    if (isNaN(num) || num === 0) return 'Rp 0';
+    const abs = Math.abs(num);
+    const sign = num >= 0 ? '+' : '−';
+    return `${sign}Rp ${abs.toLocaleString('id-ID')}`;
 }
 
 function showToast(message, type = 'success') {

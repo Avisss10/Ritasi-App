@@ -15,9 +15,21 @@
 
         <!-- Navigation Tabs -->
         <div class="tabs">
-            <button class="tab-btn active" data-tab="gabungan">Rekap Gabungan</button>
-            <button class="tab-btn " data-tab="order">Rekap Order</button>
-            <button class="tab-btn" data-tab="buangan">Rekap Buangan</button>
+            <button class="tab-btn active" data-tab="gabungan">
+                <span class="tab-icon">📊</span>
+                Rekap Gabungan
+                <span class="tab-count" id="tab-count-gabungan"></span>
+            </button>
+            <button class="tab-btn" data-tab="order">
+                <span class="tab-icon">📋</span>
+                Rekap Order
+                <span class="tab-count" id="tab-count-order"></span>
+            </button>
+            <button class="tab-btn" data-tab="buangan">
+                <span class="tab-icon">🚛</span>
+                Rekap Buangan
+                <span class="tab-count" id="tab-count-buangan"></span>
+            </button>
         </div>
 
         <!-- TAB 1: REKAP ORDER -->
@@ -28,7 +40,7 @@
                     <h3>🔍 Filter Data Order</h3>
                     <span class="filter-toggle-icon">▼</span>
                 </div>
-                
+
                 <div class="filter-body">
                     <!-- Filter Group: Periode -->
                     <div class="filter-group">
@@ -131,16 +143,60 @@
                     <div class="filter-actions">
                         <button class="btn btn-primary" onclick="loadRekapOrder()">🔍 Tampilkan Data</button>
                         <button class="btn btn-secondary" onclick="resetFilterOrder()">🔄 Reset Filter</button>
-                        <button class="btn btn-success" onclick="exportToExcel('order')">📊 Export Excel</button>
-                        <button class="btn btn-success" onclick="exportToPDF('order')">📄 Export PDF</button>
                     </div>
                 </div>
             </div>
 
-            <!-- Active Filters -->
-            <div class="active-filter-summary" id="active-filters-order">
-                <div class="summary-label">Filter Aktif:</div>
-                <div class="summary-values">Semua data</div>
+            <!-- Table Toolbar -->
+            <div class="table-toolbar">
+                <div class="toolbar-info">
+                    <div class="toolbar-count">
+                        <span class="count-dot"></span>
+                        <strong id="count-order">0</strong>&nbsp;data ditampilkan
+                    </div>
+                    <div class="active-filter-summary" id="active-filters-order">
+                        <div class="summary-label">Filter:</div>
+                        <div class="summary-values">Semua data</div>
+                    </div>
+                </div>
+                <div class="toolbar-exports">
+                    <button class="btn-export" onclick="exportToExcel('order')" title="Export ke Excel">📊 Excel</button>
+                    <button class="btn-export btn-export-pdf" onclick="exportToPDF('order')" title="Export ke PDF">📄 PDF</button>
+                </div>
+            </div>
+
+            <!-- Stats Section -->
+            <div class="summary-stats-section">
+                <div class="summary-stats-grid">
+                    <div class="summary-stat-card">
+                        <div class="stat-icon">📋</div>
+                        <div class="stat-content">
+                            <div class="stat-label">Total Ritasi</div>
+                            <div class="stat-value" id="stat-total-order">0</div>
+                        </div>
+                    </div>
+                    <div class="summary-stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-content">
+                            <div class="stat-label">Complete</div>
+                            <div class="stat-value complete" id="stat-complete-order">0</div>
+                        </div>
+                    </div>
+                    <div class="summary-stat-card">
+                        <div class="stat-icon">⏳</div>
+                        <div class="stat-content">
+                            <div class="stat-label">On Process</div>
+                            <div class="stat-value process" id="stat-process-order">0</div>
+                        </div>
+                    </div>
+                    <div class="summary-stat-card">
+                        <div class="stat-icon">❌</div>
+                        <div class="stat-content">
+                            <div class="stat-label">Batal</div>
+                            <div class="stat-value batal" id="stat-batal-order">0</div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Table Order -->
@@ -184,7 +240,7 @@
                     <h3>🔍 Filter Data Buangan</h3>
                     <span class="filter-toggle-icon">▼</span>
                 </div>
-                
+
                 <div class="filter-body">
                     <!-- Filter Group: Periode -->
                     <div class="filter-group">
@@ -277,15 +333,53 @@
                     <div class="filter-actions">
                         <button class="btn btn-primary" onclick="loadRekapBuangan()">🔍 Tampilkan Data</button>
                         <button class="btn btn-secondary" onclick="resetFilterBuangan()">🔄 Reset Filter</button>
-                        <button class="btn btn-success" onclick="exportToExcel('buangan')">📊 Export Excel</button>
-                        <button class="btn btn-success" onclick="exportToPDF('buangan')">📄 Export PDF</button>
                     </div>
                 </div>
             </div>
-            <!-- Active Filters -->
-            <div class="active-filter-summary" id="active-filters-buangan">
-                <div class="summary-label">Filter Aktif:</div>
-                <div class="summary-values">Semua data</div>
+
+            <!-- Table Toolbar -->
+            <div class="table-toolbar">
+                <div class="toolbar-info">
+                    <div class="toolbar-count">
+                        <span class="count-dot"></span>
+                        <strong id="count-buangan">0</strong>&nbsp;data ditampilkan
+                    </div>
+                    <div class="active-filter-summary" id="active-filters-buangan">
+                        <div class="summary-label">Filter:</div>
+                        <div class="summary-values">Semua data</div>
+                    </div>
+                </div>
+                <div class="toolbar-exports">
+                    <button class="btn-export" onclick="exportToExcel('buangan')" title="Export ke Excel">📊 Excel</button>
+                    <button class="btn-export btn-export-pdf" onclick="exportToPDF('buangan')" title="Export ke PDF">📄 PDF</button>
+                </div>
+            </div>
+
+            <!-- Stats Section -->
+            <div class="summary-stats-section">
+                <div class="summary-stats-grid">
+                    <div class="summary-stat-card">
+                        <div class="stat-icon">🚛</div>
+                        <div class="stat-content">
+                            <div class="stat-label">Total Ritasi</div>
+                            <div class="stat-value" id="stat-total-buangan">0</div>
+                        </div>
+                    </div>
+                    <div class="summary-stat-card">
+                        <div class="stat-icon">🔄</div>
+                        <div class="stat-content">
+                            <div class="stat-label">Total Alihan</div>
+                            <div class="stat-value complete" id="stat-alihan-buangan">0</div>
+                        </div>
+                    </div>
+                    <div class="summary-stat-card">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-content">
+                            <div class="stat-label">Total Uang Alihan</div>
+                            <div class="stat-value stat-value-currency" id="stat-uang-alihan-buangan">Rp 0</div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Table -->
@@ -326,7 +420,7 @@
                     <h3>🔍 Filter Data Gabungan</h3>
                     <span class="filter-toggle-icon">▼</span>
                 </div>
-                
+
                 <div class="filter-body">
                     <!-- Filter Group: Filter Utama -->
                     <div class="filter-group">
@@ -436,7 +530,7 @@
                             </h4>
                             <span class="filter-periode-toggle">▼</span>
                         </div>
-                        
+
                         <div class="filter-periode-body">
                             <div class="filter-grid filter-grid-date">
                                 <div class="filter-item">
@@ -502,22 +596,34 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Filter Actions -->
                     <div class="filter-actions">
                         <button class="btn btn-primary" onclick="loadRekapGabungan()">🔍 Tampilkan Data</button>
                         <button class="btn btn-secondary" onclick="resetFilterGabungan()">🔄 Reset Filter</button>
-                        <button class="btn btn-success" onclick="exportToExcel('gabungan')">📊 Export Excel</button>
-                        <button class="btn btn-success" onclick="exportToPDF('gabungan')">📄 Export PDF</button>
                     </div>
                 </div>
             </div>
 
-            <!-- Active Filters -->
-            <div class="active-filter-summary" id="active-filters-gabungan">
-                <div class="summary-label">Filter Aktif:</div>
-                <div class="summary-values">Semua data</div>
+            <!-- Table Toolbar -->
+            <div class="table-toolbar">
+                <div class="toolbar-info">
+                    <div class="toolbar-count">
+                        <span class="count-dot"></span>
+                        <strong id="count-gabungan">0</strong>&nbsp;data ditampilkan
+                    </div>
+                    <div class="active-filter-summary" id="active-filters-gabungan">
+                        <div class="summary-label">Filter:</div>
+                        <div class="summary-values">Semua data</div>
+                    </div>
+                </div>
+                <div class="toolbar-exports">
+                    <button class="btn-export" onclick="exportToExcel('gabungan')" title="Export ke Excel">📊 Excel</button>
+                    <button class="btn-export btn-export-pdf" onclick="exportToPDF('gabungan')" title="Export ke PDF">📄 PDF</button>
+                </div>
             </div>
+
+            <!-- Stats Cards -->
             <div class="summary-stats-section">
                 <div class="summary-stats-grid">
                     <div class="summary-stat-card">

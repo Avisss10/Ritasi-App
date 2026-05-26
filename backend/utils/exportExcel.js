@@ -262,53 +262,57 @@ if (filterInfo.title && filterInfo.title.includes('GABUNGAN') && filterInfo.stat
       }
 
       // Formatting
+      let cellHandled = false;
+
       if (header.key.includes("tanggal") && value) {
         const date = new Date(value);
         if (!isNaN(date.getTime())) {
-          value = date.toLocaleDateString("id-ID", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric"
-          });
+          // Set sebagai Date object agar Excel bisa sort oldest→newest
+          cell.value = date;
+          cell.numFmt = 'DD/MM/YYYY';
+          cellHandled = true;
+        } else {
+          cell.value = '-';
+          cellHandled = true;
         }
       } else if (
-        // FIX: Tambahkan pengecualian untuk "buangan" dan "lokasi_bongkar"
-        (header.key === "uang_jalan" || 
-         header.key === "uang_alihan" || 
-         header.key.includes("hasil") || 
+        (header.key === "uang_jalan" ||
+         header.key === "uang_alihan" ||
+         header.key.includes("hasil") ||
          header.key.includes("potongan") ||
-         header.key === "total") && 
-        value !== null && 
-        value !== undefined && 
+         header.key === "total") &&
+        value !== null &&
+        value !== undefined &&
         value !== ""
       ) {
         cell.value = Number(value) || 0;
         cell.numFmt = '"Rp "#,##0';
+        cellHandled = true;
       } else if (header.key === "alihan") {
         value = value ? "Ya" : "Tidak";
       } else if (header.key === "status") {
         value = (value || "").toUpperCase();
       }
 
-      if (cell.numFmt !== '"Rp "#,##0') {
+      if (!cellHandled) {
         cell.value = value !== undefined && value !== null && value !== "" ? value : "-";
       }
 
       cell.font = { size: 9 };
-      
-      // FIX: Alignment - tambahkan pengecualian untuk "buangan" dan "lokasi_bongkar"
-      const isMoneyColumn = header.key === "uang_jalan" || 
-                           header.key === "uang_alihan" || 
-                           header.key.includes("hasil") || 
+
+      const isMoneyColumn = header.key === "uang_jalan" ||
+                           header.key === "uang_alihan" ||
+                           header.key.includes("hasil") ||
                            header.key.includes("potongan") ||
                            header.key === "total";
-      
-      const isCenterColumn = header.key.includes("km") || 
-                            header.key.includes("jarak") || 
-                            header.key === "row_number" || 
-                            header.key === "no_urut" || 
-                            header.key === "alihan" || 
-                            header.key === "no" || 
+
+      const isCenterColumn = header.key.includes("km") ||
+                            header.key.includes("jarak") ||
+                            header.key.includes("tanggal") ||
+                            header.key === "row_number" ||
+                            header.key === "no_urut" ||
+                            header.key === "alihan" ||
+                            header.key === "no" ||
                             header.key === "id";
       
       cell.alignment = { 
