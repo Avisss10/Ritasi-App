@@ -10,6 +10,15 @@
     <div class="container">
         <h1>Buangan (Ritasi)</h1>
 
+        <!-- MAIN PAGE TABS: NSI / MOBIL LUAR -->
+        <div class="page-tab-nav">
+            <button class="page-tab-btn active" id="pageTabNSIBtn" onclick="switchMainTab('nsi')">NSI</button>
+            <button class="page-tab-btn" id="pageTabMobilLuarBtn" onclick="switchMainTab('mobilLuar')">Mobil Luar</button>
+        </div>
+
+        <!-- NSI CONTENT (existing) -->
+        <div id="nsiContent">
+
         <!-- KOTAK 1: CARI ORDER -->
         <div class="card" id="searchSection">
             <h2>Cari Order</h2>
@@ -552,6 +561,107 @@
             </div>
         </div>
     </div>
+
+        </div> <!-- end nsiContent -->
+
+        <!-- MOBIL LUAR CONTENT -->
+        <div id="mobilLuarContent" style="display:none;">
+
+            <!-- FORM TAMBAH / EDIT MOBIL LUAR -->
+            <div class="card ml-form-card">
+                <div class="ml-form-header">
+                    <h2 id="mlFormTitle">Tambah Mobil Luar</h2>
+                    <span class="ml-form-mode-badge badge-new" id="mlFormModeBadge">Baru</span>
+                </div>
+
+                <form id="mobilLuarForm" onsubmit="submitMobilLuarForm(event)">
+                    <input type="hidden" id="mlId">
+
+                    <div class="ml-form-grid">
+                        <div class="form-group">
+                            <label for="mlNoUrut">No Urut <span class="required">*</span></label>
+                            <input type="number" id="mlNoUrut" min="1" placeholder="No. urut..." required>
+                        </div>
+                        <div class="form-group">
+                            <label for="mlPengirim">Pengirim (PT) <span class="required">*</span></label>
+                            <input type="text" id="mlPengirim" placeholder="Nama perusahaan..." required>
+                        </div>
+                        <div class="form-group">
+                            <label for="mlGalian">Galian <span class="required">*</span></label>
+                            <input type="text" id="mlGalian" placeholder="Jenis galian..." required>
+                        </div>
+                        <div class="form-group">
+                            <label for="mlNoPlat">No Plat <span class="required">*</span></label>
+                            <input type="text" id="mlNoPlat" placeholder="Contoh: B 1234 XX" maxlength="11" oninput="formatNoPlatInput(this)" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="mlSupir">Supir <span class="required">*</span></label>
+                            <input type="text" id="mlSupir" placeholder="Nama supir..." required>
+                        </div>
+                        <div class="form-group">
+                            <label for="mlTanggalBongkar">Tanggal Bongkar <span class="required">*</span></label>
+                            <input type="date" id="mlTanggalBongkar" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="mlJamBongkar">Jam Bongkar <span class="required">*</span></label>
+                            <input type="time" id="mlJamBongkar" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="mlProyek">Proyek <span class="required">*</span></label>
+                            <input type="text" id="mlProyek" placeholder="Nama proyek..." required>
+                        </div>
+                        <div class="form-group">
+                            <label for="mlLokasiBuang">Lokasi Buang <span class="required">*</span></label>
+                            <input type="text" id="mlLokasiBuang" placeholder="Lokasi pembuangan..." required>
+                        </div>
+                    </div>
+
+                    <div class="ml-form-actions">
+                        <button type="button" class="btn btn-secondary" id="mlBatalBtn" onclick="batalMobilLuar()" style="display:none;">
+                            <span class="icon">✕</span> Batal Edit
+                        </button>
+                        <button type="submit" class="btn btn-success" id="mlSimpanBtn">
+                            <span class="icon">💾</span> Simpan
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- TABEL MOBIL LUAR -->
+            <div class="card">
+                <div class="table-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                    <h2>Daftar Mobil Luar</h2>
+                    <div class="form-group" style="margin-bottom:0; min-width:260px;">
+                        <input type="text" id="filterMobilLuar" placeholder="🔍 Cari pengirim, supir, galian..." oninput="filterMobilLuarTable()">
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table id="mobilLuarTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 46px;">No</th>
+                                <th>No Urut</th>
+                                <th>Pengirim</th>
+                                <th>Galian</th>
+                                <th>No Plat</th>
+                                <th>Supir</th>
+                                <th>Tgl Bongkar</th>
+                                <th>Jam</th>
+                                <th>Proyek</th>
+                                <th>Lokasi Buang</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mobilLuarTableBody">
+                            <!-- Data will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div> <!-- end mobilLuarContent -->
+
+    </div> <!-- end container -->
 
     <!-- Toast Notification -->
     <div id="toast" class="toast"></div>

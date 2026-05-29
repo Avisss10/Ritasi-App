@@ -2321,6 +2321,45 @@ function formatKMAwal(kmAwal) {
     return kmValue.toLocaleString('id-ID') + ' KM';
 }
 
+// ============================================================================
+// FORMAT NO PLAT OTOMATIS  →  B 1234 XYZ
+// ============================================================================
+function formatNoPlatInput(input) {
+    const cursorPos = input.selectionStart;
+    const prevLen   = input.value.length;
+
+    // Bersihkan: hanya huruf & angka, uppercase
+    const raw = input.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+
+    if (!raw) { input.value = ''; return; }
+
+    let i = 0;
+    let part1 = '', part2 = '', part3 = '';
+
+    // Bagian 1: huruf area (maks 2)
+    while (i < raw.length && /[A-Z]/.test(raw[i]) && part1.length < 2) {
+        part1 += raw[i++];
+    }
+    // Bagian 2: angka (maks 4)
+    while (i < raw.length && /[0-9]/.test(raw[i]) && part2.length < 4) {
+        part2 += raw[i++];
+    }
+    // Bagian 3: huruf akhir (maks 3)
+    while (i < raw.length && /[A-Z]/.test(raw[i]) && part3.length < 3) {
+        part3 += raw[i++];
+    }
+
+    let formatted = part1;
+    if (part2) formatted += ' ' + part2;
+    if (part3) formatted += ' ' + part3;
+
+    input.value = formatted;
+
+    // Pertahankan posisi cursor
+    const diff = formatted.length - prevLen;
+    input.setSelectionRange(cursorPos + diff, cursorPos + diff);
+}
+
 // Parse input KM - hilangkan titik sebelum parsing
 // Returns a Number or NaN when not numeric
 function parseKMInput(value) {
@@ -2331,4 +2370,253 @@ function parseKMInput(value) {
     if (!/[0-9]/.test(cleaned)) return NaN;
     const n = parseFloat(cleaned);
     return isNaN(n) ? NaN : n;
+}
+
+// ============================================================================
+// MAIN PAGE TAB SWITCH (NSI / MOBIL LUAR)
+// ============================================================================
+let currentMainTab = 'nsi';
+let allMobilLuarData = [];
+let currentEditMobilLuarId = null;
+
+function switchMainTab(tab) {
+    currentMainTab = tab;
+    const nsiContent     = document.getElementById('nsiContent');
+    const mobilLuarContent = document.getElementById('mobilLuarContent');
+    const nsiBtn         = document.getElementById('pageTabNSIBtn');
+    const mobilLuarBtn   = document.getElementById('pageTabMobilLuarBtn');
+
+    if (tab === 'nsi') {
+        nsiContent.style.display = 'block';
+        mobilLuarContent.style.display = 'none';
+        nsiBtn.classList.add('active');
+        mobilLuarBtn.classList.remove('active');
+    } else {
+        nsiContent.style.display = 'none';
+        mobilLuarContent.style.display = 'block';
+        nsiBtn.classList.remove('active');
+        mobilLuarBtn.classList.add('active');
+        resetMobilLuarForm();
+        loadMobilLuarList();
+    }
+}
+
+// ============================================================================
+// MOBIL LUAR - LOAD LIST
+// ============================================================================
+async function loadMobilLuarList() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/buangan/mobil-luar`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const result = await response.json();
+        const data = (result.data && Array.isArray(result.data)) ? result.data
+            : (Array.isArray(result) ? result : []);
+        allMobilLuarData = data;
+        renderMobilLuarTable(data);
+    } catch (err) {
+        console.error('Error loading mobil luar:', err);
+        showToast('Gagal memuat data mobil luar', 'error');
+    }
+}
+
+// ============================================================================
+// MOBIL LUAR - RENDER TABLE
+// ============================================================================
+function renderMobilLuarTable(data) {
+    const tbody = document.getElementById('mobilLuarTableBody');
+    if (!tbody) return;
+
+    if (!Array.isArray(data) || data.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="11" class="empty-state">
+                    <div class="empty-state-icon">📦</div>
+                    <div class="empty-state-text">Belum ada data mobil luar</div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = data.map((row, index) => `
+        <tr>
+            <td style="text-align:center; font-weight:600;">${index + 1}</td>
+            <td>${row.no_urut || '-'}</td>
+            <td>${row.pengirim || '-'}</td>
+            <td>${row.galian || '-'}</td>
+            <td>${row.no_plat || '-'}</td>
+            <td>${row.supir || '-'}</td>
+            <td>${formatDateOnly(row.tanggal_bongkar)}</td>
+            <td>${row.jam_bongkar ? row.jam_bongkar.substring(0, 5) : '-'}</td>
+            <td>${row.proyek || '-'}</td>
+            <td>${row.lokasi_buang || '-'}</td>
+            <td>
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                    <button class="btn btn-warning btn-small" onclick="bukaEditMobilLuar(${row.id})">✏️ Edit</button>
+                    <button class="btn btn-danger btn-small" onclick="hapusMobilLuar(${row.id})">🗑️ Hapus</button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// ============================================================================
+// MOBIL LUAR - FORMAT DATE (DD/MM/YYYY, handle UTC+7)
+// ============================================================================
+function formatDateOnly(dateStr) {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    const local = new Date(d.getTime() + 7 * 60 * 60 * 1000);
+    const day = String(local.getUTCDate()).padStart(2, '0');
+    const month = String(local.getUTCMonth() + 1).padStart(2, '0');
+    const year = local.getUTCFullYear();
+    return `${day}/${month}/${year}`;
+}
+
+// ============================================================================
+// MOBIL LUAR - FILTER TABLE
+// ============================================================================
+function filterMobilLuarTable() {
+    const keyword = document.getElementById('filterMobilLuar').value.toLowerCase().trim();
+    if (!keyword) {
+        renderMobilLuarTable(allMobilLuarData);
+        return;
+    }
+    const filtered = allMobilLuarData.filter(row =>
+        (row.pengirim && row.pengirim.toLowerCase().includes(keyword)) ||
+        (row.supir && row.supir.toLowerCase().includes(keyword)) ||
+        (row.galian && row.galian.toLowerCase().includes(keyword)) ||
+        (row.no_plat && row.no_plat.toLowerCase().includes(keyword)) ||
+        (row.proyek && row.proyek.toLowerCase().includes(keyword)) ||
+        (row.lokasi_buang && row.lokasi_buang.toLowerCase().includes(keyword))
+    );
+    renderMobilLuarTable(filtered);
+}
+
+// ============================================================================
+// MOBIL LUAR - RESET FORM KE MODE TAMBAH
+// ============================================================================
+function resetMobilLuarForm() {
+    currentEditMobilLuarId = null;
+    document.getElementById('mobilLuarForm').reset();
+    document.getElementById('mlId').value = '';
+    document.getElementById('mlTanggalBongkar').value = new Date().toISOString().split('T')[0];
+    document.getElementById('mlFormTitle').textContent = 'Tambah Mobil Luar';
+    document.getElementById('mlFormModeBadge').textContent = 'Baru';
+    document.getElementById('mlFormModeBadge').className = 'ml-form-mode-badge badge-new';
+    document.getElementById('mlBatalBtn').style.display = 'none';
+    document.getElementById('mlSimpanBtn').textContent = '💾 Simpan';
+}
+
+// ============================================================================
+// MOBIL LUAR - BUKA EDIT (isi form dari baris tabel)
+// ============================================================================
+function bukaEditMobilLuar(id) {
+    const row = allMobilLuarData.find(r => r.id === id);
+    if (!row) {
+        showToast('Data tidak ditemukan', 'error');
+        return;
+    }
+
+    currentEditMobilLuarId = id;
+    document.getElementById('mlId').value = id;
+    document.getElementById('mlNoUrut').value = row.no_urut || '';
+    document.getElementById('mlPengirim').value = row.pengirim || '';
+    document.getElementById('mlGalian').value = row.galian || '';
+    document.getElementById('mlNoPlat').value = row.no_plat || '';
+    document.getElementById('mlSupir').value = row.supir || '';
+    document.getElementById('mlTanggalBongkar').value = row.tanggal_bongkar
+        ? row.tanggal_bongkar.substring(0, 10) : '';
+    document.getElementById('mlJamBongkar').value = row.jam_bongkar
+        ? row.jam_bongkar.substring(0, 5) : '';
+    document.getElementById('mlProyek').value = row.proyek || '';
+    document.getElementById('mlLokasiBuang').value = row.lokasi_buang || '';
+
+    document.getElementById('mlFormTitle').textContent = `Edit Mobil Luar`;
+    document.getElementById('mlFormModeBadge').textContent = `Edit #${id}`;
+    document.getElementById('mlFormModeBadge').className = 'ml-form-mode-badge badge-edit';
+    document.getElementById('mlBatalBtn').style.display = 'inline-flex';
+    document.getElementById('mlSimpanBtn').textContent = '✓ Update';
+
+    // Scroll ke form
+    document.getElementById('mobilLuarForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('mlNoUrut').focus();
+}
+
+// ============================================================================
+// MOBIL LUAR - BATAL EDIT
+// ============================================================================
+function batalMobilLuar() {
+    resetMobilLuarForm();
+}
+
+// ============================================================================
+// MOBIL LUAR - SUBMIT FORM (ADD / EDIT)
+// ============================================================================
+async function submitMobilLuarForm(e) {
+    e.preventDefault();
+
+    const payload = {
+        no_urut:         parseInt(document.getElementById('mlNoUrut').value),
+        pengirim:        document.getElementById('mlPengirim').value.trim(),
+        galian:          document.getElementById('mlGalian').value.trim(),
+        no_plat:         document.getElementById('mlNoPlat').value.trim(),
+        supir:           document.getElementById('mlSupir').value.trim(),
+        tanggal_bongkar: document.getElementById('mlTanggalBongkar').value,
+        jam_bongkar:     document.getElementById('mlJamBongkar').value,
+        proyek:          document.getElementById('mlProyek').value.trim(),
+        lokasi_buang:    document.getElementById('mlLokasiBuang').value.trim()
+    };
+
+    const isEdit = !!currentEditMobilLuarId;
+    const url    = isEdit
+        ? `${API_BASE_URL}/buangan/mobil-luar/${currentEditMobilLuarId}`
+        : `${API_BASE_URL}/buangan/mobil-luar`;
+    const method = isEdit ? 'PUT' : 'POST';
+
+    try {
+        const response = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.message || `HTTP error! status: ${response.status}`);
+        }
+
+        showToast(isEdit ? 'Data berhasil diupdate!' : 'Data berhasil ditambahkan!', 'success');
+        resetMobilLuarForm();
+        await loadMobilLuarList();
+
+    } catch (err) {
+        console.error('Error submit mobil luar:', err);
+        showToast('Gagal menyimpan: ' + err.message, 'error');
+    }
+}
+
+// ============================================================================
+// MOBIL LUAR - HAPUS
+// ============================================================================
+async function hapusMobilLuar(id) {
+    if (!confirm('Yakin ingin menghapus data ini?')) return;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/buangan/mobil-luar/${id}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.message || `HTTP error! status: ${response.status}`);
+        }
+
+        showToast('Data berhasil dihapus', 'success');
+        await loadMobilLuarList();
+
+    } catch (err) {
+        console.error('Error hapus mobil luar:', err);
+        showToast('Gagal menghapus: ' + err.message, 'error');
+    }
 }

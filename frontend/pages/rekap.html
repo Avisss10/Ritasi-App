@@ -30,6 +30,11 @@
                 Rekap Buangan
                 <span class="tab-count" id="tab-count-buangan"></span>
             </button>
+            <button class="tab-btn" data-tab="mobil-luar">
+                <span class="tab-icon">🚗</span>
+                Mobil Luar
+                <span class="tab-count" id="tab-count-mobil-luar"></span>
+            </button>
         </div>
 
         <!-- TAB 1: REKAP ORDER -->
@@ -696,6 +701,141 @@
 
             <!-- Summary Section -->
             <div id="summary-gabungan"></div>
+        </div>
+
+        <!-- TAB 4: REKAP MOBIL LUAR -->
+        <div id="mobil-luar-tab" class="tab-content">
+            <!-- Filter Section -->
+            <div class="filter-section">
+                <div class="filter-header" onclick="toggleFilterSection(this)">
+                    <h3>🔍 Filter Data Mobil Luar</h3>
+                    <span class="filter-toggle-icon">▼</span>
+                </div>
+
+                <div class="filter-body">
+                    <!-- Filter Group: Periode -->
+                    <div class="filter-group">
+                        <div class="filter-group-title">📅 Periode Waktu</div>
+                        <div class="filter-grid filter-grid-2">
+                            <div class="filter-item">
+                                <label><span class="icon">📆</span> Pilih Periode:</label>
+                                <select id="filter-tanggal-type-mobil-luar" onchange="toggleDateRangeMobilLuar()">
+                                    <option value="2-hari">2 Hari Terakhir</option>
+                                    <option value="semua">Semua Data</option>
+                                    <option value="hari-ini">Hari Ini</option>
+                                    <option value="7-hari">7 Hari Terakhir</option>
+                                    <option value="manual">Pilih Tanggal Manual</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Manual Date Range -->
+                        <div id="date-range-mobil-luar" class="date-range-inputs">
+                            <div class="filter-item">
+                                <label><span class="icon">📅</span> Tanggal Dari:</label>
+                                <input type="date" id="filter-tanggal-dari-mobil-luar">
+                            </div>
+                            <div class="filter-item">
+                                <label><span class="icon">📅</span> Tanggal Sampai:</label>
+                                <input type="date" id="filter-tanggal-sampai-mobil-luar">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Filter Group: Data Utama -->
+                    <div class="filter-group">
+                        <div class="filter-group-title">🎯 Filter Utama</div>
+                        <div class="filter-grid filter-grid-3">
+                            <div class="filter-item">
+                                <label><span class="icon">🏢</span> Pengirim (PT):</label>
+                                <input type="text" id="filter-pengirim-mobil-luar" list="datalist-pengirim-mobil-luar" placeholder="Cari pengirim...">
+                                <datalist id="datalist-pengirim-mobil-luar"></datalist>
+                            </div>
+
+                            <div class="filter-item">
+                                <label><span class="icon">⛏️</span> Galian:</label>
+                                <input type="text" id="filter-galian-mobil-luar" list="datalist-galian-mobil-luar" placeholder="Cari galian...">
+                                <datalist id="datalist-galian-mobil-luar"></datalist>
+                            </div>
+
+                            <div class="filter-item">
+                                <label><span class="icon">🏗️</span> Proyek:</label>
+                                <input type="text" id="filter-proyek-mobil-luar" list="datalist-proyek-mobil-luar" placeholder="Cari proyek...">
+                                <datalist id="datalist-proyek-mobil-luar"></datalist>
+                            </div>
+
+                            <div class="filter-item">
+                                <label><span class="icon">📦</span> Lokasi Buang:</label>
+                                <input type="text" id="filter-lokasi-mobil-luar" list="datalist-lokasi-mobil-luar" placeholder="Cari lokasi buang...">
+                                <datalist id="datalist-lokasi-mobil-luar"></datalist>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Filter Actions -->
+                    <div class="filter-actions">
+                        <button class="btn btn-primary" onclick="loadRekapMobilLuar()">🔍 Tampilkan Data</button>
+                        <button class="btn btn-secondary" onclick="resetFilterMobilLuar()">🔄 Reset Filter</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table Toolbar -->
+            <div class="table-toolbar">
+                <div class="toolbar-info">
+                    <div class="toolbar-count">
+                        <span class="count-dot"></span>
+                        <strong id="count-mobil-luar">0</strong>&nbsp;data ditampilkan
+                    </div>
+                    <div class="active-filter-summary" id="active-filters-mobil-luar">
+                        <div class="summary-label">Filter:</div>
+                        <div class="summary-values">Semua data</div>
+                    </div>
+                </div>
+                <div class="toolbar-exports">
+                    <button class="btn-export" onclick="exportToExcel('mobil-luar')" title="Export ke Excel">📊 Excel</button>
+                    <button class="btn-export btn-export-pdf" onclick="exportToPDF('mobil-luar')" title="Export ke PDF">📄 PDF</button>
+                </div>
+            </div>
+
+            <!-- Stats Section -->
+            <div class="summary-stats-section">
+                <div class="summary-stats-grid">
+                    <div class="summary-stat-card">
+                        <div class="stat-icon">🚗</div>
+                        <div class="stat-content">
+                            <div class="stat-label">Total Mobil Luar</div>
+                            <div class="stat-value" id="stat-total-mobil-luar">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>No Urut</th>
+                            <th>Pengirim (PT)</th>
+                            <th>Galian</th>
+                            <th>No Plat</th>
+                            <th>Supir</th>
+                            <th>Tgl Bongkar</th>
+                            <th>Jam Bongkar</th>
+                            <th>Proyek</th>
+                            <th>Lokasi Buang</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-mobil-luar">
+                        <tr><td colspan="10" class="text-center">Klik "Tampilkan Data" untuk memuat...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Summary Section -->
+            <div id="summary-mobil-luar"></div>
         </div>
 
     <!-- Modal untuk Detail Order -->

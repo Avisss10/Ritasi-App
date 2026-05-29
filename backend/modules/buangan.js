@@ -68,7 +68,112 @@ router.get("/", async (req, res) => {
 });
 
 // ============================================================================
-// GET BUANGAN BY ID 
+// MOBIL LUAR - GET ALL
+// ============================================================================
+router.get("/mobil-luar", async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT * FROM mobil_luar ORDER BY id DESC
+    `);
+    return success(res, "Data mobil luar", rows);
+  } catch (err) {
+    console.error("Error GET /buangan/mobil-luar:", err);
+    return error(res, 500, "Gagal mengambil data mobil luar", err);
+  }
+});
+
+// ============================================================================
+// MOBIL LUAR - GET BY ID
+// ============================================================================
+router.get("/mobil-luar/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [rows] = await db.query(`SELECT * FROM mobil_luar WHERE id = ? LIMIT 1`, [id]);
+    if (rows.length === 0) return error(res, 404, `Mobil luar ID ${id} tidak ditemukan`);
+    return success(res, "Detail mobil luar", rows[0]);
+  } catch (err) {
+    console.error(`Error GET /buangan/mobil-luar/${id}:`, err);
+    return error(res, 500, "Gagal mengambil detail mobil luar", err);
+  }
+});
+
+// ============================================================================
+// MOBIL LUAR - CREATE
+// ============================================================================
+router.post("/mobil-luar", async (req, res) => {
+  try {
+    const { no_urut, pengirim, galian, no_plat, supir, tanggal_bongkar, jam_bongkar, proyek, lokasi_buang } = req.body;
+
+    if (!no_urut) return error(res, 400, "No Urut wajib diisi");
+    if (!pengirim || pengirim.trim() === '') return error(res, 400, "Pengirim wajib diisi");
+    if (!galian || galian.trim() === '') return error(res, 400, "Galian wajib diisi");
+    if (!no_plat || no_plat.trim() === '') return error(res, 400, "No Plat wajib diisi");
+    if (!supir || supir.trim() === '') return error(res, 400, "Supir wajib diisi");
+    if (!tanggal_bongkar) return error(res, 400, "Tanggal bongkar wajib diisi");
+    if (!jam_bongkar) return error(res, 400, "Jam bongkar wajib diisi");
+    if (!proyek || proyek.trim() === '') return error(res, 400, "Proyek wajib diisi");
+    if (!lokasi_buang || lokasi_buang.trim() === '') return error(res, 400, "Lokasi buang wajib diisi");
+
+    const [result] = await db.query(
+      `INSERT INTO mobil_luar (no_urut, pengirim, galian, no_plat, supir, tanggal_bongkar, jam_bongkar, proyek, lokasi_buang)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [no_urut, pengirim, galian, no_plat, supir, tanggal_bongkar, jam_bongkar, proyek, lokasi_buang]
+    );
+
+    return success(res, "Mobil luar berhasil ditambahkan", { id: result.insertId });
+  } catch (err) {
+    console.error("Error POST /buangan/mobil-luar:", err);
+    return error(res, 500, "Gagal menambahkan mobil luar", err);
+  }
+});
+
+// ============================================================================
+// MOBIL LUAR - UPDATE
+// ============================================================================
+router.put("/mobil-luar/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const allowed = ["no_urut", "pengirim", "galian", "no_plat", "supir", "tanggal_bongkar", "jam_bongkar", "proyek", "lokasi_buang"];
+    const fields = [];
+    const values = [];
+
+    allowed.forEach(f => {
+      if (req.body[f] !== undefined) {
+        fields.push(`${f} = ?`);
+        values.push(req.body[f]);
+      }
+    });
+
+    if (fields.length === 0) return error(res, 400, "Tidak ada field yang dikirim");
+
+    values.push(id);
+    const [result] = await db.query(`UPDATE mobil_luar SET ${fields.join(", ")} WHERE id = ?`, values);
+
+    if (result.affectedRows === 0) return error(res, 404, `Mobil luar ID ${id} tidak ditemukan`);
+    return success(res, "Mobil luar berhasil diupdate");
+  } catch (err) {
+    console.error(`Error PUT /buangan/mobil-luar/${id}:`, err);
+    return error(res, 500, "Gagal update mobil luar", err);
+  }
+});
+
+// ============================================================================
+// MOBIL LUAR - DELETE
+// ============================================================================
+router.delete("/mobil-luar/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [result] = await db.query(`DELETE FROM mobil_luar WHERE id = ?`, [id]);
+    if (result.affectedRows === 0) return error(res, 404, `Mobil luar ID ${id} tidak ditemukan`);
+    return success(res, "Mobil luar berhasil dihapus");
+  } catch (err) {
+    console.error(`Error DELETE /buangan/mobil-luar/${id}:`, err);
+    return error(res, 500, "Gagal menghapus mobil luar", err);
+  }
+});
+
+// ============================================================================
+// GET BUANGAN BY ID
 // ============================================================================
 router.get("/:id", async (req, res) => {
   const { id } = req.params;

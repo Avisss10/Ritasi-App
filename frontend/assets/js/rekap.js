@@ -11,6 +11,7 @@ let masterProyek = [];
 let currentOrderData = [];
 let currentBuanganData = [];
 let currentGabunganData = [];
+let currentMobilLuarData = [];
 
 function getUniqueFieldValues(rows, fields) {
     if (!Array.isArray(rows)) return [];
@@ -421,6 +422,7 @@ function setupFilterSubmitOnEnter() {
                 if (tab.id === 'order-tab') loadRekapOrder();
                 if (tab.id === 'buangan-tab') loadRekapBuangan();
                 if (tab.id === 'gabungan-tab') loadRekapGabungan();
+                if (tab.id === 'mobil-luar-tab') loadRekapMobilLuar();
             }
         });
     });
@@ -624,6 +626,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (tabName === 'order') loadRekapOrder();
             if (tabName === 'buangan') loadRekapBuangan();
             if (tabName === 'gabungan') loadRekapGabungan();
+            if (tabName === 'mobil-luar') loadRekapMobilLuar();
         });
     });
 
@@ -633,6 +636,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('filter-tanggal-sampai-buangan').value = getToday();
     document.getElementById('filter-tanggal-order-dari-gabungan').value = get2DaysAgo();
     document.getElementById('filter-tanggal-order-sampai-gabungan').value = getToday();
+    document.getElementById('filter-tanggal-dari-mobil-luar').value = get2DaysAgo();
+    document.getElementById('filter-tanggal-sampai-mobil-luar').value = getToday();
     document.getElementById('filter-tanggal-bongkar-dari-gabungan').value = '';
     document.getElementById('filter-tanggal-bongkar-sampai-gabungan').value = '';
     document.getElementById('filter-tanggal-bongkar-type-gabungan').value = 'semua';
@@ -848,6 +853,27 @@ function setupAutocompleteListeners() {
             populateDatalistFromArray('datalist-buangan-lokasi', filtered);
         });
     }
+
+    // ---- Mobil Luar filter datalists ----
+    const mlFields = [
+        { inputId: 'filter-pengirim-mobil-luar', datalistId: 'datalist-pengirim-mobil-luar', field: 'pengirim' },
+        { inputId: 'filter-galian-mobil-luar', datalistId: 'datalist-galian-mobil-luar', field: 'galian' },
+        { inputId: 'filter-proyek-mobil-luar', datalistId: 'datalist-proyek-mobil-luar', field: 'proyek' },
+        { inputId: 'filter-lokasi-mobil-luar', datalistId: 'datalist-lokasi-mobil-luar', field: 'lokasi_buang' }
+    ];
+    mlFields.forEach(({ inputId, datalistId, field }) => {
+        const el = document.getElementById(inputId);
+        if (el) {
+            el.addEventListener('focus', function() {
+                populateDatalistFromRows(datalistId, currentMobilLuarData, field);
+            });
+            el.addEventListener('input', function() {
+                const allVals = getUniqueFieldValues(currentMobilLuarData, field);
+                const filtered = allVals.filter(v => v.toLowerCase().includes(this.value.toLowerCase()));
+                populateDatalistFromArray(datalistId, filtered);
+            });
+        }
+    });
 }
 
 
@@ -1463,6 +1489,18 @@ async function exportToExcel(type) {
             params.append('stats_process', document.getElementById('stat-process-gabungan')?.textContent || '0');
             params.append('stats_batal', document.getElementById('stat-batal-gabungan')?.textContent || '0');
             endpoint = '/rekap/gabungan/export/excel';
+
+        } else if (type === 'mobil-luar') {
+            const filters = {
+                tanggal_dari: document.getElementById('filter-tanggal-dari-mobil-luar')?.value || "",
+                tanggal_sampai: document.getElementById('filter-tanggal-sampai-mobil-luar')?.value || "",
+                pengirim: document.getElementById('filter-pengirim-mobil-luar')?.value.trim() || "",
+                galian: document.getElementById('filter-galian-mobil-luar')?.value.trim() || "",
+                proyek: document.getElementById('filter-proyek-mobil-luar')?.value.trim() || "",
+                lokasi_buang: document.getElementById('filter-lokasi-mobil-luar')?.value.trim() || ""
+            };
+            Object.keys(filters).forEach(key => { if (filters[key]) params.append(key, filters[key]); });
+            endpoint = '/rekap/mobil-luar/export/excel';
         }
 
         const url = `${API_URL}${endpoint}?${params.toString()}`;
@@ -1548,6 +1586,18 @@ async function exportToPDF(type) {
             params.append('stats_process', document.getElementById('stat-process-gabungan')?.textContent || '0');
             params.append('stats_batal', document.getElementById('stat-batal-gabungan')?.textContent || '0');
             endpoint = '/rekap/gabungan/export/pdf';
+
+        } else if (type === 'mobil-luar') {
+            const filters = {
+                tanggal_dari: document.getElementById('filter-tanggal-dari-mobil-luar')?.value || "",
+                tanggal_sampai: document.getElementById('filter-tanggal-sampai-mobil-luar')?.value || "",
+                pengirim: document.getElementById('filter-pengirim-mobil-luar')?.value.trim() || "",
+                galian: document.getElementById('filter-galian-mobil-luar')?.value.trim() || "",
+                proyek: document.getElementById('filter-proyek-mobil-luar')?.value.trim() || "",
+                lokasi_buang: document.getElementById('filter-lokasi-mobil-luar')?.value.trim() || ""
+            };
+            Object.keys(filters).forEach(key => { if (filters[key]) params.append(key, filters[key]); });
+            endpoint = '/rekap/mobil-luar/export/pdf';
         }
 
         const url = `${API_URL}${endpoint}?${params.toString()}`;
@@ -1961,6 +2011,145 @@ function formatDate(dateString) {
     } catch (err) {
         return '-';
     }
+}
+
+// ============================================================================
+// REKAP MOBIL LUAR
+// ============================================================================
+function toggleDateRangeMobilLuar() {
+    const filterType = document.getElementById('filter-tanggal-type-mobil-luar').value;
+    const dateRangeDiv = document.getElementById('date-range-mobil-luar');
+    const dariInput = document.getElementById('filter-tanggal-dari-mobil-luar');
+    const sampaiInput = document.getElementById('filter-tanggal-sampai-mobil-luar');
+
+    if (filterType === 'manual') {
+        dateRangeDiv.classList.add('show');
+        dariInput.value = '';
+        sampaiInput.value = '';
+    } else {
+        dateRangeDiv.classList.remove('show');
+        if (filterType === 'hari-ini') { dariInput.value = getToday(); sampaiInput.value = getToday(); }
+        else if (filterType === '7-hari') { dariInput.value = get7DaysAgo(); sampaiInput.value = getToday(); }
+        else if (filterType === '2-hari') { dariInput.value = get2DaysAgo(); sampaiInput.value = getToday(); }
+        else if (filterType === 'semua') { dariInput.value = ''; sampaiInput.value = ''; }
+    }
+}
+
+async function loadRekapMobilLuar() {
+    const tbody = document.getElementById('tbody-mobil-luar');
+    tbody.innerHTML = makeLoadingRow(10);
+
+    try {
+        const params = new URLSearchParams();
+
+        const filters = {
+            tanggal_dari: document.getElementById('filter-tanggal-dari-mobil-luar').value,
+            tanggal_sampai: document.getElementById('filter-tanggal-sampai-mobil-luar').value,
+            pengirim: document.getElementById('filter-pengirim-mobil-luar').value.trim(),
+            galian: document.getElementById('filter-galian-mobil-luar').value.trim(),
+            proyek: document.getElementById('filter-proyek-mobil-luar').value.trim(),
+            lokasi_buang: document.getElementById('filter-lokasi-mobil-luar').value.trim()
+        };
+
+        Object.keys(filters).forEach(key => {
+            const value = filters[key];
+            if (value !== undefined && value !== null && value !== '') params.append(key, value);
+        });
+
+        const url = `${API_URL}/rekap/mobil-luar${params.toString() ? '?' + params.toString() : ''}`;
+        debugLog('Loading Rekap Mobil Luar', { url, filters });
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+
+        const result = await response.json();
+        debugLog('Rekap Mobil Luar Response', result);
+
+        let data = null;
+        if (result && result.success === true && result.data) data = result.data;
+        else if (Array.isArray(result)) data = result;
+        else if (result && Array.isArray(result.rows)) data = result.rows;
+        else if (result && Array.isArray(result.data)) data = result.data;
+
+        currentMobilLuarData = Array.isArray(data) ? data : [];
+
+        if (data && Array.isArray(data) && data.length > 0) {
+            tbody.innerHTML = data.map((row, index) => `
+                <tr>
+                    <td class="text-center">${index + 1}</td>
+                    <td class="text-center">${row.no_urut || '-'}</td>
+                    <td>${row.pengirim || '-'}</td>
+                    <td>${row.galian || '-'}</td>
+                    <td class="text-center">${row.no_plat || '-'}</td>
+                    <td>${row.supir || '-'}</td>
+                    <td>${formatDate(row.tanggal_bongkar)}</td>
+                    <td class="text-center">${row.jam_bongkar || '-'}</td>
+                    <td>${row.proyek || '-'}</td>
+                    <td>${row.lokasi_buang || '-'}</td>
+                </tr>
+            `).join('');
+
+            populateMobilLuarDatalists();
+            updateFilterStatsMobilLuar(data);
+            updateTabCount('mobil-luar', data.length);
+            updateActiveFiltersMobilLuar(data);
+        } else {
+            tbody.innerHTML = makeEmptyRow(10, 'Tidak ada data mobil luar');
+            updateFilterStatsMobilLuar([]);
+            updateTabCount('mobil-luar', 0);
+            updateActiveFiltersMobilLuar([]);
+        }
+    } catch (err) {
+        console.error('❌ Error loading rekap mobil luar:', err);
+        tbody.innerHTML = `<tr><td colspan="10" class="text-center" style="color: red;">❌ Error: ${err.message}</td></tr>`;
+    }
+}
+
+function populateMobilLuarDatalists() {
+    populateDatalistFromRows('datalist-pengirim-mobil-luar', currentMobilLuarData, 'pengirim');
+    populateDatalistFromRows('datalist-galian-mobil-luar', currentMobilLuarData, 'galian');
+    populateDatalistFromRows('datalist-proyek-mobil-luar', currentMobilLuarData, 'proyek');
+    populateDatalistFromRows('datalist-lokasi-mobil-luar', currentMobilLuarData, 'lokasi_buang');
+}
+
+function updateFilterStatsMobilLuar(data) {
+    const total = Array.isArray(data) ? data.length : 0;
+    const el = document.getElementById('stat-total-mobil-luar');
+    if (el) el.textContent = total;
+    const countEl = document.getElementById('count-mobil-luar');
+    if (countEl) countEl.textContent = total;
+}
+
+function updateActiveFiltersMobilLuar(data) {
+    const filters = [];
+    const periode = getPeriodLabel(
+        document.getElementById('filter-tanggal-type-mobil-luar').value,
+        document.getElementById('filter-tanggal-dari-mobil-luar').value,
+        document.getElementById('filter-tanggal-sampai-mobil-luar').value
+    );
+    if (periode) filters.push(periode);
+
+    const values = [
+        { label: 'Pengirim', value: document.getElementById('filter-pengirim-mobil-luar').value.trim() },
+        { label: 'Galian', value: document.getElementById('filter-galian-mobil-luar').value.trim() },
+        { label: 'Proyek', value: document.getElementById('filter-proyek-mobil-luar').value.trim() },
+        { label: 'Lokasi Buang', value: document.getElementById('filter-lokasi-mobil-luar').value.trim() }
+    ];
+    values.forEach(item => { if (item.value) filters.push(`${item.label}: ${item.value}`); });
+
+    renderActiveFilters('active-filters-mobil-luar', filters);
+}
+
+function resetFilterMobilLuar() {
+    document.getElementById('filter-tanggal-type-mobil-luar').value = '2-hari';
+    document.getElementById('filter-tanggal-dari-mobil-luar').value = get2DaysAgo();
+    document.getElementById('filter-tanggal-sampai-mobil-luar').value = getToday();
+    document.getElementById('filter-pengirim-mobil-luar').value = '';
+    document.getElementById('filter-galian-mobil-luar').value = '';
+    document.getElementById('filter-proyek-mobil-luar').value = '';
+    document.getElementById('filter-lokasi-mobil-luar').value = '';
+    document.getElementById('date-range-mobil-luar').classList.remove('show');
+    loadRekapMobilLuar();
 }
 
 // ============================================================================

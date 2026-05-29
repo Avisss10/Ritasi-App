@@ -1176,3 +1176,91 @@ tbody tr:last-child td {
     border-radius: 0 10px 10px 0 !important;
     border-left: none !important;
 }
+
+/* ============================================================
+   MOBIL LUAR - INLINE FORM (seperti Order)
+   ============================================================ */
+.ml-form-card {
+    margin-bottom: 20px;
+}
+
+.ml-form-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.ml-form-header h2 {
+    margin-bottom: 0;
+}
+
+.ml-form-mode-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.badge-new {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.badge-edit {
+    background: #fff3e0;
+    color: #e65100;
+}
+
+.ml-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.ml-form-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    padding-top: 8px;
+    border-top: 1px solid #f0f0f0;
+}
+
+/* ============================================================
+   PAGE MAIN TABS (NSI / MOBIL LUAR)
+   ============================================================ */
+.page-tab-nav {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 6px;
+    border-radius: 12px;
+    width: fit-content;
+}
+
+.page-tab-btn {
+    padding: 10px 32px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.75);
+    transition: all 0.2s ease;
+    letter-spacing: 0.5px;
+}
+
+.page-tab-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+
+.page-tab-btn.active {
+    background: #fff;
+    color: #667eea;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
