@@ -579,40 +579,46 @@
 
                     <div class="ml-form-grid">
                         <div class="form-group">
-                            <label for="mlNoUrut">No Urut <span class="required">*</span></label>
-                            <input type="number" id="mlNoUrut" min="1" placeholder="No. urut..." required>
+                            <label for="mlNoUrut">No Urut <span class=>*</span></label>
+                            <input type="number" id="mlNoUrut" min="1" placeholder="No. urut..." >
                         </div>
                         <div class="form-group">
                             <label for="mlPengirim">Pengirim (PT) <span class="required">*</span></label>
-                            <input type="text" id="mlPengirim" placeholder="Nama perusahaan..." required>
+                            <input type="text" id="mlPengirim" placeholder="Nama perusahaan..." list="dlMlPengirim">
+                            <datalist id="dlMlPengirim"></datalist>
                         </div>
                         <div class="form-group">
                             <label for="mlGalian">Galian <span class="required">*</span></label>
-                            <input type="text" id="mlGalian" placeholder="Jenis galian..." required>
+                            <input type="text" id="mlGalian" placeholder="Lokasi galian..." list="dlMlGalian">
+                            <datalist id="dlMlGalian"></datalist>
                         </div>
                         <div class="form-group">
                             <label for="mlNoPlat">No Plat <span class="required">*</span></label>
-                            <input type="text" id="mlNoPlat" placeholder="Contoh: B 1234 XX" maxlength="11" oninput="formatNoPlatInput(this)" required>
+                            <input type="text" id="mlNoPlat" placeholder="Contoh: B 1234 XX" maxlength="11" oninput="formatNoPlatInput(this)" list="dlMlNoPlat">
+                            <datalist id="dlMlNoPlat"></datalist>
                         </div>
                         <div class="form-group">
                             <label for="mlSupir">Supir <span class="required">*</span></label>
-                            <input type="text" id="mlSupir" placeholder="Nama supir..." required>
+                            <input type="text" id="mlSupir" placeholder="Nama supir..." list="dlMlSupir">
+                            <datalist id="dlMlSupir"></datalist>
                         </div>
                         <div class="form-group">
                             <label for="mlTanggalBongkar">Tanggal Bongkar <span class="required">*</span></label>
-                            <input type="date" id="mlTanggalBongkar" required>
+                            <input type="date" id="mlTanggalBongkar" >
                         </div>
                         <div class="form-group">
                             <label for="mlJamBongkar">Jam Bongkar <span class="required">*</span></label>
-                            <input type="time" id="mlJamBongkar" required>
+                            <input type="time" id="mlJamBongkar" >
                         </div>
                         <div class="form-group">
                             <label for="mlProyek">Proyek <span class="required">*</span></label>
-                            <input type="text" id="mlProyek" placeholder="Nama proyek..." required>
+                            <input type="text" id="mlProyek" placeholder="Nama proyek..." list="dlMlProyek">
+                            <datalist id="dlMlProyek"></datalist>
                         </div>
                         <div class="form-group">
                             <label for="mlLokasiBuang">Lokasi Buang <span class="required">*</span></label>
-                            <input type="text" id="mlLokasiBuang" placeholder="Lokasi pembuangan..." required>
+                            <input type="text" id="mlLokasiBuang" placeholder="Lokasi pembuangan..." list="dlMlLokasiBuang">
+                            <datalist id="dlMlLokasiBuang"></datalist>
                         </div>
                     </div>
 
@@ -656,6 +662,30 @@
                             <!-- Data will be populated here -->
                         </tbody>
                     </table>
+                </div>
+                <div class="pagination-container" id="mobilLuarPagination" style="display:none;"></div>
+            </div>
+
+            <!-- MODAL PERINGATAN KOLOM KOSONG - MOBIL LUAR -->
+            <div class="modal-overlay" id="modalWarningMobilLuar" style="display: none;">
+                <div class="modal-container ml-warning-modal">
+                    <div class="modal-header ml-warning-header">
+                        <div class="ml-warning-icon-wrap">⚠️</div>
+                        <h3>Data Tidak Lengkap!</h3>
+                        <p class="ml-warning-sub">Kolom berikut masih kosong dan akan disimpan sebagai <strong>kosong (null)</strong>:</p>
+                    </div>
+                    <div class="modal-body">
+                        <div id="mlWarningFieldList" class="ml-warning-field-list"></div>
+                        <p class="ml-warning-confirm-text">Apakah Anda yakin ingin melanjutkan penyimpanan?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="tutupModalWarningMobilLuar()">
+                            <span class="icon">✕</span> Batal
+                        </button>
+                        <button type="button" class="btn btn-ml-warning-ok" onclick="lanjutkanSimpanMobilLuar()">
+                            <span class="icon">✓</span> Oke, Lanjutkan
+                        </button>
+                    </div>
                 </div>
             </div>
 

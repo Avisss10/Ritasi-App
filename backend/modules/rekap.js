@@ -1175,27 +1175,34 @@ router.get("/mobil-luar/export/excel", async (req, res) => {
       values
     );
 
+    const formattedRows = rows.map(row => ({
+      ...row,
+      jam_bongkar: row.jam_bongkar
+        ? String(row.jam_bongkar).substring(0, 5)
+        : null
+    }));
+
     const headers = [
-      { label: "No", key: "no", width: 6 },
-      { label: "No Urut", key: "no_urut", width: 10 },
-      { label: "Pengirim (PT)", key: "pengirim", width: 25 },
-      { label: "Galian", key: "galian", width: 20 },
-      { label: "No Plat", key: "no_plat", width: 14 },
-      { label: "Supir", key: "supir", width: 20 },
-      { label: "Tgl Bongkar", key: "tanggal_bongkar", width: 14 },
-      { label: "Jam Bongkar", key: "jam_bongkar", width: 12 },
-      { label: "Proyek", key: "proyek", width: 22 },
-      { label: "Lokasi Buang", key: "lokasi_buang", width: 25 }
+      { label: "No",           key: "no",              width: 6  },
+      { label: "No Urut",      key: "no_urut",         width: 10 },
+      { label: "Pengirim (PT)", key: "pengirim",        width: 25 },
+      { label: "Galian",       key: "galian",          width: 20 },
+      { label: "No Plat",      key: "no_plat",         width: 14 },
+      { label: "Supir",        key: "supir",           width: 20 },
+      { label: "Tgl Bongkar",  key: "tanggal_bongkar", width: 14 },
+      { label: "Jam Bongkar",  key: "jam_bongkar",     width: 12 },
+      { label: "Proyek",       key: "proyek",          width: 22 },
+      { label: "Lokasi Buang", key: "lokasi_buang",    width: 25 }
     ];
 
-    const filterInfo = { title: "LAPORAN REKAP MOBIL LUAR", filename: "Rekap_Mobil_Luar", filters: {} };
+    const filterInfo = { title: "LAPORAN REKAP MOBIL LUAR", filename: "Rekap_Mobil_Luar", landscape: true, filters: {} };
     if (tanggal_dari || tanggal_sampai) filterInfo.filters["Periode"] = `${tanggal_dari || ''} s/d ${tanggal_sampai || ''}`;
-    if (pengirim) filterInfo.filters["Pengirim"] = pengirim;
-    if (galian) filterInfo.filters["Galian"] = galian;
-    if (proyek) filterInfo.filters["Proyek"] = proyek;
+    if (pengirim)     filterInfo.filters["Pengirim"]    = pengirim;
+    if (galian)       filterInfo.filters["Galian"]      = galian;
+    if (proyek)       filterInfo.filters["Proyek"]      = proyek;
     if (lokasi_buang) filterInfo.filters["Lokasi Buang"] = lokasi_buang;
 
-    await generateExcel("Rekap_Mobil_Luar", headers, rows, filterInfo, res);
+    await generateExcel("Rekap_Mobil_Luar", headers, formattedRows, filterInfo, res);
   } catch (err) {
     console.error("Error in /rekap/mobil-luar/export/excel:", err);
     return error(res, 500, "Gagal export Excel", err);
@@ -1235,14 +1242,21 @@ router.get("/mobil-luar/export/pdf", async (req, res) => {
       values
     );
 
-    const filterInfo = { title: "LAPORAN REKAP MOBIL LUAR", filename: "Rekap_Mobil_Luar", filters: {} };
+    const formattedRows = rows.map(row => ({
+      ...row,
+      jam_bongkar: row.jam_bongkar
+        ? String(row.jam_bongkar).substring(0, 5)
+        : null
+    }));
+
+    const filterInfo = { title: "LAPORAN REKAP MOBIL LUAR", filename: "Rekap_Mobil_Luar", landscape: true, filters: {} };
     if (tanggal_dari || tanggal_sampai) filterInfo.filters["Periode"] = `${tanggal_dari || ''} s/d ${tanggal_sampai || ''}`;
-    if (pengirim) filterInfo.filters["Pengirim"] = pengirim;
-    if (galian) filterInfo.filters["Galian"] = galian;
-    if (proyek) filterInfo.filters["Proyek"] = proyek;
+    if (pengirim)     filterInfo.filters["Pengirim"]    = pengirim;
+    if (galian)       filterInfo.filters["Galian"]      = galian;
+    if (proyek)       filterInfo.filters["Proyek"]      = proyek;
     if (lokasi_buang) filterInfo.filters["Lokasi Buang"] = lokasi_buang;
 
-    generatePDF("LAPORAN REKAP MOBIL LUAR", rows, filterInfo, res);
+    generatePDF("LAPORAN REKAP MOBIL LUAR", formattedRows, filterInfo, res);
   } catch (err) {
     console.error("Error in /rekap/mobil-luar/export/pdf:", err);
     return error(res, 500, "Gagal export PDF", err);

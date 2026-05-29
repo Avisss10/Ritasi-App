@@ -8,6 +8,31 @@ import { success, error } from "../utils/response.js";
 
 const router = express.Router();
 
+// Startup migration: make all mobil_luar non-id columns nullable
+(async () => {
+  try {
+    const [cols] = await db.query(`
+      SELECT COLUMN_NAME, COLUMN_TYPE
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'mobil_luar'
+        AND COLUMN_NAME != 'id'
+        AND IS_NULLABLE = 'NO'
+    `);
+    for (const col of cols) {
+      try {
+        await db.query(
+          `ALTER TABLE mobil_luar MODIFY COLUMN \`${col.COLUMN_NAME}\` ${col.COLUMN_TYPE} NULL`
+        );
+      } catch (e) {
+        console.warn(`Gagal ALTER mobil_luar.${col.COLUMN_NAME}:`, e.message);
+      }
+    }
+  } catch (err) {
+    console.warn('Gagal migrasi nullable mobil_luar:', err.message);
+  }
+})();
+
 // ============================================================================
 // HELPERS - exact ODO ERROR check (no fuzzy matching)
 // ============================================================================
@@ -83,6 +108,32 @@ router.get("/mobil-luar", async (req, res) => {
 });
 
 // ============================================================================
+// MOBIL LUAR - SUGGESTIONS (distinct values untuk datalist autocomplete)
+// ============================================================================
+router.get("/mobil-luar/suggestions", async (req, res) => {
+  try {
+    const fields = ["pengirim", "galian", "no_plat", "supir", "proyek", "lokasi_buang"];
+    const result = {};
+
+    await Promise.all(
+      fields.map(async (field) => {
+        const [rows] = await db.query(
+          `SELECT DISTINCT \`${field}\` FROM mobil_luar
+           WHERE \`${field}\` IS NOT NULL AND \`${field}\` != ''
+           ORDER BY \`${field}\` ASC`
+        );
+        result[field] = rows.map((r) => r[field]);
+      })
+    );
+
+    return success(res, "Suggestions mobil luar", result);
+  } catch (err) {
+    console.error("Error GET /buangan/mobil-luar/suggestions:", err);
+    return error(res, 500, "Gagal mengambil suggestions", err);
+  }
+});
+
+// ============================================================================
 // MOBIL LUAR - GET BY ID
 // ============================================================================
 router.get("/mobil-luar/:id", async (req, res) => {
@@ -104,20 +155,20 @@ router.post("/mobil-luar", async (req, res) => {
   try {
     const { no_urut, pengirim, galian, no_plat, supir, tanggal_bongkar, jam_bongkar, proyek, lokasi_buang } = req.body;
 
-    if (!no_urut) return error(res, 400, "No Urut wajib diisi");
-    if (!pengirim || pengirim.trim() === '') return error(res, 400, "Pengirim wajib diisi");
-    if (!galian || galian.trim() === '') return error(res, 400, "Galian wajib diisi");
-    if (!no_plat || no_plat.trim() === '') return error(res, 400, "No Plat wajib diisi");
-    if (!supir || supir.trim() === '') return error(res, 400, "Supir wajib diisi");
-    if (!tanggal_bongkar) return error(res, 400, "Tanggal bongkar wajib diisi");
-    if (!jam_bongkar) return error(res, 400, "Jam bongkar wajib diisi");
-    if (!proyek || proyek.trim() === '') return error(res, 400, "Proyek wajib diisi");
-    if (!lokasi_buang || lokasi_buang.trim() === '') return error(res, 400, "Lokasi buang wajib diisi");
+    const noUrutVal       = no_urut ? parseInt(no_urut) : null;
+    const pengirimVal     = (pengirim && pengirim.trim() !== '') ? pengirim.trim() : null;
+    const galianVal       = (galian && galian.trim() !== '') ? galian.trim() : null;
+    const noPlatVal       = (no_plat && no_plat.trim() !== '') ? no_plat.trim() : null;
+    const supirVal        = (supir && supir.trim() !== '') ? supir.trim() : null;
+    const tanggalVal      = tanggal_bongkar || null;
+    const jamVal          = jam_bongkar || null;
+    const proyekVal       = (proyek && proyek.trim() !== '') ? proyek.trim() : null;
+    const lokasiBuangVal  = (lokasi_buang && lokasi_buang.trim() !== '') ? lokasi_buang.trim() : null;
 
     const [result] = await db.query(
       `INSERT INTO mobil_luar (no_urut, pengirim, galian, no_plat, supir, tanggal_bongkar, jam_bongkar, proyek, lokasi_buang)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [no_urut, pengirim, galian, no_plat, supir, tanggal_bongkar, jam_bongkar, proyek, lokasi_buang]
+      [noUrutVal, pengirimVal, galianVal, noPlatVal, supirVal, tanggalVal, jamVal, proyekVal, lokasiBuangVal]
     );
 
     return success(res, "Mobil luar berhasil ditambahkan", { id: result.insertId });

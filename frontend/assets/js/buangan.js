@@ -96,9 +96,11 @@ let activeStatusFilter = 'all';   // filter status: 'all','on_process','complete
 // Pagination variables
 let currentOrderPage = 1;
 let currentBuanganPage = 1;
+let currentMobilLuarPage = 1;
 let itemsPerPage = 10;
 let filteredOrderData = [];
 let filteredBuanganData = [];
+let filteredMobilLuarData = [];
 
 // ============================================================================
 // PAGINATION - ORDER TABLE
@@ -239,6 +241,73 @@ function renderBuanganPagination() {
 // Backwards-compatible wrapper used by displayBuanganList
 function updateBuanganPagination(dataLength) {
     renderBuanganPagination();
+}
+
+// ============================================================================
+// PAGINATION - MOBIL LUAR TABLE
+// ============================================================================
+function getMobilLuarTotalPages() {
+    return Math.ceil(filteredMobilLuarData.length / itemsPerPage);
+}
+
+function goToMobilLuarPage(page) {
+    const totalPages = getMobilLuarTotalPages();
+    if (page < 1 || page > totalPages) return;
+    currentMobilLuarPage = page;
+    _renderMobilLuarRows();
+    renderMobilLuarPagination();
+}
+
+function renderMobilLuarPagination() {
+    const totalPages = getMobilLuarTotalPages();
+    const totalItems = filteredMobilLuarData.length;
+    const paginationContainer = document.getElementById('mobilLuarPagination');
+    if (!paginationContainer) return;
+
+    if (totalPages <= 1) {
+        paginationContainer.innerHTML = '';
+        paginationContainer.style.display = 'none';
+        return;
+    }
+
+    paginationContainer.style.display = 'flex';
+
+    const startItem = (currentMobilLuarPage - 1) * itemsPerPage + 1;
+    const endItem   = Math.min(currentMobilLuarPage * itemsPerPage, totalItems);
+
+    let html = `
+        <div class="pagination-info">
+            Menampilkan ${startItem}–${endItem} dari ${totalItems} data
+        </div>
+        <div class="pagination-controls">
+            <button class="pagination-btn" onclick="goToMobilLuarPage(1)" ${currentMobilLuarPage === 1 ? 'disabled' : ''}>«</button>
+            <button class="pagination-btn" onclick="goToMobilLuarPage(${currentMobilLuarPage - 1})" ${currentMobilLuarPage === 1 ? 'disabled' : ''}>‹</button>
+    `;
+
+    const maxVisible = 5;
+    let startPage = Math.max(1, currentMobilLuarPage - Math.floor(maxVisible / 2));
+    let endPage   = Math.min(totalPages, startPage + maxVisible - 1);
+    if (endPage - startPage < maxVisible - 1) startPage = Math.max(1, endPage - maxVisible + 1);
+
+    if (startPage > 1) {
+        html += `<button class="pagination-btn" onclick="goToMobilLuarPage(1)">1</button>`;
+        if (startPage > 2) html += `<span class="pagination-ellipsis">...</span>`;
+    }
+    for (let i = startPage; i <= endPage; i++) {
+        html += `<button class="pagination-btn ${i === currentMobilLuarPage ? 'active' : ''}" onclick="goToMobilLuarPage(${i})">${i}</button>`;
+    }
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) html += `<span class="pagination-ellipsis">...</span>`;
+        html += `<button class="pagination-btn" onclick="goToMobilLuarPage(${totalPages})">${totalPages}</button>`;
+    }
+
+    html += `
+            <button class="pagination-btn" onclick="goToMobilLuarPage(${currentMobilLuarPage + 1})" ${currentMobilLuarPage === totalPages ? 'disabled' : ''}>›</button>
+            <button class="pagination-btn" onclick="goToMobilLuarPage(${totalPages})" ${currentMobilLuarPage === totalPages ? 'disabled' : ''}>»</button>
+        </div>
+    `;
+
+    paginationContainer.innerHTML = html;
 }
 
 // ============================================================================
@@ -2398,6 +2467,7 @@ function switchMainTab(tab) {
         mobilLuarBtn.classList.add('active');
         resetMobilLuarForm();
         loadMobilLuarList();
+        loadMobilLuarSuggestions();
     }
 }
 
@@ -2420,13 +2490,51 @@ async function loadMobilLuarList() {
 }
 
 // ============================================================================
-// MOBIL LUAR - RENDER TABLE
+// MOBIL LUAR - LOAD SUGGESTIONS (datalist autocomplete, fetch DISTINCT saja)
+// ============================================================================
+async function loadMobilLuarSuggestions() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/buangan/mobil-luar/suggestions`);
+        if (!response.ok) return;
+        const result = await response.json();
+        if (!result.data) return;
+
+        const fieldMap = {
+            pengirim:     'dlMlPengirim',
+            galian:       'dlMlGalian',
+            no_plat:      'dlMlNoPlat',
+            supir:        'dlMlSupir',
+            proyek:       'dlMlProyek',
+            lokasi_buang: 'dlMlLokasiBuang'
+        };
+
+        Object.entries(fieldMap).forEach(([field, dlId]) => {
+            const dl = document.getElementById(dlId);
+            if (!dl || !Array.isArray(result.data[field])) return;
+            dl.innerHTML = result.data[field].map(v =>
+                `<option value="${v.toString().replace(/"/g, '&quot;')}"></option>`
+            ).join('');
+        });
+    } catch (err) {
+        console.error('Error loading mobil luar suggestions:', err);
+    }
+}
+
+// ============================================================================
+// MOBIL LUAR - RENDER TABLE (dengan pagination)
 // ============================================================================
 function renderMobilLuarTable(data) {
+    filteredMobilLuarData = Array.isArray(data) ? data : [];
+    currentMobilLuarPage  = 1;
+    _renderMobilLuarRows();
+    renderMobilLuarPagination();
+}
+
+function _renderMobilLuarRows() {
     const tbody = document.getElementById('mobilLuarTableBody');
     if (!tbody) return;
 
-    if (!Array.isArray(data) || data.length === 0) {
+    if (filteredMobilLuarData.length === 0) {
         tbody.innerHTML = `
             <tr>
                 <td colspan="11" class="empty-state">
@@ -2438,9 +2546,13 @@ function renderMobilLuarTable(data) {
         return;
     }
 
-    tbody.innerHTML = data.map((row, index) => `
+    const start  = (currentMobilLuarPage - 1) * itemsPerPage;
+    const pageData = filteredMobilLuarData.slice(start, start + itemsPerPage);
+    const globalStart = start;
+
+    tbody.innerHTML = pageData.map((row, idx) => `
         <tr>
-            <td style="text-align:center; font-weight:600;">${index + 1}</td>
+            <td style="text-align:center; font-weight:600;">${globalStart + idx + 1}</td>
             <td>${row.no_urut || '-'}</td>
             <td>${row.pengirim || '-'}</td>
             <td>${row.galian || '-'}</td>
@@ -2478,16 +2590,12 @@ function formatDateOnly(dateStr) {
 // ============================================================================
 function filterMobilLuarTable() {
     const keyword = document.getElementById('filterMobilLuar').value.toLowerCase().trim();
-    if (!keyword) {
-        renderMobilLuarTable(allMobilLuarData);
-        return;
-    }
-    const filtered = allMobilLuarData.filter(row =>
-        (row.pengirim && row.pengirim.toLowerCase().includes(keyword)) ||
-        (row.supir && row.supir.toLowerCase().includes(keyword)) ||
-        (row.galian && row.galian.toLowerCase().includes(keyword)) ||
-        (row.no_plat && row.no_plat.toLowerCase().includes(keyword)) ||
-        (row.proyek && row.proyek.toLowerCase().includes(keyword)) ||
+    const filtered = !keyword ? allMobilLuarData : allMobilLuarData.filter(row =>
+        (row.pengirim     && row.pengirim.toLowerCase().includes(keyword)) ||
+        (row.supir        && row.supir.toLowerCase().includes(keyword))    ||
+        (row.galian       && row.galian.toLowerCase().includes(keyword))   ||
+        (row.no_plat      && row.no_plat.toLowerCase().includes(keyword))  ||
+        (row.proyek       && row.proyek.toLowerCase().includes(keyword))   ||
         (row.lokasi_buang && row.lokasi_buang.toLowerCase().includes(keyword))
     );
     renderMobilLuarTable(filtered);
@@ -2553,26 +2661,74 @@ function batalMobilLuar() {
 // ============================================================================
 // MOBIL LUAR - SUBMIT FORM (ADD / EDIT)
 // ============================================================================
+let _pendingMobilLuarPayload = null;
+let _pendingMobilLuarIsEdit  = false;
+
 async function submitMobilLuarForm(e) {
     e.preventDefault();
 
-    const payload = {
-        no_urut:         parseInt(document.getElementById('mlNoUrut').value),
-        pengirim:        document.getElementById('mlPengirim').value.trim(),
-        galian:          document.getElementById('mlGalian').value.trim(),
-        no_plat:         document.getElementById('mlNoPlat').value.trim(),
-        supir:           document.getElementById('mlSupir').value.trim(),
-        tanggal_bongkar: document.getElementById('mlTanggalBongkar').value,
-        jam_bongkar:     document.getElementById('mlJamBongkar').value,
-        proyek:          document.getElementById('mlProyek').value.trim(),
-        lokasi_buang:    document.getElementById('mlLokasiBuang').value.trim()
-    };
+    const noUrutRaw      = document.getElementById('mlNoUrut').value;
+    const pengirimRaw    = document.getElementById('mlPengirim').value.trim();
+    const galianRaw      = document.getElementById('mlGalian').value.trim();
+    const noPlatRaw      = document.getElementById('mlNoPlat').value.trim();
+    const supirRaw       = document.getElementById('mlSupir').value.trim();
+    const tanggalRaw     = document.getElementById('mlTanggalBongkar').value;
+    const jamRaw         = document.getElementById('mlJamBongkar').value;
+    const proyekRaw      = document.getElementById('mlProyek').value.trim();
+    const lokasiBuangRaw = document.getElementById('mlLokasiBuang').value.trim();
 
-    const isEdit = !!currentEditMobilLuarId;
-    const url    = isEdit
+    const emptyFields = [];
+    if (!noUrutRaw)      emptyFields.push('No Urut');
+    if (!pengirimRaw)    emptyFields.push('Pengirim (PT)');
+    if (!galianRaw)      emptyFields.push('Galian');
+    if (!noPlatRaw)      emptyFields.push('No Plat');
+    if (!supirRaw)       emptyFields.push('Supir');
+    if (!tanggalRaw)     emptyFields.push('Tanggal Bongkar');
+    if (!jamRaw)         emptyFields.push('Jam Bongkar');
+    if (!proyekRaw)      emptyFields.push('Proyek');
+    if (!lokasiBuangRaw) emptyFields.push('Lokasi Buang');
+
+    _pendingMobilLuarPayload = {
+        no_urut:         noUrutRaw ? parseInt(noUrutRaw) : null,
+        pengirim:        pengirimRaw || null,
+        galian:          galianRaw || null,
+        no_plat:         noPlatRaw || null,
+        supir:           supirRaw || null,
+        tanggal_bongkar: tanggalRaw || null,
+        jam_bongkar:     jamRaw || null,
+        proyek:          proyekRaw || null,
+        lokasi_buang:    lokasiBuangRaw || null
+    };
+    _pendingMobilLuarIsEdit = !!currentEditMobilLuarId;
+
+    if (emptyFields.length > 0) {
+        const listEl = document.getElementById('mlWarningFieldList');
+        listEl.innerHTML = emptyFields.map(f =>
+            `<span class="ml-warning-field-item">⚠ ${f}</span>`
+        ).join('');
+        document.getElementById('modalWarningMobilLuar').style.display = 'flex';
+        return;
+    }
+
+    await _doSimpanMobilLuar();
+}
+
+function tutupModalWarningMobilLuar() {
+    document.getElementById('modalWarningMobilLuar').style.display = 'none';
+}
+
+async function lanjutkanSimpanMobilLuar() {
+    tutupModalWarningMobilLuar();
+    await _doSimpanMobilLuar();
+}
+
+async function _doSimpanMobilLuar() {
+    const payload = _pendingMobilLuarPayload;
+    const isEdit  = _pendingMobilLuarIsEdit;
+    const url     = isEdit
         ? `${API_BASE_URL}/buangan/mobil-luar/${currentEditMobilLuarId}`
         : `${API_BASE_URL}/buangan/mobil-luar`;
-    const method = isEdit ? 'PUT' : 'POST';
+    const method  = isEdit ? 'PUT' : 'POST';
 
     try {
         const response = await fetch(url, {
@@ -2589,6 +2745,7 @@ async function submitMobilLuarForm(e) {
         showToast(isEdit ? 'Data berhasil diupdate!' : 'Data berhasil ditambahkan!', 'success');
         resetMobilLuarForm();
         await loadMobilLuarList();
+        loadMobilLuarSuggestions();
 
     } catch (err) {
         console.error('Error submit mobil luar:', err);
@@ -2614,6 +2771,7 @@ async function hapusMobilLuar(id) {
 
         showToast('Data berhasil dihapus', 'success');
         await loadMobilLuarList();
+        loadMobilLuarSuggestions();
 
     } catch (err) {
         console.error('Error hapus mobil luar:', err);

@@ -1007,6 +1007,97 @@ tbody tr:last-child td {
 }
 
 /* ============================================================================
+   MOBIL LUAR - WARNING MODAL (KOLOM KOSONG)
+   ============================================================================ */
+
+.ml-warning-modal {
+    max-width: 480px;
+}
+
+.ml-warning-header {
+    background: linear-gradient(135deg, #ff9500 0%, #ff5e00 100%) !important;
+    text-align: center;
+    padding: 28px 30px 24px !important;
+    border-bottom: none !important;
+}
+
+.ml-warning-header h3 {
+    color: white !important;
+    font-size: 1.5em !important;
+    margin: 10px 0 8px 0 !important;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.ml-warning-icon-wrap {
+    font-size: 56px;
+    line-height: 1;
+    margin-bottom: 6px;
+    animation: warningPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes warningPulse {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(1.12); }
+    100% { transform: scale(1); }
+}
+
+.ml-warning-sub {
+    color: rgba(255,255,255,0.92) !important;
+    font-size: 0.9em;
+    margin: 0 !important;
+    line-height: 1.5;
+}
+
+.ml-warning-sub strong {
+    color: #fff3cd;
+    font-weight: 700;
+}
+
+.ml-warning-field-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 20px;
+    justify-content: center;
+}
+
+.ml-warning-field-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+    border: 2px solid #ff9500;
+    border-radius: 20px;
+    padding: 7px 16px;
+    font-size: 0.88em;
+    font-weight: 700;
+    color: #c43d00;
+    box-shadow: 0 2px 6px rgba(255,149,0,0.25);
+}
+
+.ml-warning-confirm-text {
+    text-align: center;
+    color: #666;
+    font-size: 0.93em;
+    margin: 0;
+    padding-top: 4px;
+    font-style: italic;
+}
+
+.btn-ml-warning-ok {
+    background: linear-gradient(135deg, #ff9500 0%, #ff5e00 100%);
+    color: white;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+
+.btn-ml-warning-ok:hover {
+    background: linear-gradient(135deg, #e68500 0%, #e05300 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255,94,0,0.4);
+}
+
+/* ============================================================================
    PAGINATION STYLES
    ============================================================================ */
 .pagination-container {

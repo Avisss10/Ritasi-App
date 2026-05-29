@@ -30,14 +30,15 @@ function formatText(value, maxLength) {
  * @param {Object} res - Express response object
  */
 export function generatePDF(title, rows, filterInfo, res) {
-  const isGabungan = title.includes("GABUNGAN");
-  const isOrder = title.includes("ORDER") && !isGabungan;
-  const isBuangan = title.includes("BUANGAN");
+  const isGabungan  = title.includes("GABUNGAN");
+  const isOrder     = title.includes("ORDER") && !isGabungan;
+  const isBuangan   = title.includes("BUANGAN") && !title.includes("MOBIL");
+  const isMobilLuar = title.includes("MOBIL LUAR");
   
   const doc = new PDFDocument({
     margin: 20,
     size: "A4",
-    layout: isGabungan ? "landscape" : "portrait",
+    layout: (isGabungan || isMobilLuar) ? "landscape" : "portrait",
     info: {
       Title: title,
       Author: "Sistem Rekap",
@@ -182,7 +183,7 @@ if (filterInfo && filterInfo.stats && title.includes('GABUNGAN')) {
     doc.addPage({
       margin: 20,
       size: "A4",
-      layout: isGabungan ? "landscape" : "portrait"
+      layout: (isGabungan || isMobilLuar) ? "landscape" : "portrait"
     });
     yPosition = 20;
   }
@@ -344,11 +345,11 @@ if (filterInfo && filterInfo.stats && title.includes('GABUNGAN')) {
       
     } else if (isBuangan) {
       columns = Object.keys(rows[0]).filter(key => !key.toLowerCase().includes('id'));
-      
+
       if (!columns.includes("no") && !columns.includes("no_urut")) {
         columns.unshift("row_number");
       }
-      
+
       columnConfig = {
         "row_number": { width: 30, label: "No" },
         "no": { width: 35, label: "No" },
@@ -367,6 +368,22 @@ if (filterInfo && filterInfo.stats && title.includes('GABUNGAN')) {
         "uang_alihan": { width: 50, label: "Uang Alihan" },
         "urut_buangan": { width: 35, label: "No Urut" }
       };
+
+    } else if (isMobilLuar) {
+      columns = ["row_number", "no_urut", "pengirim", "galian", "no_plat", "supir", "tanggal_bongkar", "jam_bongkar", "proyek", "lokasi_buang"];
+
+      columnConfig = {
+        "row_number":      { width: 25,  label: "No"           },
+        "no_urut":         { width: 35,  label: "No Urut"      },
+        "pengirim":        { width: 65,  label: "Pengirim (PT)" },
+        "galian":          { width: 55,  label: "Galian"        },
+        "no_plat":         { width: 45,  label: "No Plat"       },
+        "supir":           { width: 55,  label: "Supir"         },
+        "tanggal_bongkar": { width: 50,  label: "Tgl Bongkar"  },
+        "jam_bongkar":     { width: 38,  label: "Jam"           },
+        "proyek":          { width: 60,  label: "Proyek"        },
+        "lokasi_buang":    { width: 65,  label: "Lokasi Buang"  }
+      };
     }
 
     // Compute total width and scaling
@@ -374,7 +391,7 @@ if (filterInfo && filterInfo.stats && title.includes('GABUNGAN')) {
       return sum + (columnConfig[col]?.width || 60);
     }, 0);
 
-    const scale = totalWidth > pageWidth ? pageWidth / totalWidth : 1;
+    const scale = pageWidth / totalWidth;
 
     const drawTableHeader = (y) => {
       let xPos = leftMargin;
@@ -454,7 +471,7 @@ if (filterInfo && filterInfo.stats && title.includes('GABUNGAN')) {
         doc.addPage({
           margin: 20,
           size: "A4",
-          layout: isGabungan ? "landscape" : "portrait"
+          layout: (isGabungan || isMobilLuar) ? "landscape" : "portrait"
         });
         yPosition = 20;
         yPosition = drawTableHeader(yPosition);
@@ -605,7 +622,7 @@ if (filterInfo && filterInfo.stats && title.includes('GABUNGAN')) {
         doc.addPage({
           margin: 20,
           size: "A4",
-          layout: isGabungan ? "landscape" : "portrait"
+          layout: (isGabungan || isMobilLuar) ? "landscape" : "portrait"
         });
         yPosition = 20;
       }

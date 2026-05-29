@@ -14,6 +14,13 @@ export async function generateExcel(filename, headers, rows, filterInfo, res) {
 
   workbook.creator = "Sistem Rekap";
   workbook.created = new Date();
+
+  if (filterInfo.landscape) {
+    worksheet.pageSetup.orientation = "landscape";
+    worksheet.pageSetup.fitToPage   = true;
+    worksheet.pageSetup.fitToWidth  = 1;
+    worksheet.pageSetup.fitToHeight = 0;
+  }
   
   let currentRow = 1;
 
