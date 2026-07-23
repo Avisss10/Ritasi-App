@@ -613,9 +613,17 @@ function displayOrderResults(orders) {
             statusBadge = '<span class="badge badge-pending">ON PROCESS</span>';
         }
 
-        const actionButtons = (order.status === 'BATAL' || order.status === 'COMPLETE')
-            ? '-'
-            : `
+        let actionButtons;
+        if (order.status === 'BATAL') {
+            actionButtons = `
+                <button class="btn btn-success btn-small" onclick="bukaModalUnBatal(${order.id})">
+                    <span class="icon">♻️</span> Un-batal
+                </button>
+            `;
+        } else if (order.status === 'COMPLETE') {
+            actionButtons = '-';
+        } else {
+            actionButtons = `
                 <div style="display: flex; gap: 8px;">
                     <button class="btn btn-warning btn-small" onclick="bukaFormBuangan(${order.id})">
                         <span class="icon">📋</span> Buangan
@@ -625,6 +633,7 @@ function displayOrderResults(orders) {
                     </button>
                 </div>
             `;
+        }
 
         tr.innerHTML = `
             <td style="text-align: center; font-weight: 600;">${rowNumber}</td>
@@ -1857,15 +1866,22 @@ function displayBuanganList(buanganList) {
             <td>${alihanBadge}</td>
             <td>${statusBadge}</td>
             <td>
-                <button class="btn btn-primary btn-small" onclick="lihatDetailBuangan(${buangan.id})">
-                    <span class="icon">👁️</span> Detail
-                </button>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-primary btn-small" onclick="lihatDetailBuangan(${buangan.id})">
+                        <span class="icon">👁️</span> Detail
+                    </button>
+                    ${buangan.status === 'BATAL' ? `
+                        <button class="btn btn-success btn-small" onclick="bukaModalUnBatal(${buangan.order_id})">
+                            <span class="icon">♻️</span> Un-batal
+                        </button>
+                    ` : ''}
+                </div>
             </td>
         `;
 
         tbody.appendChild(tr);
     });
-    
+
     updateBuanganPagination(buanganList.length);
 }
 
@@ -2302,6 +2318,45 @@ async function konfirmasiBatalOrder() {
     } catch (error) {
         console.error('Error:', error);
         showToast('Gagal membatalkan order: ' + error.message, 'error');
+    }
+}
+
+// ============================================================================
+// MODAL UN-BATAL ORDER
+// ============================================================================
+function bukaModalUnBatal(orderId) {
+    document.getElementById('unBatalOrderId').value = orderId;
+    document.getElementById('unBatalOrderText').textContent =
+        'Apakah Anda yakin ingin meng-un-batal order ini? Jika belum ada ritasi asli, status akan kembali ke ON PROCESS; jika sudah ada ritasi, status akan menjadi COMPLETE.';
+    document.getElementById('modalUnBatalOrder').style.display = 'flex';
+}
+
+function tutupModalUnBatal() {
+    document.getElementById('modalUnBatalOrder').style.display = 'none';
+    document.getElementById('unBatalOrderId').value = '';
+}
+
+async function konfirmasiUnBatalOrder() {
+    const orderId = document.getElementById('unBatalOrderId').value;
+    if (!orderId) return;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/order/${orderId}/un-batal`, {
+            method: 'POST'
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.status) {
+            throw new Error(result.message || `HTTP error! status: ${response.status}`);
+        }
+
+        showToast(`Order berhasil di-un-batal (status: ${result.data.status})`, 'success');
+        tutupModalUnBatal();
+        await goToBuanganMain();
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Gagal un-batal order: ' + error.message, 'error');
     }
 }
 

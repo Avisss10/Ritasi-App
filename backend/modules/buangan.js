@@ -5,6 +5,7 @@
 import express from "express";
 import db from "../config/db.js";
 import { success, error } from "../utils/response.js";
+import { isExactOdoVariant, parseKmFromDb } from "../utils/normalize.js";
 
 const router = express.Router();
 
@@ -32,23 +33,6 @@ const router = express.Router();
     console.warn('Gagal migrasi nullable mobil_luar:', err.message);
   }
 })();
-
-// ============================================================================
-// HELPERS - exact ODO ERROR check (no fuzzy matching)
-// ============================================================================
-function isExactOdoVariant(s) {
-  if (!s) return false;
-  const u = s.toString().toUpperCase().replace(/\s/g, '').trim();
-  return u === 'ODOERROR' || u === 'ODOERR';
-}
-
-// Parse km value from DB - strips Indonesian thousand-separator dots before parsing
-function parseKmFromDb(km) {
-  if (km === null || km === undefined || km === '') return NaN;
-  if (isExactOdoVariant(km)) return NaN;
-  return parseInt(String(km).replace(/\./g, '').replace(/,/g, ''), 10);
-}
-
 
 // ============================================================================
 // GET ALL BUANGAN

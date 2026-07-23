@@ -41,6 +41,9 @@ app.use("/api/buangan", buanganRoutes);
 import rekapRoutes from "./modules/rekap.js";
 app.use("/api/rekap", rekapRoutes);
 
+import importRoutes from "./modules/import.js";
+app.use("/api/import", importRoutes);
+
 // ======================================================
 // GLOBAL ERROR HANDLING
 // ======================================================

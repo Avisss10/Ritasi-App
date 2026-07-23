@@ -314,11 +314,13 @@ async function generateFilterInfo(req, type) {
     filters["No Order"] = req.query.no_order;
   }
 
-  const getTodayDate = () => new Date().toISOString().split('T')[0];
+  const formatLocalDate = (d) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const getTodayDate = () => formatLocalDate(new Date());
   const get2DaysAgoDate = () => {
     const today = new Date();
     today.setDate(today.getDate() - 2);
-    return today.toISOString().split('T')[0];
+    return formatLocalDate(today);
   };
 
   if (req.query.tanggal_dari && req.query.tanggal_sampai) {
@@ -376,7 +378,7 @@ async function generateFilterInfo(req, type) {
   }
 
   if (Object.keys(filters).length === 0) {
-    filters["Periode"] = "2 Hari Terakhir (Default)";
+    filters["Filter"] = "Tidak ada filter diterapkan (seluruh data)";
   }
 
   return { title, filename, filters };

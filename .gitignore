@@ -18,6 +18,9 @@ RITASI-APP-RELEASE/
 # Security
 *.pem
 
+# Test data (bulk import CSV manual testing)
+test-csv/
+
 # IDE
 .vscode/
 .idea/

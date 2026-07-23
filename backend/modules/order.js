@@ -5,39 +5,9 @@
 import express from "express";
 import db from "../config/db.js";
 import { success, error } from "../utils/response.js";
+import { fixTanggalForMySQL, normalizeKmForStorage } from "../utils/normalize.js";
 
 const router = express.Router();
-
-// ============================================================================
-// HELPER: Fix tanggal untuk MySQL (format YYYY-MM-DD)
-// ============================================================================
-function fixTanggalForMySQL(tanggalInput) {
-  // Input format: "2025-11-25" (dari input type="date")
-  // Output: "2025-11-25" (tanpa timezone conversion)
-  
-  if (!tanggalInput) return null;
-  
-  // Ambil hanya bagian tanggal (YYYY-MM-DD), abaikan timezone
-  const tanggal = tanggalInput.split('T')[0];
-  return tanggal;
-}
-
-// --- normalize km_awal for storage: exact ODO ERROR check, then strip thousand separators and store as integer ---
-function normalizeKmForStorage(kmValue) {
-  if (kmValue === undefined || kmValue === null) return kmValue;
-  const s = String(kmValue).trim();
-  if (!s) return s;
-
-  // Exact ODO ERROR check (case-insensitive, ignore spaces)
-  const upper = s.toUpperCase().replace(/\s/g, '');
-  if (upper === 'ODOERROR' || upper === 'ODOERR') return 'ODO ERROR';
-
-  // Strip Indonesian thousand separators (dots) and store as integer
-  const numeric = parseInt(s.replace(/\./g, '').replace(/,/g, ''), 10);
-  if (!isNaN(numeric)) return numeric;
-
-  return s;
-}
 
 // ============================================================================
 // GET ALL ORDERS
@@ -314,6 +284,69 @@ router.put("/:id", async (req, res) => {
 
   } catch (err) {
     return error(res, 500, "Gagal update order", err);
+  }
+});
+
+// ============================================================================
+// UN-BATAL ORDER (membatalkan status BATAL, mengembalikan ke ON PROCESS/COMPLETE)
+// ============================================================================
+router.post("/:id/un-batal", async (req, res) => {
+  const { id } = req.params;
+  let conn;
+
+  try {
+    conn = await db.getConnection();
+    await conn.beginTransaction();
+
+    const [orderRows] = await conn.query(
+      `SELECT id, status FROM orders WHERE id = ? LIMIT 1`,
+      [id]
+    );
+
+    if (orderRows.length === 0) {
+      await conn.rollback();
+      return error(res, 404, `Order ID ${id} tidak ditemukan`);
+    }
+
+    if (orderRows[0].status !== "BATAL") {
+      await conn.rollback();
+      return error(res, 400, "Order ini tidak berstatus BATAL");
+    }
+
+    const [buanganRows] = await conn.query(
+      `SELECT id, tanggal_bongkar, km_akhir, no_urut FROM buangan WHERE order_id = ?`,
+      [id]
+    );
+
+    // Baris placeholder = dibuat oleh flow batal (semua kolom data ritasi NULL)
+    const isPlaceholder = (b) =>
+      b.tanggal_bongkar === null && b.km_akhir === null && b.no_urut === null;
+    const allPlaceholder = buanganRows.length === 0 || buanganRows.every(isPlaceholder);
+
+    let newStatus;
+    if (allPlaceholder) {
+      if (buanganRows.length > 0) {
+        const ids = buanganRows.map((b) => b.id);
+        await conn.query(`DELETE FROM buangan WHERE id IN (?)`, [ids]);
+      }
+      newStatus = "ON PROCESS";
+    } else {
+      // Ada ritasi asli -> biarkan utuh, order dianggap sudah selesai
+      newStatus = "COMPLETE";
+    }
+
+    await conn.query(`UPDATE orders SET status = ? WHERE id = ?`, [newStatus, id]);
+    await conn.commit();
+
+    return success(res, "Order berhasil di-un-batal", {
+      id: parseInt(id, 10),
+      status: newStatus,
+    });
+  } catch (err) {
+    if (conn) await conn.rollback().catch(() => {});
+    return error(res, 500, "Gagal un-batal order", err);
+  } finally {
+    if (conn) conn.release();
   }
 });
 

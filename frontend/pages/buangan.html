@@ -560,6 +560,29 @@
                 </div>
             </div>
         </div>
+
+        <!-- MODAL KONFIRMASI UN-BATAL ORDER -->
+        <div class="modal-overlay" id="modalUnBatalOrder" style="display: none;">
+            <div class="modal-container">
+                <div class="modal-header">
+                    <h3>♻️ Un-batal Order</h3>
+                </div>
+                <div class="modal-body">
+                    <p style="margin-bottom: 20px; color: #666;" id="unBatalOrderText">
+                        Apakah Anda yakin ingin meng-un-batal order ini?
+                    </p>
+                    <input type="hidden" id="unBatalOrderId">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="tutupModalUnBatal()">
+                        <span class="icon">✕</span> Batal
+                    </button>
+                    <button type="button" class="btn btn-success" onclick="konfirmasiUnBatalOrder()">
+                        <span class="icon">♻️</span> Ya, Un-batal
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
         </div> <!-- end nsiContent -->

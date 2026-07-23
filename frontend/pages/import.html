@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Import Data CSV</title>
+    <link rel="stylesheet" href="../assets/css/import.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📥 Import Data CSV</h1>
+            <p class="subtitle">Upload massal data master, order, buangan, dan mobil luar dari file CSV</p>
+        </header>
+
+        <!-- Tab Navigation -->
+        <nav class="import-tabs" id="importTabs">
+            <button class="import-tab active" data-tab="master">1️⃣ Master Data</button>
+            <button class="import-tab" data-tab="order">2️⃣ Order</button>
+            <button class="import-tab" data-tab="buangan">3️⃣ Buangan</button>
+            <button class="import-tab" data-tab="mobil-luar">🚚 Mobil Luar</button>
+            <button class="import-tab" data-tab="riwayat">🕘 Riwayat</button>
+        </nav>
+
+        <!-- Tab: Master Data -->
+        <section class="import-tab-content active" id="tab-master">
+            <div class="master-subtabs" id="masterSubtabs">
+                <button class="master-subtab active" data-sub="kendaraan">Kendaraan</button>
+                <button class="master-subtab" data-sub="supir">Supir</button>
+                <button class="master-subtab" data-sub="galian">Galian</button>
+                <button class="master-subtab" data-sub="proyek">Proyek</button>
+            </div>
+            <div id="panel-kendaraan" class="master-subpanel active"></div>
+            <div id="panel-supir" class="master-subpanel"></div>
+            <div id="panel-galian" class="master-subpanel"></div>
+            <div id="panel-proyek" class="master-subpanel"></div>
+        </section>
+
+        <!-- Tab: Order -->
+        <section class="import-tab-content" id="tab-order">
+            <div id="panel-order"></div>
+        </section>
+
+        <!-- Tab: Buangan -->
+        <section class="import-tab-content" id="tab-buangan">
+            <div id="panel-buangan"></div>
+        </section>
+
+        <!-- Tab: Mobil Luar -->
+        <section class="import-tab-content" id="tab-mobil-luar">
+            <div id="panel-mobil-luar"></div>
+        </section>
+
+        <!-- Tab: Riwayat -->
+        <section class="import-tab-content" id="tab-riwayat">
+            <div class="riwayat-section">
+                <div class="riwayat-header">
+                    <h2>Riwayat Import</h2>
+                    <button class="btn btn-secondary" id="btnRefreshRiwayat">🔄 Refresh</button>
+                </div>
+                <div class="table-wrapper">
+                    <table id="riwayatTable">
+                        <thead>
+                            <tr>
+                                <th>Waktu</th>
+                                <th>Entitas</th>
+                                <th>File</th>
+                                <th>Total</th>
+                                <th>Berhasil</th>
+                                <th>Dilewati</th>
+                            </tr>
+                        </thead>
+                        <tbody id="riwayatTableBody">
+                            <tr><td colspan="6" class="loading">Memuat data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Modal: Tambah ke Master -->
+    <div class="modal-overlay" id="modalAddMaster" style="display:none;">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3>➕ Tambah ke Master</h3>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label id="addMasterFieldLabel">Nama</label>
+                    <input type="text" id="addMasterNama">
+                </div>
+                <div class="form-group" id="addMasterHargaGroup" style="display:none;">
+                    <label>Harga (opsional, default 0)</label>
+                    <input type="text" id="addMasterHarga" placeholder="0">
+                    <small class="hint">Jika dikosongkan, harga akan tersimpan 0 — sesuaikan nanti di halaman Master.</small>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-primary" id="btnConfirmAddMaster">Simpan</button>
+                <button class="btn btn-secondary" id="btnCancelAddMaster">Batal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Konfirmasi Commit -->
+    <div class="modal-overlay" id="modalCommit" style="display:none;">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3>💾 Konfirmasi Import</h3>
+            </div>
+            <div class="modal-body">
+                <p id="modalCommitText">Lanjutkan import?</p>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-primary" id="btnConfirmCommit">Ya, Import</button>
+                <button class="btn btn-secondary" id="btnCancelCommit">Batal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Un-batal Order -->
+    <div class="modal-overlay" id="modalUnBatal" style="display:none;">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3>♻️ Un-batal Order</h3>
+            </div>
+            <div class="modal-body">
+                <p id="modalUnBatalText"></p>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-primary" id="btnConfirmUnBatal">Ya, Un-batal</button>
+                <button class="btn btn-secondary" id="btnCancelUnBatal">Batal</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="../assets/js/import.js"></script>
+</body>
+</html>

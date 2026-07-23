@@ -18,10 +18,16 @@ export function generateFilename(baseName, filterInfo) {
     const p1 = makePeriodPart('Periode', filterInfo.filters['Periode']);
     const p2 = makePeriodPart('Order', filterInfo.filters['Periode Order']);
     const p3 = makePeriodPart('Bongkar', filterInfo.filters['Periode Bongkar']);
-    [p1, p2, p3].forEach(p => { if (p) filterParts.push(p); });
+    const p4 = makePeriodPart('Dari', filterInfo.filters['Tanggal Dari']);
+    const p5 = makePeriodPart('Sampai', filterInfo.filters['Tanggal Sampai']);
+    const p6 = makePeriodPart('OrderDari', filterInfo.filters['Tanggal Order Dari']);
+    const p7 = makePeriodPart('OrderSampai', filterInfo.filters['Tanggal Order Sampai']);
+    const p8 = makePeriodPart('BongkarDari', filterInfo.filters['Tanggal Bongkar Dari']);
+    const p9 = makePeriodPart('BongkarSampai', filterInfo.filters['Tanggal Bongkar Sampai']);
+    [p1, p2, p3, p4, p5, p6, p7, p8, p9].forEach(p => { if (p) filterParts.push(p); });
 
     // Add other important filters (limit to 3)
-    const priorityFilters = ["Proyek", "Petugas", "Lokasi Bongkar", "Kendaraan", "Supir", "Galian", "Status", "Galian Alihan", "No Order", "Alihan"];
+    const priorityFilters = ["Proyek", "Petugas Order", "Lokasi Bongkar", "Kendaraan", "Supir", "Galian", "Status", "Galian Alihan", "No Order", "Alihan", "No DO", "Pengirim", "Lokasi Buang"];
     let addedCount = 0;
 
     for (const filterKey of priorityFilters) {
