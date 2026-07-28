@@ -104,6 +104,7 @@ const panelState = {};
 let addMasterContext = null;
 let commitContext = null;
 let unBatalContext = null;
+let commitProgressTimer = null;
 
 // ============================================================================
 // INIT
@@ -332,6 +333,7 @@ async function handleUpload(entitas, file) {
             summary: json.data.summary,
             extraColumns: json.data.extra_columns || [],
             filename: json.data.filename,
+            filterStatus: 'all',
         };
         renderPanelResult(entitas);
     } catch (err) {
@@ -354,6 +356,7 @@ function renderPanelResult(entitas) {
     const def = PANEL_DEFS[entitas];
     const s = state.summary;
     const insertable = state.rows.filter((r) => r.status !== 'error' && !r.skip_insert).length;
+    const filterStatus = state.filterStatus || 'all';
 
     const extraHtml = state.extraColumns.length
         ? `<div class="import-extra-columns">⚠️ Kolom tidak dikenal diabaikan: ${escapeHtml(state.extraColumns.join(', '))}</div>`
@@ -364,7 +367,9 @@ function renderPanelResult(entitas) {
     const isRitasi = entitas === 'ritasi';
     const finalStatusTh = isRitasi ? '<th>Status Akhir</th>' : '';
 
-    const rowsHtml = state.rows.map((row) => {
+    const visibleRows = filterStatus === 'all' ? state.rows : state.rows.filter((r) => r.status === filterStatus);
+
+    const rowsHtml = visibleRows.map((row) => {
         const cells = def.columns.map((col) => `<td>${escapeHtml(row.data[col.key])}</td>`).join('');
         const messagesHtml = row.messages.length
             ? `<div class="row-messages">${row.messages.map(escapeHtml).join('<br>')}</div>`
@@ -392,13 +397,25 @@ function renderPanelResult(entitas) {
         `;
     }).join('');
 
+    const tableBodyHtml = visibleRows.length
+        ? rowsHtml
+        : `<tr><td colspan="99" class="import-table-empty">Tidak ada baris dengan status ini</td></tr>`;
+
     resultEl.innerHTML = `
         ${extraHtml}
-        <div class="import-summary">
-            <span class="summary-chip total">Total: ${s.total}</span>
-            <span class="summary-chip valid">Valid: ${s.valid}</span>
-            <span class="summary-chip warning">Warning: ${s.warning}</span>
-            <span class="summary-chip error">Error: ${s.error}</span>
+        <div class="import-panel-toolbar">
+            <div class="import-panel-toolbar-top">
+                <div class="import-panel-toolbar-filename">${state.filename ? `📄 ${escapeHtml(state.filename)}` : ''}</div>
+                <button class="btn btn-primary" id="btnCommit-${entitas}" ${insertable === 0 ? 'disabled' : ''} onclick="confirmCommit('${entitas}')">
+                    💾 Commit Import (${insertable} baris)
+                </button>
+            </div>
+            <div class="import-summary">
+                <button class="summary-chip total ${filterStatus === 'all' ? 'active' : ''}" onclick="setPanelFilter('${entitas}', 'all')">Total: ${s.total}</button>
+                <button class="summary-chip valid ${filterStatus === 'ok' ? 'active' : ''}" onclick="setPanelFilter('${entitas}', 'ok')">Valid: ${s.valid}</button>
+                <button class="summary-chip warning ${filterStatus === 'warning' ? 'active' : ''}" onclick="setPanelFilter('${entitas}', 'warning')">Warning: ${s.warning}</button>
+                <button class="summary-chip error ${filterStatus === 'error' ? 'active' : ''}" onclick="setPanelFilter('${entitas}', 'error')">Error: ${s.error}</button>
+            </div>
         </div>
         <div class="import-table-wrapper">
             <table class="import-table">
@@ -410,17 +427,18 @@ function renderPanelResult(entitas) {
                         <th>Status</th>
                     </tr>
                 </thead>
-                <tbody>${rowsHtml}</tbody>
+                <tbody>${tableBodyHtml}</tbody>
             </table>
-        </div>
-        <div class="import-panel-footer">
-            <div>${state.filename ? `📄 ${escapeHtml(state.filename)}` : ''}</div>
-            <button class="btn btn-primary" id="btnCommit-${entitas}" ${insertable === 0 ? 'disabled' : ''} onclick="confirmCommit('${entitas}')">
-                💾 Commit Import (${insertable} baris)
-            </button>
         </div>
         <div id="commitReport-${entitas}"></div>
     `;
+}
+
+function setPanelFilter(entitas, status) {
+    const state = panelState[entitas];
+    if (!state) return;
+    state.filterStatus = status === 'all' ? 'all' : (state.filterStatus === status ? 'all' : status);
+    renderPanelResult(entitas);
 }
 
 function renderRowActions(entitas, row) {
@@ -585,6 +603,9 @@ async function runCommit() {
     const state = panelState[entitas];
     document.getElementById('modalCommit').style.display = 'none';
 
+    const totalBaris = state.rows.filter((r) => r.status !== 'error' && !r.skip_insert).length;
+    showCommitProgress(totalBaris);
+
     try {
         const res = await fetch(`${API_BASE_URL}/import/${entitas}/commit`, {
             method: 'POST',
@@ -592,6 +613,8 @@ async function runCommit() {
             body: JSON.stringify({ batch_id: state.batch_id }),
         });
         const json = await res.json();
+
+        await finishCommitProgress();
 
         if (!json.status) {
             showToast(json.message, 'error');
@@ -612,10 +635,66 @@ async function runCommit() {
         panelState[entitas] = null;
         checkGating();
     } catch (err) {
+        hideCommitProgress();
         showToast('Gagal commit import: ' + err.message, 'error');
     } finally {
         commitContext = null;
     }
+}
+
+// ============================================================================
+// POPUP PROGRESS COMMIT (simulasi persen, backend tidak melaporkan progres real)
+// ============================================================================
+function showCommitProgress(total) {
+    clearInterval(commitProgressTimer);
+
+    const modal = document.getElementById('modalCommitProgress');
+    const fill = document.getElementById('commitProgressFill');
+    const percentEl = document.getElementById('commitProgressPercent');
+    const countEl = document.getElementById('commitProgressCount');
+
+    let percent = 0;
+    fill.style.width = '0%';
+    percentEl.textContent = '0%';
+    countEl.textContent = `0 / ${total} baris`;
+    modal.style.display = 'flex';
+
+    commitProgressTimer = setInterval(() => {
+        percent += (90 - percent) * 0.1;
+        if (percent > 90) percent = 90;
+        const rounded = Math.round(percent);
+        fill.style.width = `${rounded}%`;
+        percentEl.textContent = `${rounded}%`;
+        countEl.textContent = `${Math.round((rounded / 100) * total)} / ${total} baris`;
+    }, 200);
+}
+
+function finishCommitProgress() {
+    clearInterval(commitProgressTimer);
+    commitProgressTimer = null;
+
+    const modal = document.getElementById('modalCommitProgress');
+    const fill = document.getElementById('commitProgressFill');
+    const percentEl = document.getElementById('commitProgressPercent');
+    const countEl = document.getElementById('commitProgressCount');
+    const total = (countEl.textContent.match(/\/\s*(\d+)/) || [])[1] || '0';
+
+    fill.style.width = '100%';
+    percentEl.textContent = '100%';
+    countEl.textContent = `${total} / ${total} baris`;
+
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            modal.style.display = 'none';
+            resolve();
+        }, 500);
+    });
+}
+
+function hideCommitProgress() {
+    clearInterval(commitProgressTimer);
+    commitProgressTimer = null;
+    document.getElementById('modalCommitProgress').style.display = 'none';
 }
 
 // ============================================================================

@@ -222,7 +222,6 @@ header .subtitle {
     display: flex;
     gap: 12px;
     flex-wrap: wrap;
-    margin-bottom: 16px;
 }
 
 .summary-chip {
@@ -230,12 +229,23 @@ header .subtitle {
     border-radius: 20px;
     font-size: 13px;
     font-weight: 700;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
 }
+
+.summary-chip:hover { transform: translateY(-1px); }
 
 .summary-chip.total { background: #e5e7eb; color: #374151; }
 .summary-chip.valid { background: #d1fae5; color: #065f46; }
 .summary-chip.warning { background: #fef3c7; color: #92400e; }
 .summary-chip.error { background: #fee2e2; color: #991b1b; }
+
+.summary-chip.active.total { border-color: #374151; }
+.summary-chip.active.valid { border-color: #065f46; }
+.summary-chip.active.warning { border-color: #92400e; }
+.summary-chip.active.error { border-color: #991b1b; }
 
 .import-extra-columns {
     background: #fef3c7;
@@ -345,12 +355,34 @@ header .subtitle {
     gap: 4px;
 }
 
-.import-panel-footer {
+.import-panel-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.import-panel-toolbar-top {
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
     gap: 12px;
+}
+
+.import-panel-toolbar-filename {
+    font-size: 13px;
+    color: #555;
+    font-weight: 600;
+}
+
+.import-table-empty {
+    text-align: center;
+    padding: 30px;
+    color: #999;
+    font-size: 13px;
 }
 
 .import-commit-report {
@@ -485,6 +517,31 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
     display: flex;
     gap: 10px;
     justify-content: flex-end;
+}
+
+.progress-bar-track {
+    width: 100%;
+    height: 14px;
+    background: #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 8px;
+    transition: width 0.2s ease;
+}
+
+.progress-bar-label {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+    font-size: 13px;
+    color: #555;
+    font-weight: 600;
 }
 
 /* ============================================================================
