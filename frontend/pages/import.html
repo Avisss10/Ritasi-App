@@ -10,14 +10,13 @@
     <div class="container">
         <header>
             <h1>📥 Import Data CSV</h1>
-            <p class="subtitle">Upload massal data master, order, buangan, dan mobil luar dari file CSV</p>
+            <p class="subtitle">Upload massal data master, ritasi, dan mobil luar dari file CSV</p>
         </header>
 
         <!-- Tab Navigation -->
         <nav class="import-tabs" id="importTabs">
             <button class="import-tab active" data-tab="master">1️⃣ Master Data</button>
-            <button class="import-tab" data-tab="order">2️⃣ Order</button>
-            <button class="import-tab" data-tab="buangan">3️⃣ Buangan</button>
+            <button class="import-tab" data-tab="ritasi">2️⃣ Ritasi</button>
             <button class="import-tab" data-tab="mobil-luar">🚚 Mobil Luar</button>
             <button class="import-tab" data-tab="riwayat">🕘 Riwayat</button>
         </nav>
@@ -36,14 +35,9 @@
             <div id="panel-proyek" class="master-subpanel"></div>
         </section>
 
-        <!-- Tab: Order -->
-        <section class="import-tab-content" id="tab-order">
-            <div id="panel-order"></div>
-        </section>
-
-        <!-- Tab: Buangan -->
-        <section class="import-tab-content" id="tab-buangan">
-            <div id="panel-buangan"></div>
+        <!-- Tab: Ritasi (order + buangan dalam satu baris) -->
+        <section class="import-tab-content" id="tab-ritasi">
+            <div id="panel-ritasi"></div>
         </section>
 
         <!-- Tab: Mobil Luar -->

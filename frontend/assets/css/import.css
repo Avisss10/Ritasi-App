@@ -150,6 +150,43 @@ header .subtitle {
     font-size: 14px;
 }
 
+/* Kotak persyaratan file CSV (collapsible) di atas dropzone */
+.import-requirements {
+    background: #f8f9ff;
+    border: 1px solid #c7c9f7;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: #444;
+}
+
+.import-requirements summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: #667eea;
+    font-size: 13px;
+}
+
+.import-requirements ul {
+    margin: 10px 0 4px 20px;
+    line-height: 1.6;
+}
+
+.import-requirements code {
+    background: #eef0ff;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #3730a3;
+}
+
+.import-requirements .req-status-guide {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #c7c9f7;
+}
+
 .import-upload-row {
     display: flex;
     align-items: center;
@@ -255,6 +292,22 @@ header .subtitle {
 .row-status-badge.ok { background: #d1fae5; color: #065f46; }
 .row-status-badge.warning { background: #fef3c7; color: #92400e; }
 .row-status-badge.error { background: #fee2e2; color: #991b1b; }
+
+/* Badge "Status Akhir" per baris di preview ritasi */
+.final-status-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.final-status-badge.on-process { background: #fef3c7; color: #92400e; }
+.final-status-badge.complete { background: #d1fae5; color: #065f46; }
+.final-status-badge.batal { background: #fee2e2; color: #991b1b; }
+.final-status-badge.append-ritasi { background: #dbeafe; color: #1e40af; }
 
 .row-messages {
     font-size: 11px;

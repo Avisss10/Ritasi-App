@@ -9,10 +9,10 @@ const PANEL_DEFS = {
     supir: { label: 'Supir', columns: [{ key: 'nama', label: 'Nama' }] },
     galian: { label: 'Galian', columns: [{ key: 'nama_galian', label: 'Nama Galian' }, { key: 'harga_galian', label: 'Harga' }] },
     proyek: { label: 'Proyek', columns: [{ key: 'nama_proyek', label: 'Nama Proyek' }, { key: 'harga', label: 'Harga' }] },
-    order: {
-        label: 'Order',
+    ritasi: {
+        label: 'Ritasi',
         columns: [
-            { key: 'tanggal_order', label: 'Tanggal' },
+            { key: 'tanggal_order', label: 'Tgl Order' },
             { key: 'no_order', label: 'No Order' },
             { key: 'petugas_order', label: 'Petugas' },
             { key: 'no_pintu', label: 'Kendaraan', resolvable: 'no_pintu' },
@@ -20,17 +20,12 @@ const PANEL_DEFS = {
             { key: 'nama_galian', label: 'Galian', resolvable: 'nama_galian' },
             { key: 'nama_proyek', label: 'Proyek', resolvable: 'nama_proyek' },
             { key: 'no_do', label: 'No DO' },
-            { key: 'jam_order', label: 'Jam' },
+            { key: 'jam_order', label: 'Jam Order' },
             { key: 'km_awal', label: 'KM Awal' },
             { key: 'uang_jalan', label: 'Uang Jalan' },
             { key: 'potongan', label: 'Potongan' },
-        ],
-    },
-    buangan: {
-        label: 'Buangan',
-        columns: [
-            { key: 'tanggal_order', label: 'Tgl Order' },
-            { key: 'no_order', label: 'No Order' },
+            { key: 'batal', label: 'Batal' },
+            { key: 'keterangan', label: 'Keterangan' },
             { key: 'tanggal_bongkar', label: 'Tgl Bongkar' },
             { key: 'jam_bongkar', label: 'Jam Bongkar' },
             { key: 'km_akhir', label: 'KM Akhir' },
@@ -38,7 +33,6 @@ const PANEL_DEFS = {
             { key: 'lokasi_bongkar', label: 'Lokasi' },
             { key: 'alihan', label: 'Alihan' },
             { key: 'nama_galian_alihan', label: 'Galian Alihan', resolvable: 'nama_galian_alihan' },
-            { key: 'keterangan', label: 'Keterangan' },
             { key: 'uang_alihan', label: 'Uang Alihan' },
             { key: 'no_urut', label: 'No Urut' },
         ],
@@ -65,6 +59,42 @@ const RESOLVABLE_FIELDS = {
     nama_galian: { label: 'Galian', hasHarga: true },
     nama_galian_alihan: { label: 'Galian Alihan', hasHarga: true },
     nama_proyek: { label: 'Proyek', hasHarga: true },
+};
+
+// ============================================================================
+// DAFTAR KOLOM HEADER CSV PER ENTITAS
+// Dipakai pre-check header di browser & kotak persyaratan.
+// PENTING: samakan dengan ENTITY_SCHEMAS di backend/utils/csvImport.js
+// ============================================================================
+const CSV_HEADER_COLUMNS = {
+    kendaraan: ['no_pintu'],
+    supir: ['nama'],
+    galian: ['nama_galian', 'harga_galian'],
+    proyek: ['nama_proyek', 'harga'],
+    ritasi: [
+        'tanggal_order', 'no_order', 'petugas_order', 'no_pintu', 'nama_supir',
+        'nama_galian', 'nama_proyek', 'no_do', 'jam_order', 'km_awal',
+        'uang_jalan', 'potongan', 'batal', 'keterangan',
+        'tanggal_bongkar', 'jam_bongkar', 'km_akhir', 'jarak_km', 'lokasi_bongkar',
+        'alihan', 'nama_galian_alihan', 'uang_alihan', 'no_urut',
+    ],
+    'mobil-luar': [
+        'no_urut', 'pengirim', 'galian', 'no_plat', 'supir',
+        'tanggal_bongkar', 'jam_bongkar', 'proyek', 'lokasi_buang',
+    ],
+};
+
+// Kolom yang NILAI-nya wajib diisi per baris (untuk kotak persyaratan)
+const CSV_REQUIRED_VALUES = {
+    kendaraan: ['no_pintu'],
+    supir: ['nama'],
+    galian: ['nama_galian'],
+    proyek: ['nama_proyek'],
+    ritasi: [
+        'tanggal_order', 'no_order', 'petugas_order', 'no_pintu', 'nama_supir',
+        'nama_galian', 'no_do', 'jam_order', 'km_awal', 'uang_jalan',
+    ],
+    'mobil-luar': [],
 };
 
 // State per panel: { batch_id, rows, summary, extraColumns, filename }
@@ -139,33 +169,69 @@ async function fetchJsonSafe(url) {
 }
 
 async function checkGating() {
-    const [kendaraan, supir, galian, proyek, orders] = await Promise.all([
+    const [kendaraan, supir, galian, proyek] = await Promise.all([
         fetchJsonSafe(`${API_BASE_URL}/master/kendaraan`),
         fetchJsonSafe(`${API_BASE_URL}/master/supir`),
         fetchJsonSafe(`${API_BASE_URL}/master/galian`),
         fetchJsonSafe(`${API_BASE_URL}/master/proyek`),
-        fetchJsonSafe(`${API_BASE_URL}/order`),
     ]);
 
     const hasData = (r) => !!(r && r.status && Array.isArray(r.data) && r.data.length > 0);
     const masterReady = hasData(kendaraan) && hasData(supir) && hasData(galian) && hasData(proyek);
-    const orderReady = hasData(orders);
 
-    setTabLock('order', !masterReady, 'Isi minimal 1 data di setiap Master (Kendaraan, Supir, Galian, Proyek) terlebih dahulu');
-    setTabLock('buangan', !orderReady, 'Buat minimal 1 Order terlebih dahulu sebelum import Buangan');
+    setTabLock('ritasi', !masterReady, 'Isi minimal 1 data di setiap Master (Kendaraan, Supir, Galian, Proyek) terlebih dahulu');
 }
 
 // ============================================================================
-// RENDER PANEL SHELL (upload area)
+// RENDER PANEL SHELL (kotak persyaratan + upload area)
 // ============================================================================
+function renderRequirementsBox(entitas) {
+    const wajib = CSV_REQUIRED_VALUES[entitas] || [];
+    const semua = CSV_HEADER_COLUMNS[entitas] || [];
+    const opsional = semua.filter((c) => !wajib.includes(c));
+
+    const wajibHtml = wajib.length
+        ? `<li><strong>Kolom wajib diisi:</strong> ${wajib.map(escapeHtml).join(', ')}</li>`
+        : `<li><strong>Kolom wajib diisi:</strong> tidak ada (semua opsional), tetapi seluruh kolom header harus ada</li>`;
+    const opsionalHtml = opsional.length
+        ? `<li><strong>Kolom opsional:</strong> ${opsional.map(escapeHtml).join(', ')}</li>`
+        : '';
+
+    const ritasiHtml = entitas === 'ritasi' ? `
+        <div class="req-status-guide">
+            <strong>Cara mengisi per status (satu baris = satu kejadian utuh):</strong>
+            <ul>
+                <li><strong>ON PROCESS</strong>: isi bagian order saja, kolom batal kosong/<code>tidak</code>, seluruh kolom buangan kosong.</li>
+                <li><strong>COMPLETE</strong>: isi bagian order + tanggal_bongkar, jam_bongkar, km_akhir, lokasi_bongkar, no_urut (jarak_km boleh kosong = dihitung otomatis).</li>
+                <li><strong>BATAL</strong>: isi bagian order, kolom batal = <code>ya</code>, keterangan wajib diisi alasan pembatalan, seluruh kolom buangan kosong.</li>
+                <li><strong>Ritasi ke-2/ke-3 untuk order yang sama</strong>: baris baru, bagian order ditulis identik, no_urut berbeda.</li>
+            </ul>
+        </div>
+    ` : '';
+
+    return `
+        <details class="import-requirements">
+            <summary>Persyaratan File CSV ▾</summary>
+            <ul>
+                <li>File harus <strong>.csv</strong> — disarankan hasil "Save As → CSV UTF-8" dari template Excel; maksimal 2000 baris / 5 MB.</li>
+                ${wajibHtml}
+                ${opsionalHtml}
+                <li><strong>Format:</strong> tanggal <code>YYYY-MM-DD</code> atau <code>DD/MM/YYYY</code>; jam <code>HH:MM</code>; angka boleh dengan/tanpa titik ribuan; batal/alihan: <code>ya</code>/<code>tidak</code>.</li>
+            </ul>
+            ${ritasiHtml}
+        </details>
+    `;
+}
+
 function renderPanelShell(entitas) {
     const def = PANEL_DEFS[entitas];
     return `
         <div class="import-panel" data-entitas="${entitas}">
             <div class="import-panel-header">
                 <h2>${def.label}</h2>
-                <button class="btn btn-outline" onclick="downloadTemplate('${entitas}')">⬇️ Download Template</button>
+                <button class="btn btn-outline" onclick="downloadTemplate('${entitas}')">⬇️ Download Template Excel</button>
             </div>
+            ${renderRequirementsBox(entitas)}
             <div class="import-upload-row">
                 <label class="import-dropzone" id="dropzone-${entitas}">
                     📄 Klik atau tarik file CSV ke sini untuk upload &amp; preview
@@ -198,10 +264,54 @@ function wireUpload(entitas) {
 }
 
 // ============================================================================
+// PRE-CHECK HEADER DI BROWSER (lapisan tambahan — validasi server tetap penuh)
+// Return string pesan error, atau null jika lolos.
+// ============================================================================
+async function precheckCsvFile(entitas, file) {
+    const name = (file.name || '').toLowerCase();
+    if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+        return 'File Excel tidak bisa diupload langsung — simpan dulu sebagai CSV UTF-8 (lihat sheet Petunjuk di template).';
+    }
+
+    const requiredCols = CSV_HEADER_COLUMNS[entitas];
+    if (!requiredCols) return null;
+
+    let text;
+    try {
+        // Cukup beberapa KB pertama untuk membaca baris header
+        text = await file.slice(0, 8192).text();
+    } catch {
+        return null; // gagal dibaca di browser -> biarkan server yang memvalidasi
+    }
+
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1); // strip BOM
+    const firstLine = (text.split(/\r?\n/)[0] || '');
+    const semicolonCount = (firstLine.match(/;/g) || []).length;
+    const commaCount = (firstLine.match(/,/g) || []).length;
+    const delimiter = semicolonCount > commaCount ? ';' : ',';
+    const headers = firstLine.split(delimiter).map((h) => h.trim().replace(/^"|"$/g, '').toLowerCase());
+
+    const missing = requiredCols.filter((c) => !headers.includes(c));
+    if (missing.length > 0) {
+        return `Kolom wajib hilang di header CSV: ${missing.join(', ')}. Gunakan template Excel lalu Save As "CSV UTF-8 (Comma delimited)".`;
+    }
+    return null;
+}
+
+// ============================================================================
 // UPLOAD & PREVIEW
 // ============================================================================
 async function handleUpload(entitas, file) {
     const resultEl = document.getElementById(`result-${entitas}`);
+
+    const precheckError = await precheckCsvFile(entitas, file);
+    if (precheckError) {
+        resultEl.innerHTML = `<div class="import-lock-message">❌ ${escapeHtml(precheckError)}</div>`;
+        const fileInput = document.getElementById(`fileInput-${entitas}`);
+        if (fileInput) fileInput.value = '';
+        return;
+    }
+
     resultEl.innerHTML = `<div class="loading">⏳ Memproses file...</div>`;
 
     const formData = new FormData();
@@ -249,6 +359,11 @@ function renderPanelResult(entitas) {
         ? `<div class="import-extra-columns">⚠️ Kolom tidak dikenal diabaikan: ${escapeHtml(state.extraColumns.join(', '))}</div>`
         : '';
 
+    // Khusus ritasi: kolom "Status Akhir" menampilkan apa yang akan terjadi
+    // per baris saat commit (ON PROCESS / COMPLETE / BATAL / APPEND RITASI)
+    const isRitasi = entitas === 'ritasi';
+    const finalStatusTh = isRitasi ? '<th>Status Akhir</th>' : '';
+
     const rowsHtml = state.rows.map((row) => {
         const cells = def.columns.map((col) => `<td>${escapeHtml(row.data[col.key])}</td>`).join('');
         const messagesHtml = row.messages.length
@@ -256,9 +371,17 @@ function renderPanelResult(entitas) {
             : '';
         const actionsHtml = renderRowActions(entitas, row);
 
+        let finalStatusTd = '';
+        if (isRitasi) {
+            const finalStatus = (row.computed && row.computed.final_status) || '-';
+            const cls = finalStatus.toLowerCase().replace(/\s+/g, '-');
+            finalStatusTd = `<td><span class="final-status-badge ${cls}">${escapeHtml(finalStatus)}</span></td>`;
+        }
+
         return `
             <tr class="row-${row.status}">
                 <td>${row.row_index + 1}</td>
+                ${finalStatusTd}
                 ${cells}
                 <td>
                     <span class="row-status-badge ${row.status}">${row.status}</span>
@@ -282,6 +405,7 @@ function renderPanelResult(entitas) {
                 <thead>
                     <tr>
                         <th>No</th>
+                        ${finalStatusTh}
                         ${def.columns.map((c) => `<th>${c.label}</th>`).join('')}
                         <th>Status</th>
                     </tr>
@@ -522,7 +646,13 @@ async function runUnBatal() {
             return;
         }
 
-        showToast(`Order berhasil di-un-batal (status: ${json.data.status})`, 'success');
+        const ketDihapus = json.data.keterangan_dihapus;
+        showToast(
+            ketDihapus
+                ? `Order di-un-batal (status: ${json.data.status}). Keterangan pembatalan yang dihapus: "${ketDihapus}"`
+                : `Order berhasil di-un-batal (status: ${json.data.status})`,
+            'success'
+        );
 
         const revalRes = await fetch(`${API_BASE_URL}/import/${entitas}/resolve`, {
             method: 'POST',

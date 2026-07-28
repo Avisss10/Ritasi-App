@@ -1,5 +1,5 @@
 // ============================================================================
-// IMPORT MODULE (Bulk Import CSV: master, order, buangan, mobil luar)
+// IMPORT MODULE (Bulk Import CSV: master, ritasi, mobil luar)
 // ============================================================================
 
 import express from "express";
@@ -28,6 +28,7 @@ import {
   commitBatch,
   normalizeForMatch,
 } from "../utils/csvImport.js";
+import { buildTemplateWorkbook } from "../utils/templateExcel.js";
 
 const router = express.Router();
 
@@ -73,7 +74,7 @@ function singleFileUpload(req, res, next) {
   });
 }
 
-// Field yang bisa "ditambahkan ke master" dari preview order/buangan
+// Field yang bisa "ditambahkan ke master" dari preview ritasi
 const ADD_MASTER_FIELD_MAP = {
   no_pintu: { table: "master_kendaraan", nameCol: "no_pintu", cacheKey: "kendaraan" },
   nama_supir: { table: "master_supir", nameCol: "nama", cacheKey: "supir" },
@@ -95,17 +96,22 @@ router.get("/log", async (req, res) => {
 });
 
 // ============================================================================
-// GET /api/import/:entitas/template - download template CSV
+// GET /api/import/:entitas/template - download template Excel (.xlsx)
+// Berisi sheet "Data" (header + contoh) dan "Petunjuk"; upload tetap .csv
 // ============================================================================
-router.get("/:entitas/template", (req, res) => {
+router.get("/:entitas/template", async (req, res) => {
   const { entitas } = req.params;
-  const tpl = CSV_TEMPLATES[entitas];
-  if (!tpl) return error(res, 400, `Entitas '${entitas}' tidak dikenal`);
+  if (!CSV_TEMPLATES[entitas]) return error(res, 400, `Entitas '${entitas}' tidak dikenal`);
 
-  const csv = tpl.header.join(",") + "\n" + tpl.example.join(",") + "\n";
-  res.setHeader("Content-Type", "text/csv; charset=utf-8");
-  res.setHeader("Content-Disposition", `attachment; filename="${tpl.filename}"`);
-  return res.send(csv);
+  try {
+    const workbook = buildTemplateWorkbook(entitas);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="template-${entitas}.xlsx"`);
+    await workbook.xlsx.write(res);
+    return res.end();
+  } catch (err) {
+    return error(res, 500, "Gagal membuat template Excel", err);
+  }
 });
 
 // ============================================================================
@@ -133,10 +139,7 @@ router.post("/:entitas/preview", singleFileUpload, async (req, res) => {
     const masterCache = await loadMasterCache();
     const dbIndexes = {};
 
-    if (entitas === "order") {
-      dbIndexes.orders = await loadOrderIndex();
-    }
-    if (entitas === "buangan") {
+    if (entitas === "ritasi") {
       dbIndexes.orders = await loadOrderIndex();
       dbIndexes.buangan = await loadBuanganIndex();
       const batalOrderIds = dbIndexes.orders.filter((o) => o.status === "BATAL").map((o) => o.id);
@@ -181,8 +184,9 @@ router.post("/:entitas/resolve", async (req, res) => {
   if (batch.entitas !== entitas) return error(res, 400, "Entitas tidak sesuai dengan batch");
 
   if (action === "revalidate") {
-    if (batch.entitas === "buangan") {
+    if (batch.entitas === "ritasi") {
       batch.dbIndexes.orders = await loadOrderIndex();
+      batch.dbIndexes.buangan = await loadBuanganIndex();
       const batalOrderIds = batch.dbIndexes.orders.filter((o) => o.status === "BATAL").map((o) => o.id);
       batch.dbIndexes.batalKeterangan = await loadBatalKeteranganMap(batalOrderIds);
     }
@@ -305,11 +309,18 @@ router.post("/:entitas/commit", async (req, res) => {
   try {
     const result = await commitBatch(batch);
 
-    await db.query(
-      `INSERT INTO import_log (batch_id, entitas, filename, total_baris, berhasil, dilewati, detail_error)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [batch.batch_id, entitas, batch.filename, result.total, result.berhasil, result.dilewati, JSON.stringify(result.detail)]
-    );
+    // Insert log bersifat non-fatal: jika gagal, commit tetap dianggap sukses.
+    // Jika error di sini dibiarkan menjalar, user akan retry commit dan data
+    // yang sudah masuk bisa dobel (terutama mobil-luar yang tanpa cek duplikat).
+    try {
+      await db.query(
+        `INSERT INTO import_log (batch_id, entitas, filename, total_baris, berhasil, dilewati, detail_error)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [batch.batch_id, entitas, batch.filename, result.total, result.berhasil, result.dilewati, JSON.stringify(result.detail)]
+      );
+    } catch (logErr) {
+      console.warn("Gagal mencatat import_log (commit tetap sukses):", logErr.message);
+    }
 
     deleteBatch(batch.batch_id);
 

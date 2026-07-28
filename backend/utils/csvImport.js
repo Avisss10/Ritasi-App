@@ -49,26 +49,19 @@ export const ENTITY_SCHEMAS = {
     columns: ["nama_proyek", "harga"],
     required: ["nama_proyek"],
   },
-  order: {
+  ritasi: {
     columns: [
       "tanggal_order", "no_order", "petugas_order", "no_pintu", "nama_supir",
       "nama_galian", "nama_proyek", "no_do", "jam_order", "km_awal",
-      "uang_jalan", "potongan",
+      "uang_jalan", "potongan", "batal", "keterangan",
+      "tanggal_bongkar", "jam_bongkar", "km_akhir", "jarak_km", "lokasi_bongkar",
+      "alihan", "nama_galian_alihan", "uang_alihan", "no_urut",
     ],
+    // required = bagian order yang nilainya wajib per baris; kolom buangan
+    // divalidasi terpisah per status baris (lihat validateRitasiRows)
     required: [
       "tanggal_order", "no_order", "petugas_order", "no_pintu", "nama_supir",
       "nama_galian", "no_do", "jam_order", "km_awal", "uang_jalan",
-    ],
-  },
-  buangan: {
-    columns: [
-      "tanggal_order", "no_order", "tanggal_bongkar", "jam_bongkar", "km_akhir",
-      "jarak_km", "lokasi_bongkar", "alihan", "nama_galian_alihan",
-      "keterangan", "uang_alihan", "no_urut",
-    ],
-    required: [
-      "tanggal_order", "no_order", "tanggal_bongkar", "jam_bongkar",
-      "km_akhir", "lokasi_bongkar", "no_urut",
     ],
   },
   "mobil-luar": {
@@ -81,27 +74,49 @@ export const ENTITY_SCHEMAS = {
 };
 
 // ============================================================================
-// TEMPLATE CSV (header + 1 baris contoh)
+// PEMBAGIAN KOLOM ENTITAS RITASI
+// "Bagian order" = 12 kolom pertama; "bagian buangan" = kolom ritasi/bongkar;
+// batal & keterangan adalah kolom status/catatan.
+// ============================================================================
+export const RITASI_ORDER_COLUMNS = [
+  "tanggal_order", "no_order", "petugas_order", "no_pintu", "nama_supir",
+  "nama_galian", "nama_proyek", "no_do", "jam_order", "km_awal",
+  "uang_jalan", "potongan",
+];
+export const RITASI_BUANGAN_COLUMNS = [
+  "tanggal_bongkar", "jam_bongkar", "km_akhir", "jarak_km", "lokasi_bongkar",
+  "alihan", "nama_galian_alihan", "uang_alihan", "no_urut",
+];
+export const RITASI_BUANGAN_CORE = [
+  "tanggal_bongkar", "jam_bongkar", "km_akhir", "lokasi_bongkar", "no_urut",
+];
+
+// ============================================================================
+// TEMPLATE (header + baris contoh, dipakai endpoint template Excel)
+// Khusus ritasi: 3 contoh (ON PROCESS, COMPLETE, BATAL); entitas lain 1 contoh.
 // ============================================================================
 export const CSV_TEMPLATES = {
-  kendaraan: { filename: "master-kendaraan.csv", header: ["no_pintu"], example: ["B9999XYZ"] },
-  supir: { filename: "master-supir.csv", header: ["nama"], example: ["Budi Santoso"] },
-  galian: { filename: "master-galian.csv", header: ["nama_galian", "harga_galian"], example: ["Galian A", "150000"] },
-  proyek: { filename: "master-proyek.csv", header: ["nama_proyek", "harga"], example: ["Proyek Jalan Tol", "500000"] },
-  order: {
-    filename: "order.csv",
-    header: ENTITY_SCHEMAS.order.columns,
-    example: ["2026-07-23", "1", "Andi", "B9999XYZ", "Budi Santoso", "Galian A", "Proyek Jalan Tol", "DO-001", "08:00", "10000", "150000", "0"],
-  },
-  buangan: {
-    filename: "buangan.csv",
-    header: ENTITY_SCHEMAS.buangan.columns,
-    example: ["2026-07-23", "1", "2026-07-23", "10:30", "10050", "", "Lokasi Bongkar A", "tidak", "", "", "", "1"],
+  kendaraan: { header: ["no_pintu"], examples: [["B9999XYZ"]] },
+  supir: { header: ["nama"], examples: [["Budi Santoso"]] },
+  galian: { header: ["nama_galian", "harga_galian"], examples: [["Galian A", "150000"]] },
+  proyek: { header: ["nama_proyek", "harga"], examples: [["Proyek Jalan Tol", "500000"]] },
+  ritasi: {
+    header: ENTITY_SCHEMAS.ritasi.columns,
+    examples: [
+      // ON PROCESS: bagian order saja, batal & seluruh buangan kosong
+      ["2026-07-23", "1", "Andi", "B9999XYZ", "Budi Santoso", "Galian A", "Proyek Jalan Tol", "DO-001", "08:00", "10000", "150000", "0",
+       "", "", "", "", "", "", "", "", "", "", ""],
+      // COMPLETE: bagian order + buangan lengkap, alihan=tidak
+      ["2026-07-23", "2", "Andi", "B9999XYZ", "Budi Santoso", "Galian A", "Proyek Jalan Tol", "DO-002", "09:00", "10000", "150000", "0",
+       "", "", "2026-07-23", "11:30", "10050", "", "Lokasi Bongkar A", "tidak", "", "", "1"],
+      // BATAL: batal=ya + keterangan wajib, seluruh buangan kosong
+      ["2026-07-23", "3", "Andi", "B9999XYZ", "Budi Santoso", "Galian A", "", "DO-003", "10:00", "10000", "150000", "0",
+       "ya", "Dibatalkan pelanggan", "", "", "", "", "", "", "", "", ""],
+    ],
   },
   "mobil-luar": {
-    filename: "mobil-luar.csv",
     header: ENTITY_SCHEMAS["mobil-luar"].columns,
-    example: ["1", "PT Pengirim", "Galian Luar", "B1234AB", "Supir Luar", "2026-07-23", "09:00", "Proyek X", "Lokasi Y"],
+    examples: [["1", "PT Pengirim", "Galian Luar", "B1234AB", "Supir Luar", "2026-07-23", "09:00", "Proyek X", "Lokasi Y"]],
   },
 };
 
@@ -232,8 +247,11 @@ export async function loadMasterCache() {
 }
 
 export async function loadOrderIndex() {
+  // kendaraan_id & supir_id dipakai validasi identitas saat append ritasi
+  // ke order yang sudah ada di DB
   const [rows] = await db.query(`
-    SELECT id, DATE_FORMAT(tanggal_order, '%Y-%m-%d') as tanggal_order, no_order, status, km_awal
+    SELECT id, DATE_FORMAT(tanggal_order, '%Y-%m-%d') as tanggal_order, no_order, status, km_awal,
+           kendaraan_id, supir_id
     FROM orders
   `);
   return rows;
@@ -341,41 +359,86 @@ function validateMasterRows(entitas, dataRows, masterCache, overridesByIndex) {
 }
 
 // ============================================================================
-// VALIDATOR: ORDER
+// VALIDATOR: RITASI (order + buangan dalam satu baris)
+// Status per baris: BATAL (batal=ya), ON PROCESS (buangan kosong semua),
+// COMPLETE (buangan terisi), atau APPEND (order sudah ada di DB, hanya
+// menambah ritasi). Duplikat kunci order antar baris CSV SAH selama bagian
+// order identik dan no_urut berbeda (multi-ritasi satu order).
 // ============================================================================
-function validateOrderRows(dataRows, masterCache, dbIndexes, overridesByIndex) {
-  const existingKeys = new Set(
-    dbIndexes.orders.map((o) => `${o.tanggal_order}|${String(o.no_order).trim()}`)
+function validateRitasiRows(dataRows, masterCache, dbIndexes, overridesByIndex) {
+  const orderMap = new Map(
+    dbIndexes.orders.map((o) => [`${o.tanggal_order}|${String(o.no_order).trim()}`, o])
   );
+  const dbBuanganKeys = new Set(dbIndexes.buangan.map((b) => `${b.order_id}|${String(b.no_urut).trim()}`));
 
-  const keyCount = new Map();
-  const prelim = dataRows.map((data) => {
+  const isFilled = (v) => v !== undefined && v !== null && String(v).trim() !== "";
+
+  // Pre-pass: kunci order, status batal, dan pengelompokan baris per kunci
+  const prelim = dataRows.map((data, idx) => {
     const tanggalNorm = parseTanggalCSV(data.tanggal_order);
-    const key = tanggalNorm && data.no_order ? `${tanggalNorm}|${String(data.no_order).trim()}` : null;
-    if (key) keyCount.set(key, (keyCount.get(key) || 0) + 1);
-    return { data, tanggalNorm, key };
+    const key = tanggalNorm && isFilled(data.no_order)
+      ? `${tanggalNorm}|${String(data.no_order).trim()}` : null;
+    const batalVal = parseBooleanCSV(data.batal);
+    const buanganFilled = RITASI_BUANGAN_COLUMNS.some((c) => isFilled(data[c]));
+    return { data, idx, tanggalNorm, key, batalVal, buanganFilled };
   });
 
-  return prelim.map(({ data, tanggalNorm, key }, idx) => {
+  const groups = new Map();
+  prelim.forEach((p) => {
+    if (!p.key) return;
+    if (!groups.has(p.key)) groups.set(p.key, []);
+    groups.get(p.key).push(p);
+  });
+
+  return prelim.map((p) => {
+    const { data, idx, tanggalNorm, key, batalVal, buanganFilled } = p;
     const row = makeRowBase(idx, data);
     row.overrides = overridesByIndex[idx] || {};
     const rn = idx + 1;
 
-    const requiredFields = ENTITY_SCHEMAS.order.required;
-    const missing = requiredFields.filter((f) => !data[f] || !String(data[f]).trim());
+    // ------------------------------------------------------------------
+    // Penentuan status baris (B2)
+    // ------------------------------------------------------------------
+    if (batalVal === null) {
+      markError(row, `Baris ${rn}: nilai batal '${data.batal}' tidak valid (gunakan ya/tidak, 1/0, true/false)`);
+    }
+
+    let mode;
+    if (batalVal === true) {
+      mode = "BATAL";
+      if (!isFilled(data.keterangan)) {
+        markError(row, `Baris ${rn}: keterangan wajib diisi karena batal=ya (alasan pembatalan)`);
+      }
+      if (buanganFilled) {
+        markError(row, `Baris ${rn}: order batal tidak boleh memiliki data buangan`);
+      }
+    } else if (!buanganFilled) {
+      mode = "ON PROCESS";
+    } else {
+      mode = "COMPLETE";
+      const missingCore = RITASI_BUANGAN_CORE.filter((c) => !isFilled(data[c]));
+      if (missingCore.length > 0) {
+        markError(row, `Baris ${rn}: lengkapi seluruh kolom buangan (tanggal_bongkar, jam_bongkar, km_akhir, lokasi_bongkar, no_urut) atau kosongkan semuanya`);
+      }
+    }
+
+    // ------------------------------------------------------------------
+    // Validasi bagian order (selalu, semua status)
+    // ------------------------------------------------------------------
+    const missing = ENTITY_SCHEMAS.ritasi.required.filter((f) => !isFilled(data[f]));
     missing.forEach((f) => markError(row, `Baris ${rn}: field '${f}' wajib diisi`));
 
-    if (data.tanggal_order && data.tanggal_order.trim() && !tanggalNorm) {
+    if (isFilled(data.tanggal_order) && !tanggalNorm) {
       markError(row, `Baris ${rn}: format tanggal_order '${data.tanggal_order}' tidak valid (gunakan YYYY-MM-DD atau DD/MM/YYYY)`);
     }
 
-    const jamNorm = data.jam_order ? parseJamCSV(data.jam_order) : null;
-    if (data.jam_order && data.jam_order.trim() && !jamNorm) {
+    const jamNorm = isFilled(data.jam_order) ? parseJamCSV(data.jam_order) : null;
+    if (isFilled(data.jam_order) && !jamNorm) {
       markError(row, `Baris ${rn}: format jam_order '${data.jam_order}' tidak valid (gunakan HH:MM atau HH:MM:SS)`);
     }
 
     let uangJalanVal = null;
-    if (data.uang_jalan && data.uang_jalan.trim()) {
+    if (isFilled(data.uang_jalan)) {
       const n = normalizeNumberForStorage(data.uang_jalan);
       if (typeof n !== "number" || isNaN(n)) {
         markError(row, `Baris ${rn}: uang_jalan '${data.uang_jalan}' bukan angka valid`);
@@ -385,7 +448,7 @@ function validateOrderRows(dataRows, masterCache, dbIndexes, overridesByIndex) {
     }
 
     let potonganVal = 0;
-    if (data.potongan && data.potongan.trim()) {
+    if (isFilled(data.potongan)) {
       const n = normalizeNumberForStorage(data.potongan);
       if (typeof n !== "number" || isNaN(n)) {
         markError(row, `Baris ${rn}: potongan '${data.potongan}' bukan angka valid`);
@@ -394,7 +457,7 @@ function validateOrderRows(dataRows, masterCache, dbIndexes, overridesByIndex) {
       }
     }
 
-    const kmVal = data.km_awal && data.km_awal.trim() ? normalizeKmForStorage(data.km_awal) : null;
+    const kmVal = isFilled(data.km_awal) ? normalizeKmForStorage(data.km_awal) : null;
 
     const refFields = [
       { field: "no_pintu", list: masterCache.kendaraan, key: "no_pintu" },
@@ -402,7 +465,7 @@ function validateOrderRows(dataRows, masterCache, dbIndexes, overridesByIndex) {
       { field: "nama_galian", list: masterCache.galian, key: "nama_galian" },
     ];
     refFields.forEach((rf) => {
-      if (!data[rf.field] || !data[rf.field].trim()) return;
+      if (!isFilled(data[rf.field])) return;
       const result = resolveFieldWithOverrides(row, rf.field, data[rf.field], rf.list, rf.key);
       row.resolved[rf.field] = result;
       if (result.status === "fuzzy") {
@@ -413,7 +476,7 @@ function validateOrderRows(dataRows, masterCache, dbIndexes, overridesByIndex) {
       }
     });
 
-    if (data.nama_proyek && data.nama_proyek.trim()) {
+    if (isFilled(data.nama_proyek)) {
       const result = resolveFieldWithOverrides(row, "nama_proyek", data.nama_proyek, masterCache.proyek, "nama_proyek");
       row.resolved.nama_proyek = result;
       if (result.status === "fuzzy") {
@@ -426,154 +489,173 @@ function validateOrderRows(dataRows, masterCache, dbIndexes, overridesByIndex) {
       row.resolved.nama_proyek = { status: "empty" };
     }
 
-    if (key) {
-      if (existingKeys.has(key)) {
-        markError(row, `Baris ${rn}: order tanggal ${tanggalNorm} no_order '${data.no_order}' sudah ada di database`);
-      } else if (keyCount.get(key) > 1) {
-        markError(row, `Baris ${rn}: duplikat no_order '${data.no_order}' tanggal ${tanggalNorm} dalam file CSV`);
-      }
-    }
-
-    row.computed = { tanggalNorm, jamNorm, uangJalanVal, potonganVal, kmVal };
-    return row;
-  });
-}
-
-// ============================================================================
-// VALIDATOR: BUANGAN
-// ============================================================================
-function validateBuanganRows(dataRows, masterCache, dbIndexes, overridesByIndex) {
-  const orderMap = new Map(
-    dbIndexes.orders.map((o) => [`${o.tanggal_order}|${String(o.no_order).trim()}`, o])
-  );
-  const dbBuanganKeys = new Set(dbIndexes.buangan.map((b) => `${b.order_id}|${String(b.no_urut).trim()}`));
-
-  const csvKeyCount = new Map();
-  const prelim = dataRows.map((data) => {
-    const tanggalNorm = parseTanggalCSV(data.tanggal_order);
-    const orderKey = tanggalNorm && data.no_order ? `${tanggalNorm}|${String(data.no_order).trim()}` : null;
-    const order = orderKey ? orderMap.get(orderKey) : null;
-    const noUrutTrim = data.no_urut ? String(data.no_urut).trim() : null;
-    const buanganKey = order && noUrutTrim ? `${order.id}|${noUrutTrim}` : null;
-    if (buanganKey) csvKeyCount.set(buanganKey, (csvKeyCount.get(buanganKey) || 0) + 1);
-    return { data, tanggalNorm, order, noUrutTrim, buanganKey };
-  });
-
-  return prelim.map(({ data, tanggalNorm, order, noUrutTrim, buanganKey }, idx) => {
-    const row = makeRowBase(idx, data);
-    row.overrides = overridesByIndex[idx] || {};
-    const rn = idx + 1;
-
-    const requiredFields = ENTITY_SCHEMAS.buangan.required;
-    const missing = requiredFields.filter((f) => !data[f] || !String(data[f]).trim());
-    missing.forEach((f) => markError(row, `Baris ${rn}: field '${f}' wajib diisi`));
-
-    if (data.tanggal_order && data.tanggal_order.trim() && !tanggalNorm) {
-      markError(row, `Baris ${rn}: format tanggal_order '${data.tanggal_order}' tidak valid`);
-    }
-
-    const tanggalBongkarNorm = data.tanggal_bongkar && data.tanggal_bongkar.trim()
-      ? parseTanggalCSV(data.tanggal_bongkar) : null;
-    if (data.tanggal_bongkar && data.tanggal_bongkar.trim() && !tanggalBongkarNorm) {
-      markError(row, `Baris ${rn}: format tanggal_bongkar '${data.tanggal_bongkar}' tidak valid`);
-    }
-
-    const jamBongkarNorm = data.jam_bongkar && data.jam_bongkar.trim() ? parseJamCSV(data.jam_bongkar) : null;
-    if (data.jam_bongkar && data.jam_bongkar.trim() && !jamBongkarNorm) {
-      markError(row, `Baris ${rn}: format jam_bongkar '${data.jam_bongkar}' tidak valid`);
-    }
-
-    if (!order && data.tanggal_order && data.no_order && tanggalNorm) {
-      markError(row, `Baris ${rn}: order tanggal ${tanggalNorm} no. ${data.no_order} tidak ditemukan`);
-    }
-
-    if (order && order.status === "BATAL") {
-      row.can_unbatal = order.id;
-      const keterangan = dbIndexes.batalKeterangan ? dbIndexes.batalKeterangan.get(order.id) : null;
-      const keteranganPart = keterangan ? ` (keterangan: '${keterangan}')` : "";
-      markError(
-        row,
-        `Baris ${rn}: Order no. ${order.no_order} tanggal ${order.tanggal_order} berstatus BATAL${keteranganPart} — ritasi tidak bisa ditambahkan ke order yang dibatalkan.`
-      );
-    }
-
-    const kmAkhirVal = data.km_akhir && data.km_akhir.trim() ? normalizeKmForStorage(data.km_akhir) : null;
-
+    // ------------------------------------------------------------------
+    // Validasi bagian buangan (hanya status COMPLETE)
+    // ------------------------------------------------------------------
+    const existing = key ? orderMap.get(key) : null;
+    let tanggalBongkarNorm = null;
+    let jamBongkarNorm = null;
+    let kmAkhirVal = null;
     let jarakVal = null;
-    const jarakKosong = !data.jarak_km || !String(data.jarak_km).trim();
-    if (jarakKosong) {
-      markWarningIfOk(row, `Baris ${rn}: jarak_km kosong, akan dihitung otomatis`);
-      const kmAwalRaw = order ? order.km_awal : null;
-      if (isExactOdoVariant(kmAwalRaw)) {
-        jarakVal = "ODO ERROR";
-      } else if (typeof kmAkhirVal === "number") {
-        const kmAwalNum = parseKmFromDb(kmAwalRaw);
-        jarakVal = !isNaN(kmAwalNum) ? kmAkhirVal - kmAwalNum : null;
-      }
-    } else {
-      const n = normalizeNumberForStorage(data.jarak_km);
-      if (typeof n !== "number" || isNaN(n)) {
-        markError(row, `Baris ${rn}: jarak_km '${data.jarak_km}' bukan angka valid`);
-      } else {
-        jarakVal = n;
-      }
-    }
-    if (typeof jarakVal === "number" && jarakVal < 0) {
-      markWarningIfOk(row, `Baris ${rn}: jarak_km negatif (${jarakVal}), diperbolehkan namun periksa kembali`);
-    }
-
-    const alihanVal = parseBooleanCSV(data.alihan);
-    if (alihanVal === null) {
-      markError(row, `Baris ${rn}: nilai alihan '${data.alihan}' tidak valid (gunakan ya/tidak, 1/0, true/false)`);
-    }
-
+    let alihanVal = false;
     let galianAlihanId = null;
     let uangAlihanVal = null;
-    if (alihanVal === true) {
-      if (!data.nama_galian_alihan || !data.nama_galian_alihan.trim()) {
-        markError(row, `Baris ${rn}: nama_galian_alihan wajib diisi karena alihan=ya`);
+    let noUrutTrim = null;
+
+    if (mode === "COMPLETE") {
+      noUrutTrim = isFilled(data.no_urut) ? String(data.no_urut).trim() : null;
+
+      tanggalBongkarNorm = isFilled(data.tanggal_bongkar) ? parseTanggalCSV(data.tanggal_bongkar) : null;
+      if (isFilled(data.tanggal_bongkar) && !tanggalBongkarNorm) {
+        markError(row, `Baris ${rn}: format tanggal_bongkar '${data.tanggal_bongkar}' tidak valid`);
+      }
+
+      jamBongkarNorm = isFilled(data.jam_bongkar) ? parseJamCSV(data.jam_bongkar) : null;
+      if (isFilled(data.jam_bongkar) && !jamBongkarNorm) {
+        markError(row, `Baris ${rn}: format jam_bongkar '${data.jam_bongkar}' tidak valid`);
+      }
+
+      kmAkhirVal = isFilled(data.km_akhir) ? normalizeKmForStorage(data.km_akhir) : null;
+
+      // jarak_km kosong -> warning + hitung otomatis. km_awal diambil dari
+      // order di DB (mode append) atau dari baris ini sendiri (order baru).
+      if (!isFilled(data.jarak_km)) {
+        markWarningIfOk(row, `Baris ${rn}: jarak_km kosong, akan dihitung otomatis`);
+        const kmAwalRaw = existing ? existing.km_awal : data.km_awal;
+        if (isExactOdoVariant(kmAwalRaw)) {
+          jarakVal = "ODO ERROR";
+        } else if (typeof kmAkhirVal === "number") {
+          const kmAwalNum = parseKmFromDb(kmAwalRaw);
+          jarakVal = !isNaN(kmAwalNum) ? kmAkhirVal - kmAwalNum : null;
+        }
       } else {
-        const result = resolveFieldWithOverrides(row, "nama_galian_alihan", data.nama_galian_alihan, masterCache.galian, "nama_galian");
-        row.resolved.nama_galian_alihan = result;
-        if (result.status === "fuzzy") {
-          markError(row, `Baris ${rn}: nama_galian_alihan '${data.nama_galian_alihan}' tidak ditemukan — mirip dengan '${result.suggestion.nama}'?`);
-        } else if (result.status === "notfound") {
-          row.can_add_master.nama_galian_alihan = true;
-          markError(row, `Baris ${rn}: nama_galian_alihan '${data.nama_galian_alihan}' tidak ditemukan, tidak ada yang mirip`);
-        } else if (result.status === "ok") {
-          galianAlihanId = result.id;
+        const n = normalizeNumberForStorage(data.jarak_km);
+        if (typeof n !== "number" || isNaN(n)) {
+          markError(row, `Baris ${rn}: jarak_km '${data.jarak_km}' bukan angka valid`);
+        } else {
+          jarakVal = n;
         }
       }
-      if (data.uang_alihan && data.uang_alihan.trim()) {
-        const n = normalizeNumberForStorage(data.uang_alihan);
-        uangAlihanVal = (typeof n === "number" && !isNaN(n)) ? n : null;
+      if (typeof jarakVal === "number" && jarakVal < 0) {
+        markWarningIfOk(row, `Baris ${rn}: jarak_km negatif (${jarakVal}), diperbolehkan namun periksa kembali`);
       }
-    } else if (alihanVal === false) {
-      if ((data.nama_galian_alihan && data.nama_galian_alihan.trim()) || (data.uang_alihan && data.uang_alihan.trim())) {
-        markWarningIfOk(row, `Baris ${rn}: nama_galian_alihan/uang_alihan diabaikan karena alihan=tidak`);
+
+      alihanVal = parseBooleanCSV(data.alihan);
+      if (alihanVal === null) {
+        markError(row, `Baris ${rn}: nilai alihan '${data.alihan}' tidak valid (gunakan ya/tidak, 1/0, true/false)`);
+      }
+
+      if (alihanVal === true) {
+        if (!isFilled(data.nama_galian_alihan)) {
+          markError(row, `Baris ${rn}: nama_galian_alihan wajib diisi karena alihan=ya`);
+        } else {
+          const result = resolveFieldWithOverrides(row, "nama_galian_alihan", data.nama_galian_alihan, masterCache.galian, "nama_galian");
+          row.resolved.nama_galian_alihan = result;
+          if (result.status === "fuzzy") {
+            markError(row, `Baris ${rn}: nama_galian_alihan '${data.nama_galian_alihan}' tidak ditemukan — mirip dengan '${result.suggestion.nama}'?`);
+          } else if (result.status === "notfound") {
+            row.can_add_master.nama_galian_alihan = true;
+            markError(row, `Baris ${rn}: nama_galian_alihan '${data.nama_galian_alihan}' tidak ditemukan, tidak ada yang mirip`);
+          } else if (result.status === "ok") {
+            galianAlihanId = result.id;
+          }
+        }
+        if (isFilled(data.uang_alihan)) {
+          const n = normalizeNumberForStorage(data.uang_alihan);
+          uangAlihanVal = (typeof n === "number" && !isNaN(n)) ? n : null;
+        }
+      } else if (alihanVal === false) {
+        if (isFilled(data.nama_galian_alihan) || isFilled(data.uang_alihan)) {
+          markWarningIfOk(row, `Baris ${rn}: nama_galian_alihan/uang_alihan diabaikan karena alihan=tidak`);
+        }
       }
     }
 
-    if (buanganKey) {
-      if (dbBuanganKeys.has(buanganKey)) {
-        markError(row, `Baris ${rn}: No Urut ${noUrutTrim} sudah dipakai untuk order ini`);
-      } else if (csvKeyCount.get(buanganKey) > 1) {
-        markError(row, `Baris ${rn}: No Urut ${noUrutTrim} duplikat dalam file CSV untuk order ini`);
+    // ------------------------------------------------------------------
+    // Kunci order sudah ada di DB (B3)
+    // ------------------------------------------------------------------
+    let finalMode = mode;
+    if (existing) {
+      if (mode === "COMPLETE") {
+        if (existing.status === "BATAL") {
+          row.can_unbatal = existing.id;
+          const keterangan = dbIndexes.batalKeterangan ? dbIndexes.batalKeterangan.get(existing.id) : null;
+          const keteranganPart = keterangan ? ` (keterangan: '${keterangan}')` : "";
+          markError(
+            row,
+            `Baris ${rn}: Order no. ${existing.no_order} tanggal ${existing.tanggal_order} berstatus BATAL${keteranganPart} — ritasi tidak bisa ditambahkan ke order yang dibatalkan.`
+          );
+        } else {
+          // Mode APPEND: validasi identitas mobil & supir harus sama dengan
+          // order di DB agar ritasi tidak salah sambung ke mobil lain
+          finalMode = "APPEND";
+          const resKendaraan = row.resolved.no_pintu;
+          const resSupir = row.resolved.nama_supir;
+          if (resKendaraan && resKendaraan.status === "ok" && resSupir && resSupir.status === "ok" &&
+              (resKendaraan.id !== existing.kendaraan_id || resSupir.id !== existing.supir_id)) {
+            const dbKendaraan = masterCache.kendaraan.find((k) => k.id === existing.kendaraan_id);
+            const dbSupir = masterCache.supir.find((s) => s.id === existing.supir_id);
+            markError(
+              row,
+              `Baris ${rn}: order tanggal ${existing.tanggal_order} no. ${existing.no_order} milik mobil '${dbKendaraan ? dbKendaraan.no_pintu : existing.kendaraan_id}' / supir '${dbSupir ? dbSupir.nama : existing.supir_id}', tidak cocok dengan baris ini`
+            );
+          }
+          if (noUrutTrim && dbBuanganKeys.has(`${existing.id}|${noUrutTrim}`)) {
+            markError(row, `Baris ${rn}: No Urut ${noUrutTrim} sudah dipakai untuk order ini`);
+          }
+          markWarningIfOk(row, `Baris ${rn}: order sudah ada, hanya ritasi yang akan ditambahkan`);
+        }
+      } else {
+        // ON PROCESS / BATAL dengan kunci yang sudah ada di DB -> duplikat
+        markError(row, `Baris ${rn}: order tanggal ${tanggalNorm} no_order '${String(data.no_order).trim()}' sudah ada di database`);
       }
+    }
+
+    // ------------------------------------------------------------------
+    // Duplikat kunci antar baris dalam CSV (multi-ritasi, B3)
+    // ------------------------------------------------------------------
+    const group = key ? groups.get(key) : null;
+    if (group && group.length > 1) {
+      const first = group[0];
+      if (first.idx !== idx) {
+        // (a) bagian order (12 kolom) + batal harus identik dengan baris pertama
+        const bedaOrder = RITASI_ORDER_COLUMNS.some(
+          (c) => String(data[c] ?? "").trim() !== String(first.data[c] ?? "").trim()
+        ) || batalVal !== first.batalVal;
+        if (bedaOrder) {
+          markError(row, `Baris ${rn}: data order tidak konsisten dengan baris ${first.idx + 1} untuk order yang sama`);
+        }
+      }
+      // (b) no_urut harus berbeda antar baris berkunci sama (kosong dianggap sama)
+      const myNoUrut = isFilled(data.no_urut) ? String(data.no_urut).trim() : "";
+      const adaDuplikat = group.some(
+        (g) => g.idx !== idx && (isFilled(g.data.no_urut) ? String(g.data.no_urut).trim() : "") === myNoUrut
+      );
+      if (adaDuplikat) {
+        if (myNoUrut) {
+          markError(row, `Baris ${rn}: No Urut ${myNoUrut} duplikat dalam file CSV untuk order ini`);
+        } else {
+          markError(row, `Baris ${rn}: duplikat no_order '${String(data.no_order).trim()}' tanggal ${tanggalNorm} dalam file CSV`);
+        }
+      }
+      // (c) campur batal=ya dan buangan terisi sudah tercakup: batal beda ->
+      // error konsistensi; batal sama-sama ya + buangan terisi -> error B2.
     }
 
     row.computed = {
-      tanggalBongkarNorm,
-      jamBongkarNorm,
-      kmAkhirVal,
-      jarakVal,
+      mode: finalMode,
+      final_status: finalMode === "APPEND" ? "APPEND RITASI" : finalMode,
+      orderKey: key,
+      existingOrderId: existing ? existing.id : null,
+      // bagian order
+      tanggalNorm, jamNorm, uangJalanVal, potonganVal, kmVal,
+      // bagian buangan
+      tanggalBongkarNorm, jamBongkarNorm, kmAkhirVal, jarakVal,
       alihanVal: alihanVal === true,
-      galianAlihanId,
-      uangAlihanVal,
-      orderId: order ? order.id : null,
+      galianAlihanId, uangAlihanVal,
       noUrut: noUrutTrim,
-      keterangan: data.keterangan && data.keterangan.trim() ? data.keterangan.trim() : null,
-      lokasiBongkar: data.lokasi_bongkar || null,
+      keterangan: isFilled(data.keterangan) ? String(data.keterangan).trim() : null,
+      lokasiBongkar: isFilled(data.lokasi_bongkar) ? String(data.lokasi_bongkar).trim() : null,
     };
     return row;
   });
@@ -618,8 +700,7 @@ export function runValidation(entitas, dataRows, masterCache, dbIndexes, overrid
   if (MASTER_FIELD_CONFIG[entitas]) {
     return validateMasterRows(entitas, dataRows, masterCache, overridesByIndex);
   }
-  if (entitas === "order") return validateOrderRows(dataRows, masterCache, dbIndexes, overridesByIndex);
-  if (entitas === "buangan") return validateBuanganRows(dataRows, masterCache, dbIndexes, overridesByIndex);
+  if (entitas === "ritasi") return validateRitasiRows(dataRows, masterCache, dbIndexes, overridesByIndex);
   if (entitas === "mobil-luar") return validateMobilLuarRows(dataRows);
   throw new Error(`Entitas tidak dikenal: ${entitas}`);
 }
@@ -752,17 +833,13 @@ async function insertMasterRow(conn, entitas, row) {
   }
 }
 
-async function insertOrderRow(conn, row, masterCache) {
+// Insert satu baris ritasi. Order di-insert SEKALI per kunci (tanggal+no_order)
+// dalam satu commit — baris berikutnya dengan kunci sama hanya menambah
+// buangan-nya. groupOrderIds memetakan orderKey -> order_id yang sudah
+// dibuat/ditemukan dalam transaction ini.
+async function insertRitasiRow(conn, row, masterCache, groupOrderIds) {
   const c = row.computed;
   const noOrderTrim = String(row.data.no_order).trim();
-
-  const [existing] = await conn.query(
-    `SELECT id FROM orders WHERE tanggal_order = ? AND no_order = ? LIMIT 1`,
-    [c.tanggalNorm, noOrderTrim]
-  );
-  if (existing.length > 0) {
-    return { skipped: true, reason: `Order tanggal ${c.tanggalNorm} no_order '${noOrderTrim}' sudah ada di database (dibuat oleh proses lain)` };
-  }
 
   const kendaraanId = row.resolved.no_pintu?.id;
   const supirId = row.resolved.nama_supir?.id;
@@ -770,48 +847,76 @@ async function insertOrderRow(conn, row, masterCache) {
   const proyekId = row.resolved.nama_proyek && row.resolved.nama_proyek.status === "ok"
     ? row.resolved.nama_proyek.id : null;
 
-  let proyekHarga = null;
-  if (proyekId) {
-    const proyekItem = masterCache.proyek.find((p) => p.id === proyekId);
-    proyekHarga = proyekItem ? proyekItem.harga : null;
+  let orderId = groupOrderIds.get(c.orderKey);
+
+  if (!orderId) {
+    // Re-check kunci order di dalam transaction (kondisi bisa berubah sejak preview)
+    const [existing] = await conn.query(
+      `SELECT id, status, kendaraan_id, supir_id FROM orders WHERE tanggal_order = ? AND no_order = ? LIMIT 1`,
+      [c.tanggalNorm, noOrderTrim]
+    );
+
+    if (existing.length > 0) {
+      if (c.mode === "ON PROCESS" || c.mode === "BATAL") {
+        return { skipped: true, reason: `Order tanggal ${c.tanggalNorm} no_order '${noOrderTrim}' sudah ada di database (dibuat oleh proses lain)` };
+      }
+      if (existing[0].status === "BATAL") {
+        return { skipped: true, reason: `Order tanggal ${c.tanggalNorm} no_order '${noOrderTrim}' berstatus BATAL (dibatalkan oleh proses lain)` };
+      }
+      if (existing[0].kendaraan_id !== kendaraanId || existing[0].supir_id !== supirId) {
+        return { skipped: true, reason: `Order tanggal ${c.tanggalNorm} no_order '${noOrderTrim}' milik mobil/supir lain — ritasi tidak ditambahkan` };
+      }
+      orderId = existing[0].id;
+    } else {
+      let proyekHarga = null;
+      if (proyekId) {
+        const proyekItem = masterCache.proyek.find((p) => p.id === proyekId);
+        proyekHarga = proyekItem ? proyekItem.harga : null;
+      }
+      const hasilAkhir = c.uangJalanVal - c.potonganVal;
+      const status = c.mode === "BATAL" ? "BATAL" : "ON PROCESS";
+
+      const [result] = await conn.query(
+        `INSERT INTO orders (
+          tanggal_order, no_order, petugas_order,
+          kendaraan_id, supir_id, galian_id,
+          no_do, jam_order, km_awal,
+          uang_jalan, potongan, hasil_akhir,
+          proyek_id, proyek_harga, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          c.tanggalNorm, noOrderTrim, row.data.petugas_order.trim(),
+          kendaraanId, supirId, galianId,
+          row.data.no_do.trim(), c.jamNorm, c.kmVal,
+          c.uangJalanVal, c.potonganVal, hasilAkhir,
+          proyekId, proyekHarga, status,
+        ]
+      );
+      orderId = result.insertId;
+
+      // Baris batal: buat baris buangan placeholder persis seperti flow manual
+      // POST /buangan/:id/batal (semua kolom data NULL, hanya order_id + keterangan)
+      if (c.mode === "BATAL") {
+        await conn.query(
+          `INSERT INTO buangan (
+            order_id, tanggal_bongkar, jam_bongkar, km_akhir, jarak_km,
+            lokasi_bongkar, alihan, galian_alihan_id, keterangan, uang_alihan, no_urut
+          ) VALUES (?, NULL, NULL, NULL, NULL, NULL, 0, NULL, ?, NULL, NULL)`,
+          [orderId, c.keterangan]
+        );
+      }
+    }
+    groupOrderIds.set(c.orderKey, orderId);
   }
 
-  const hasilAkhir = c.uangJalanVal - c.potonganVal;
+  if (c.mode === "BATAL" || c.mode === "ON PROCESS") return;
 
-  await conn.query(
-    `INSERT INTO orders (
-      tanggal_order, no_order, petugas_order,
-      kendaraan_id, supir_id, galian_id,
-      no_do, jam_order, km_awal,
-      uang_jalan, potongan, hasil_akhir,
-      proyek_id, proyek_harga, status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ON PROCESS')`,
-    [
-      c.tanggalNorm, String(row.data.no_order).trim(), row.data.petugas_order.trim(),
-      kendaraanId, supirId, galianId,
-      row.data.no_do.trim(), c.jamNorm, c.kmVal,
-      c.uangJalanVal, c.potonganVal, hasilAkhir,
-      proyekId, proyekHarga,
-    ]
-  );
-}
-
-async function insertBuanganRow(conn, row) {
-  const c = row.computed;
-
-  const [orderRows] = await conn.query(`SELECT status FROM orders WHERE id = ? LIMIT 1`, [c.orderId]);
-  if (orderRows.length === 0) {
-    return { skipped: true, reason: `Order ID ${c.orderId} tidak ditemukan (mungkin sudah dihapus)` };
-  }
-  if (orderRows[0].status === "BATAL") {
-    return { skipped: true, reason: `Order ID ${c.orderId} berstatus BATAL (dibatalkan oleh proses lain)` };
-  }
-
-  const [existing] = await conn.query(
+  // COMPLETE / APPEND: insert buangan + update status order
+  const [existingUrut] = await conn.query(
     `SELECT id FROM buangan WHERE order_id = ? AND no_urut = ? LIMIT 1`,
-    [c.orderId, c.noUrut]
+    [orderId, c.noUrut]
   );
-  if (existing.length > 0) {
+  if (existingUrut.length > 0) {
     return { skipped: true, reason: `No Urut ${c.noUrut} sudah dipakai untuk order ini (dibuat oleh proses lain)` };
   }
 
@@ -822,13 +927,13 @@ async function insertBuanganRow(conn, row) {
       keterangan, uang_alihan, no_urut
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
-      c.orderId, c.tanggalBongkarNorm, c.jamBongkarNorm,
+      orderId, c.tanggalBongkarNorm, c.jamBongkarNorm,
       c.kmAkhirVal, c.jarakVal, c.lokasiBongkar, c.alihanVal, c.galianAlihanId,
       c.keterangan, c.uangAlihanVal, c.noUrut,
     ]
   );
 
-  await conn.query(`UPDATE orders SET status = 'COMPLETE' WHERE id = ?`, [c.orderId]);
+  await conn.query(`UPDATE orders SET status = 'COMPLETE' WHERE id = ?`, [orderId]);
 }
 
 async function insertMobilLuarRow(conn, row) {
@@ -855,6 +960,9 @@ export async function commitBatch(batch) {
   try {
     await conn.beginTransaction();
 
+    // Untuk entitas ritasi: order di-insert sekali per kunci dalam commit ini
+    const groupOrderIds = new Map();
+
     for (const row of batch.rows) {
       if (row.status === "error" || row.skip_insert) {
         dilewati++;
@@ -865,10 +973,8 @@ export async function commitBatch(batch) {
       let insertResult;
       if (MASTER_FIELD_CONFIG[batch.entitas]) {
         insertResult = await insertMasterRow(conn, batch.entitas, row);
-      } else if (batch.entitas === "order") {
-        insertResult = await insertOrderRow(conn, row, batch.masterCache);
-      } else if (batch.entitas === "buangan") {
-        insertResult = await insertBuanganRow(conn, row);
+      } else if (batch.entitas === "ritasi") {
+        insertResult = await insertRitasiRow(conn, row, batch.masterCache, groupOrderIds);
       } else if (batch.entitas === "mobil-luar") {
         insertResult = await insertMobilLuarRow(conn, row);
       }
