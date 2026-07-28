@@ -2351,7 +2351,13 @@ async function konfirmasiUnBatalOrder() {
             throw new Error(result.message || `HTTP error! status: ${response.status}`);
         }
 
-        showToast(`Order berhasil di-un-batal (status: ${result.data.status})`, 'success');
+        const ketDihapus = result.data.keterangan_dihapus;
+        showToast(
+            ketDihapus
+                ? `Order di-un-batal (status: ${result.data.status}). Keterangan pembatalan yang dihapus: "${ketDihapus}"`
+                : `Order berhasil di-un-batal (status: ${result.data.status})`,
+            'success'
+        );
         tutupModalUnBatal();
         await goToBuanganMain();
     } catch (error) {

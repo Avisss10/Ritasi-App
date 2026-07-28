@@ -314,26 +314,31 @@ router.post("/:id/un-batal", async (req, res) => {
     }
 
     const [buanganRows] = await conn.query(
-      `SELECT id, tanggal_bongkar, km_akhir, no_urut FROM buangan WHERE order_id = ?`,
+      `SELECT id, tanggal_bongkar, km_akhir, no_urut, keterangan FROM buangan WHERE order_id = ?`,
       [id]
     );
 
-    // Baris placeholder = dibuat oleh flow batal (semua kolom data ritasi NULL)
+    // Baris placeholder = dibuat oleh flow batal (semua kolom data ritasi NULL).
+    // Placeholder SELALU dihapus, meskipun order punya campuran ritasi asli +
+    // placeholder — jika tidak, placeholder jadi baris yatim.
     const isPlaceholder = (b) =>
       b.tanggal_bongkar === null && b.km_akhir === null && b.no_urut === null;
-    const allPlaceholder = buanganRows.length === 0 || buanganRows.every(isPlaceholder);
+    const placeholders = buanganRows.filter(isPlaceholder);
+    const ritasiAsli = buanganRows.filter((b) => !isPlaceholder(b));
 
-    let newStatus;
-    if (allPlaceholder) {
-      if (buanganRows.length > 0) {
-        const ids = buanganRows.map((b) => b.id);
-        await conn.query(`DELETE FROM buangan WHERE id IN (?)`, [ids]);
-      }
-      newStatus = "ON PROCESS";
-    } else {
-      // Ada ritasi asli -> biarkan utuh, order dianggap sudah selesai
-      newStatus = "COMPLETE";
+    // Ambil keterangan pembatalan sebelum placeholder dihapus, untuk
+    // dikembalikan di response (keterangan_dihapus)
+    const keteranganDihapus =
+      placeholders
+        .map((b) => b.keterangan)
+        .find((k) => k !== null && String(k).trim() !== "") ?? null;
+
+    if (placeholders.length > 0) {
+      await conn.query(`DELETE FROM buangan WHERE id IN (?)`, [placeholders.map((b) => b.id)]);
     }
+
+    // Status ditentukan dari sisa baris: ada ritasi asli -> COMPLETE, tidak ada -> ON PROCESS
+    const newStatus = ritasiAsli.length > 0 ? "COMPLETE" : "ON PROCESS";
 
     await conn.query(`UPDATE orders SET status = ? WHERE id = ?`, [newStatus, id]);
     await conn.commit();
@@ -341,6 +346,7 @@ router.post("/:id/un-batal", async (req, res) => {
     return success(res, "Order berhasil di-un-batal", {
       id: parseInt(id, 10),
       status: newStatus,
+      keterangan_dihapus: keteranganDihapus,
     });
   } catch (err) {
     if (conn) await conn.rollback().catch(() => {});
