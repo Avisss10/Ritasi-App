@@ -770,7 +770,7 @@ function displayOrderInfo(order) {
             </div>
             <div class="order-info-item">
                 <div class="order-info-label">Proyek</div>
-                <div class="order-info-value">${order.proyek_input || '-'}</div>
+                <div class="order-info-value">${order.nama_proyek || order.proyek_input || '-'}</div>
             </div>
             <div class="order-info-item">
                 <div class="order-info-label">KM Awal</div>
@@ -1350,7 +1350,7 @@ function displayOrderInfoEdit(order) {
             </div>
             <div class="order-info-item">
                 <div class="order-info-label">Proyek</div>
-                <div class="order-info-value">${order.proyek_input || '-'}</div>
+                <div class="order-info-value">${order.nama_proyek || order.proyek_input || '-'}</div>
             </div>
             <div class="order-info-item">
                 <div class="order-info-label">KM Awal</div>
@@ -2060,7 +2060,7 @@ function displayDetailOrder(order) {
         </div>
         <div class="detail-item">
             <div class="detail-label">Proyek</div>
-            <div class="detail-value">${order.proyek_input || '-'}</div>
+            <div class="detail-value">${order.nama_proyek || order.proyek_input || '-'}</div>
         </div>
         <div class="detail-item">
             <div class="detail-label">No DO</div>

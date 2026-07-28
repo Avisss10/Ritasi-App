@@ -242,13 +242,15 @@ router.get("/:id", async (req, res) => {
         o.hasil_akhir,
         o.status,
         o.km_awal,
-        o.proyek_input
+        o.proyek_input,
+        p.nama_proyek
       FROM buangan b
       LEFT JOIN orders o ON b.order_id = o.id
       LEFT JOIN master_kendaraan k ON o.kendaraan_id = k.id
       LEFT JOIN master_supir s ON o.supir_id = s.id
       LEFT JOIN master_galian g ON o.galian_id = g.id
       LEFT JOIN master_galian ga ON b.galian_alihan_id = ga.id
+      LEFT JOIN master_proyek p ON o.proyek_id = p.id
       WHERE b.id = ?
       LIMIT 1
       `,
