@@ -603,8 +603,9 @@ async function runCommit() {
     const state = panelState[entitas];
     document.getElementById('modalCommit').style.display = 'none';
 
-    const totalBaris = state.rows.filter((r) => r.status !== 'error' && !r.skip_insert).length;
+    const totalBaris = state.rows.length;
     showCommitProgress(totalBaris);
+    pollCommitProgress(entitas, state.batch_id, totalBaris);
 
     try {
         const res = await fetch(`${API_BASE_URL}/import/${entitas}/commit`, {
@@ -643,7 +644,8 @@ async function runCommit() {
 }
 
 // ============================================================================
-// POPUP PROGRESS COMMIT (simulasi persen, backend tidak melaporkan progres real)
+// POPUP PROGRESS COMMIT (persen real, dipoll dari GET /import/:entitas/progress
+// yang membaca batch.progress yang diupdate live oleh commitBatch di backend)
 // ============================================================================
 function showCommitProgress(total) {
     clearInterval(commitProgressTimer);
@@ -653,20 +655,38 @@ function showCommitProgress(total) {
     const percentEl = document.getElementById('commitProgressPercent');
     const countEl = document.getElementById('commitProgressCount');
 
-    let percent = 0;
     fill.style.width = '0%';
     percentEl.textContent = '0%';
     countEl.textContent = `0 / ${total} baris`;
     modal.style.display = 'flex';
+}
 
-    commitProgressTimer = setInterval(() => {
-        percent += (90 - percent) * 0.1;
-        if (percent > 90) percent = 90;
-        const rounded = Math.round(percent);
-        fill.style.width = `${rounded}%`;
-        percentEl.textContent = `${rounded}%`;
-        countEl.textContent = `${Math.round((rounded / 100) * total)} / ${total} baris`;
-    }, 200);
+function renderCommitProgress(done, total) {
+    const fill = document.getElementById('commitProgressFill');
+    const percentEl = document.getElementById('commitProgressPercent');
+    const countEl = document.getElementById('commitProgressCount');
+
+    const percent = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+    fill.style.width = `${percent}%`;
+    percentEl.textContent = `${percent}%`;
+    countEl.textContent = `${Math.min(done, total)} / ${total} baris`;
+}
+
+function pollCommitProgress(entitas, batchId, total) {
+    clearInterval(commitProgressTimer);
+
+    commitProgressTimer = setInterval(async () => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/import/${entitas}/progress?batch_id=${encodeURIComponent(batchId)}`);
+            const json = await res.json();
+            if (json.status && json.data) {
+                renderCommitProgress(json.data.done, json.data.total || total);
+            }
+        } catch (err) {
+            // Polling gagal sesekali (mis. network blip) tidak fatal, request commit
+            // utama tetap berjalan; biarkan interval berikutnya coba lagi.
+        }
+    }, 500);
 }
 
 function finishCommitProgress() {

@@ -294,6 +294,18 @@ router.post("/:entitas/add-master", async (req, res) => {
 });
 
 // ============================================================================
+// GET /api/import/:entitas/progress - progres real commit yang sedang berjalan
+// (dipoll frontend selama modal progress commit tampil, lihat runCommit di import.js)
+// ============================================================================
+router.get("/:entitas/progress", (req, res) => {
+  const { batch_id } = req.query;
+  const batch = getBatch(batch_id);
+  if (!batch) return error(res, 410, "Sesi preview kedaluwarsa, silakan upload ulang");
+
+  return success(res, "Progres commit", batch.progress || { done: 0, total: batch.rows.length });
+});
+
+// ============================================================================
 // POST /api/import/:entitas/commit - insert baris valid ke tabel target
 // ============================================================================
 router.post("/:entitas/commit", async (req, res) => {

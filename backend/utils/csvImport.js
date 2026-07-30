@@ -248,10 +248,13 @@ export async function loadMasterCache() {
 
 export async function loadOrderIndex() {
   // kendaraan_id & supir_id dipakai validasi identitas saat append ritasi
-  // ke order yang sudah ada di DB
+  // ke order yang sudah ada di DB. proyek_id ikut dimuat karena kunci
+  // pencocokan order (lihat validateRitasiRows) harus proyek-aware: order
+  // dengan tanggal & no_order yang sama tapi proyek berbeda BUKAN order yang
+  // sama (no_order sering tidak unik lintas proyek).
   const [rows] = await db.query(`
     SELECT id, DATE_FORMAT(tanggal_order, '%Y-%m-%d') as tanggal_order, no_order, status, km_awal,
-           kendaraan_id, supir_id
+           kendaraan_id, supir_id, proyek_id
     FROM orders
   `);
   return rows;
@@ -366,18 +369,42 @@ function validateMasterRows(entitas, dataRows, masterCache, overridesByIndex) {
 // order identik dan no_urut berbeda (multi-ritasi satu order).
 // ============================================================================
 function validateRitasiRows(dataRows, masterCache, dbIndexes, overridesByIndex) {
+  // Kunci proyek untuk order (lihat proyekKeyForRow di bawah): "" jika tanpa
+  // proyek, "P<id>" jika proyek dikenal (match master persis/override), atau
+  // "NEW:<nama>" jika proyek belum ada di master. no_order TIDAK unik lintas
+  // proyek (tiap proyek biasa menomori order-nya sendiri), jadi proyek WAJIB
+  // ikut jadi bagian kunci pencocokan "order sudah ada di DB atau belum" —
+  // kalau tidak, order tanggal+no_order yang sama tapi milik proyek lain akan
+  // salah dianggap order yang sama dan ritasinya ke-APPEND ke proyek yang salah.
   const orderMap = new Map(
-    dbIndexes.orders.map((o) => [`${o.tanggal_order}|${String(o.no_order).trim()}`, o])
+    dbIndexes.orders.map((o) => [
+      `${o.tanggal_order}|${String(o.no_order).trim()}|${o.proyek_id ? `P${o.proyek_id}` : ""}`,
+      o,
+    ])
   );
   const dbBuanganKeys = new Set(dbIndexes.buangan.map((b) => `${b.order_id}|${String(b.no_urut).trim()}`));
 
   const isFilled = (v) => v !== undefined && v !== null && String(v).trim() !== "";
 
+  // Tentukan bagian kunci proyek untuk satu baris CSV (best-effort, dipakai
+  // hanya untuk grouping/pencocokan kunci — resolusi definitif tetap terjadi
+  // nanti lewat resolveFieldWithOverrides per baris).
+  function proyekKeyForRow(data, idx) {
+    if (!isFilled(data.nama_proyek)) return "";
+    const override = overridesByIndex[idx] && overridesByIndex[idx].nama_proyek;
+    if (override && override.action === "use_existing") return `P${override.master_id}`;
+    if (override && override.action === "mark_new") return `NEW:${normalizeForMatch(data.nama_proyek)}`;
+    const norm = normalizeForMatch(data.nama_proyek);
+    const exact = masterCache.proyek.find((p) => normalizeForMatch(p.nama_proyek) === norm);
+    return exact ? `P${exact.id}` : `NEW:${norm}`;
+  }
+
   // Pre-pass: kunci order, status batal, dan pengelompokan baris per kunci
   const prelim = dataRows.map((data, idx) => {
     const tanggalNorm = parseTanggalCSV(data.tanggal_order);
+    const proyekPart = proyekKeyForRow(data, idx);
     const key = tanggalNorm && isFilled(data.no_order)
-      ? `${tanggalNorm}|${String(data.no_order).trim()}` : null;
+      ? `${tanggalNorm}|${String(data.no_order).trim()}|${proyekPart}` : null;
     const batalVal = parseBooleanCSV(data.batal);
     const buanganFilled = RITASI_BUANGAN_COLUMNS.some((c) => isFilled(data[c]));
     return { data, idx, tanggalNorm, key, batalVal, buanganFilled };
@@ -837,7 +864,7 @@ async function insertMasterRow(conn, entitas, row) {
 // dalam satu commit — baris berikutnya dengan kunci sama hanya menambah
 // buangan-nya. groupOrderIds memetakan orderKey -> order_id yang sudah
 // dibuat/ditemukan dalam transaction ini.
-async function insertRitasiRow(conn, row, masterCache, groupOrderIds) {
+async function insertRitasiRow(conn, row, masterCache, groupOrderIds, usedUrutKeys) {
   const c = row.computed;
   const noOrderTrim = String(row.data.no_order).trim();
 
@@ -850,10 +877,13 @@ async function insertRitasiRow(conn, row, masterCache, groupOrderIds) {
   let orderId = groupOrderIds.get(c.orderKey);
 
   if (!orderId) {
-    // Re-check kunci order di dalam transaction (kondisi bisa berubah sejak preview)
+    // Re-check kunci order di dalam transaction (kondisi bisa berubah sejak preview).
+    // proyek_id WAJIB ikut jadi syarat pencocokan (pakai NULL-safe <=>) karena
+    // no_order tidak unik lintas proyek — tanpa ini, order tanggal+no_order yang
+    // sama tapi proyek berbeda akan salah dianggap order yang sama.
     const [existing] = await conn.query(
-      `SELECT id, status, kendaraan_id, supir_id FROM orders WHERE tanggal_order = ? AND no_order = ? LIMIT 1`,
-      [c.tanggalNorm, noOrderTrim]
+      `SELECT id, status, kendaraan_id, supir_id FROM orders WHERE tanggal_order = ? AND no_order = ? AND proyek_id <=> ? LIMIT 1`,
+      [c.tanggalNorm, noOrderTrim, proyekId]
     );
 
     if (existing.length > 0) {
@@ -911,14 +941,15 @@ async function insertRitasiRow(conn, row, masterCache, groupOrderIds) {
 
   if (c.mode === "BATAL" || c.mode === "ON PROCESS") return;
 
-  // COMPLETE / APPEND: insert buangan + update status order
-  const [existingUrut] = await conn.query(
-    `SELECT id FROM buangan WHERE order_id = ? AND no_urut = ? LIMIT 1`,
-    [orderId, c.noUrut]
-  );
-  if (existingUrut.length > 0) {
+  // COMPLETE / APPEND: insert buangan + update status order.
+  // Cek duplikat no_urut pakai set in-memory (diisi dari dbIndexes.buangan saat
+  // preview + diupdate tiap insert dalam commit ini) alih-alih SELECT per baris —
+  // aman karena seluruh commit berjalan dalam satu transaction/connection yang sama.
+  const urutKey = `${orderId}|${String(c.noUrut).trim()}`;
+  if (usedUrutKeys.has(urutKey)) {
     return { skipped: true, reason: `No Urut ${c.noUrut} sudah dipakai untuk order ini (dibuat oleh proses lain)` };
   }
+  usedUrutKeys.add(urutKey);
 
   await conn.query(
     `INSERT INTO buangan (
@@ -957,16 +988,28 @@ export async function commitBatch(batch) {
   let berhasil = 0;
   let dilewati = 0;
 
+  // Progres real (dipakai endpoint GET /import/:entitas/progress agar UI tidak
+  // perlu menebak-nebak persen selama commit yang bisa memakan waktu lama).
+  batch.progress = { done: 0, total: batch.rows.length };
+
   try {
     await conn.beginTransaction();
 
     // Untuk entitas ritasi: order di-insert sekali per kunci dalam commit ini
     const groupOrderIds = new Map();
+    // Set kunci "orderId|no_urut" yang sudah terpakai, diseed dari dbIndexes.buangan
+    // (dimuat saat preview) supaya insertRitasiRow tidak perlu SELECT per baris
+    // untuk cek duplikat no_urut — round-trip DB per baris adalah biaya utama
+    // commit yang lambat pada import dengan banyak baris.
+    const usedUrutKeys = new Set(
+      (batch.dbIndexes?.buangan || []).map((b) => `${b.order_id}|${String(b.no_urut).trim()}`)
+    );
 
     for (const row of batch.rows) {
       if (row.status === "error" || row.skip_insert) {
         dilewati++;
         detail.push({ row_index: row.row_index, status: row.status, messages: row.messages });
+        batch.progress.done++;
         continue;
       }
 
@@ -974,7 +1017,7 @@ export async function commitBatch(batch) {
       if (MASTER_FIELD_CONFIG[batch.entitas]) {
         insertResult = await insertMasterRow(conn, batch.entitas, row);
       } else if (batch.entitas === "ritasi") {
-        insertResult = await insertRitasiRow(conn, row, batch.masterCache, groupOrderIds);
+        insertResult = await insertRitasiRow(conn, row, batch.masterCache, groupOrderIds, usedUrutKeys);
       } else if (batch.entitas === "mobil-luar") {
         insertResult = await insertMobilLuarRow(conn, row);
       }
@@ -985,6 +1028,7 @@ export async function commitBatch(batch) {
       } else {
         berhasil++;
       }
+      batch.progress.done++;
     }
 
     await conn.commit();
