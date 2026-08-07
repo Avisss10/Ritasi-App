@@ -105,10 +105,30 @@ function buildFiltersGabungan(req, allowedFields) {
 // ============================================================================
 router.get("/data", async (req, res) => {
   try {
+    const hasDateFilter =
+      req.query.tanggal_order_dari || req.query.tanggal_order_sampai ||
+      req.query.tanggal_bongkar_dari || req.query.tanggal_bongkar_sampai;
+
+    if (!hasDateFilter) {
+      return error(res, 400, "Filter tanggal wajib diisi (Tanggal Order atau Tanggal Bongkar)");
+    }
+
+    const parsedLimit = parseInt(req.query.limit);
+    const limit = Math.min(2000, Math.max(1, Number.isNaN(parsedLimit) ? 1000 : parsedLimit));
+
     const { where, values } = buildFiltersGabungan(req, [
       "proyek_id", "galian_id", "galian_alihan_id", "kendaraan_id", "supir_id",
       "petugas_order", "no_do", "lokasi_bongkar", "alihan", "status"
     ]);
+
+    const countSql = `
+      SELECT COUNT(*) AS total
+      FROM orders o
+      LEFT JOIN buangan b ON o.id = b.order_id
+      ${where}
+    `;
+    const [countRows] = await db.query(countSql, values);
+    const total = countRows[0].total;
 
     const sql = `
       SELECT
@@ -152,10 +172,17 @@ router.get("/data", async (req, res) => {
       LEFT JOIN master_galian ga ON b.galian_alihan_id = ga.id
       ${where}
       ORDER BY o.tanggal_order DESC, o.id DESC, b.id DESC
+      LIMIT ?
     `;
 
-    const [rows] = await db.query(sql, values);
-    return success(res, "Berhasil mengambil data review", rows);
+    const [rows] = await db.query(sql, [...values, limit]);
+
+    return success(res, "Berhasil mengambil data review", {
+      rows,
+      total,
+      limit,
+      truncated: total > rows.length,
+    });
   } catch (err) {
     console.error("Error GET /review/data:", err);
     return error(res, 500, "Gagal mengambil data review", err);

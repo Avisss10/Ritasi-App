@@ -10,11 +10,16 @@ const API_BASE_URL = '/api';
 let originalData = [];         // data mentah terakhir dari server, keyed by rowKey
 let dirtyChanges = {};         // { rowKey: { order_id, buangan_id, order:{}, buangan:{} } }
 let selectedRows = new Set();  // Set<rowKey>
+let hasLoadedOnce = false;     // true setelah loadReviewData() pernah sukses
+let activeFetchController = null; // AbortController request /review/data yang sedang berjalan
+let bannerLargeDismissed = false; // status dismiss banner kuning (501-1000 baris)
 
 let masterKendaraan = [];
 let masterSupir = [];
 let masterGalian = [];
 let masterProyek = [];
+
+const REVIEW_FILTER_STORAGE_KEY = 'reviewLastFilters';
 
 function rowKey(row) {
     return `o${row.order_id}_b${row.buangan_id ?? 'null'}`;
@@ -55,11 +60,28 @@ const FIELDS = [
 // ----------------------------------------------------------------------------
 // INIT
 // ----------------------------------------------------------------------------
-document.addEventListener('DOMContentLoaded', () => {
-    loadMasterData();
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadMasterData();
     loadFilterOptions();
-    loadReviewData();
     populateIsiMassalFieldOptions();
+    restoreLastFilters();
+
+    ['filterTglOrderDari', 'filterTglOrderSampai', 'filterTglBongkarDari', 'filterTglBongkarSampai'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', () => { updateApplyButtonState(); clearActiveChip(); });
+            el.addEventListener('change', () => { updateApplyButtonState(); clearActiveChip(); });
+        }
+    });
+    updateApplyButtonState();
+    // Data TIDAK di-fetch otomatis - user harus klik "Terapkan Filter" atau quick chip.
+});
+
+window.addEventListener('beforeunload', (e) => {
+    if (Object.keys(dirtyChanges).length > 0) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
 });
 
 // ----------------------------------------------------------------------------
@@ -76,7 +98,7 @@ function showToast(message, type = 'success') {
 // FETCH HELPER (tolerant unwrap, mengikuti pola rekap.js)
 // ----------------------------------------------------------------------------
 async function apiFetch(path, options = {}) {
-    const response = await fetch(`${API_BASE_URL}${path}`, options);
+    const response = await fetch(`${API_BASE_URL}${path}`, { ...options, signal: options.signal });
     const result = await response.json().catch(() => null);
     if (!response.ok || !result || result.status !== true) {
         const msg = (result && result.message) || `HTTP ${response.status}`;
@@ -148,17 +170,38 @@ function populateDatalist(id, values) {
 // FILTER BAR TOGGLE
 // ----------------------------------------------------------------------------
 function toggleFilterBar() {
-    const bar = document.getElementById('filterBar');
-    bar.style.display = bar.style.display === 'none' ? 'block' : 'none';
+    document.getElementById('filterSection').classList.toggle('collapsed');
 }
 
 function resetFilters() {
+    if (Object.keys(dirtyChanges).length > 0) {
+        if (!confirm('Ada perubahan yang belum disimpan. Reset filter akan membuang perubahan tersebut. Lanjutkan?')) {
+            return;
+        }
+        dirtyChanges = {};
+        updateDirtyIndicator();
+    }
+
     document.querySelectorAll('.rv-filter-bar input').forEach(i => i.value = '');
     document.querySelectorAll('.rv-filter-bar select').forEach(s => {
         Array.from(s.options).forEach(o => o.selected = false);
         if (s.options.length && !s.multiple) s.selectedIndex = 0;
     });
-    applyFilters();
+    clearActiveChip();
+    updateApplyButtonState();
+
+    // Tanggal wajib sudah kosong setelah reset -> kembali ke empty-state,
+    // bukan fetch ulang (fetch tanpa filter tanggal akan ditolak backend).
+    hasLoadedOnce = false;
+    originalData = [];
+    selectedRows.clear();
+    renderGrid();
+    updateBulkBar();
+    updateSummaryBar();
+    document.getElementById('bannerTruncated').style.display = 'none';
+    document.getElementById('bannerLarge').style.display = 'none';
+    bannerLargeDismissed = false;
+    localStorage.removeItem(REVIEW_FILTER_STORAGE_KEY);
 }
 
 function getSelectedValues(id) {
@@ -219,34 +262,238 @@ function buildFilterQuery() {
     return params.toString();
 }
 
+// ----------------------------------------------------------------------------
+// VALIDASI FILTER TANGGAL WAJIB (poin B.4)
+// ----------------------------------------------------------------------------
+function hasDateFilter() {
+    return !!(
+        document.getElementById('filterTglOrderDari').value ||
+        document.getElementById('filterTglOrderSampai').value ||
+        document.getElementById('filterTglBongkarDari').value ||
+        document.getElementById('filterTglBongkarSampai').value
+    );
+}
+
+function updateApplyButtonState() {
+    const btn = document.getElementById('btnApplyFilter');
+    const hint = document.getElementById('filterDateHint');
+    const ok = hasDateFilter();
+    if (btn) btn.disabled = !ok;
+    if (hint) hint.style.display = ok ? 'none' : 'inline';
+}
+
+// ----------------------------------------------------------------------------
+// QUICK FILTER CHIPS (poin B.5)
+// ----------------------------------------------------------------------------
+function formatLocalDate(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function clearActiveChip() {
+    document.querySelectorAll('.rv-chip').forEach(c => c.classList.remove('active'));
+}
+
+function applyQuickFilter(type) {
+    const today = new Date();
+    let dari, sampai;
+
+    if (type === 'hari_ini') {
+        dari = sampai = formatLocalDate(today);
+    } else if (type === '2_hari') {
+        const twoDaysAgo = new Date(today);
+        twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+        dari = formatLocalDate(twoDaysAgo);
+        sampai = formatLocalDate(today);
+    } else if (type === 'bulan_ini') {
+        const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        dari = formatLocalDate(firstOfMonth);
+        sampai = formatLocalDate(today);
+    } else {
+        return;
+    }
+
+    document.getElementById('filterTglOrderDari').value = dari;
+    document.getElementById('filterTglOrderSampai').value = sampai;
+    document.getElementById('filterTglBongkarDari').value = '';
+    document.getElementById('filterTglBongkarSampai').value = '';
+
+    clearActiveChip();
+    const chipIdMap = { hari_ini: 'chipHariIni', '2_hari': 'chip2Hari', bulan_ini: 'chipBulanIni' };
+    const chipEl = document.getElementById(chipIdMap[type]);
+    if (chipEl) chipEl.classList.add('active');
+
+    updateApplyButtonState();
+    applyFilters();
+}
+
+// ----------------------------------------------------------------------------
+// INGAT FILTER TERAKHIR (poin E.1)
+// ----------------------------------------------------------------------------
+function snapshotFilterValues() {
+    return {
+        filterProyek: getSelectedValues('filterProyek'),
+        filterGalian: getSelectedValues('filterGalian'),
+        filterGalianAlihan: document.getElementById('filterGalianAlihan').value,
+        filterKendaraan: document.getElementById('filterKendaraan').value,
+        filterSupir: document.getElementById('filterSupir').value,
+        filterPetugas: document.getElementById('filterPetugas').value,
+        filterNoDo: document.getElementById('filterNoDo').value,
+        filterLokasi: document.getElementById('filterLokasi').value,
+        filterStatus: document.getElementById('filterStatus').value,
+        filterAlihan: document.getElementById('filterAlihan').value,
+        filterTglOrderDari: document.getElementById('filterTglOrderDari').value,
+        filterTglOrderSampai: document.getElementById('filterTglOrderSampai').value,
+        filterTglBongkarDari: document.getElementById('filterTglBongkarDari').value,
+        filterTglBongkarSampai: document.getElementById('filterTglBongkarSampai').value,
+    };
+}
+
+function saveFiltersToLocalStorage() {
+    try {
+        localStorage.setItem(REVIEW_FILTER_STORAGE_KEY, JSON.stringify(snapshotFilterValues()));
+    } catch (err) {
+        console.warn('Gagal menyimpan filter ke localStorage:', err);
+    }
+}
+
+function restoreLastFilters() {
+    let saved;
+    try {
+        const raw = localStorage.getItem(REVIEW_FILTER_STORAGE_KEY);
+        if (!raw) return;
+        saved = JSON.parse(raw);
+    } catch (err) {
+        console.warn('Gagal membaca filter tersimpan:', err);
+        return;
+    }
+    if (!saved || typeof saved !== 'object') return;
+
+    const setMultiSelect = (id, values) => {
+        const el = document.getElementById(id);
+        if (!el || !Array.isArray(values)) return;
+        Array.from(el.options).forEach(o => { o.selected = values.includes(o.value); });
+    };
+
+    setMultiSelect('filterProyek', saved.filterProyek);
+    setMultiSelect('filterGalian', saved.filterGalian);
+
+    const simpleFields = [
+        'filterGalianAlihan', 'filterKendaraan', 'filterSupir', 'filterPetugas',
+        'filterNoDo', 'filterLokasi', 'filterStatus', 'filterAlihan',
+        'filterTglOrderDari', 'filterTglOrderSampai', 'filterTglBongkarDari', 'filterTglBongkarSampai',
+    ];
+    simpleFields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && saved[id] !== undefined) el.value = saved[id];
+    });
+
+    updateApplyButtonState();
+}
+
 function applyFilters() {
+    if (!hasDateFilter()) {
+        showToast('Pilih rentang tanggal terlebih dahulu (Tanggal Order atau Tanggal Bongkar).', 'warning');
+        return;
+    }
     if (Object.keys(dirtyChanges).length > 0) {
         if (!confirm('Ada perubahan yang belum disimpan. Menerapkan filter akan membuang perubahan tersebut. Lanjutkan?')) {
             return;
         }
         dirtyChanges = {};
+        updateDirtyIndicator();
     }
+    saveFiltersToLocalStorage();
     loadReviewData();
+}
+
+// ----------------------------------------------------------------------------
+// LOADING STATE HELPERS (poin C.2)
+// ----------------------------------------------------------------------------
+function setFilterControlsBusy(busy) {
+    const btn = document.getElementById('btnApplyFilter');
+    if (btn) {
+        btn.disabled = busy || !hasDateFilter();
+        btn.innerHTML = busy ? '<span class="rv-spinner"></span> Memuat...' : 'Terapkan Filter';
+    }
+    ['chipHariIni', 'chip2Hari', 'chipBulanIni'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = busy;
+    });
+}
+
+function renderSkeletonRows() {
+    const cols = 24;
+    const row = `<tr>${Array.from({ length: cols }).map(() => `<td><div class="rv-skeleton-bar"></div></td>`).join('')}</tr>`;
+    return Array.from({ length: 8 }).map(() => row).join('');
+}
+
+// ----------------------------------------------------------------------------
+// DATA SIZE BANNER (poin C.2)
+// ----------------------------------------------------------------------------
+function updateDataSizeBanner({ total, shown, truncated }) {
+    const bannerTruncated = document.getElementById('bannerTruncated');
+    const bannerLarge = document.getElementById('bannerLarge');
+    const bannerLargeText = document.getElementById('bannerLargeText');
+
+    if (truncated) {
+        bannerTruncated.style.display = 'flex';
+        bannerTruncated.textContent = `Menampilkan ${shown} dari ${total} data yang cocok. Data dibatasi karena terlalu banyak — persempit filter (tanggal/proyek/dll) untuk melihat sisanya.`;
+        bannerLarge.style.display = 'none';
+        return;
+    }
+
+    bannerTruncated.style.display = 'none';
+
+    if (total > 500) {
+        if (!bannerLargeDismissed) {
+            bannerLarge.style.display = 'flex';
+            bannerLargeText.textContent = `Menampilkan ${total} baris. Untuk performa lebih baik, pertimbangkan mempersempit filter.`;
+        }
+    } else {
+        bannerLarge.style.display = 'none';
+        bannerLargeDismissed = false;
+    }
+}
+
+function dismissBannerLarge() {
+    bannerLargeDismissed = true;
+    document.getElementById('bannerLarge').style.display = 'none';
 }
 
 // ----------------------------------------------------------------------------
 // LOAD DATA
 // ----------------------------------------------------------------------------
 async function loadReviewData() {
+    if (activeFetchController) {
+        activeFetchController.abort();
+    }
+    activeFetchController = new AbortController();
+    const { signal } = activeFetchController;
+
     const tbody = document.getElementById('gridBody');
-    tbody.innerHTML = `<tr><td colspan="24" class="rv-loading">Memuat data...</td></tr>`;
+    tbody.innerHTML = renderSkeletonRows();
+    setFilterControlsBusy(true);
 
     try {
         const query = buildFilterQuery();
-        const data = await apiFetch(`/review/data${query ? '?' + query : ''}`);
-        originalData = data || [];
+        const result = await apiFetch(`/review/data${query ? '?' + query : ''}`, { signal });
+        const { rows, total, limit, truncated } = result;
+        originalData = rows || [];
         selectedRows.clear();
+        hasLoadedOnce = true;
         renderGrid();
         updateBulkBar();
         updateSummaryBar();
+        updateDataSizeBanner({ total, shown: originalData.length, truncated });
     } catch (err) {
+        if (err.name === 'AbortError') {
+            return;
+        }
         console.error('Gagal memuat data review:', err);
         tbody.innerHTML = `<tr><td colspan="24" class="rv-loading">Gagal memuat data: ${escapeHtml(err.message)}</td></tr>`;
+        showToast('Gagal memuat data review: ' + err.message, 'error');
+    } finally {
+        setFilterControlsBusy(false);
     }
 }
 
@@ -315,8 +562,27 @@ function displayValue(row, field, value) {
     return value;
 }
 
+function statusBadgeHtml(status) {
+    const s = (status || '').toUpperCase();
+    let cls = 'rv-status-cancel';
+    if (s === 'COMPLETE') cls = 'rv-status-complete';
+    else if (s === 'ON PROCESS') cls = 'rv-status-process';
+    return `<span class="rv-status-badge ${cls}">${escapeHtml(status || '-')}</span>`;
+}
+
 function renderGrid() {
     const tbody = document.getElementById('gridBody');
+
+    if (!hasLoadedOnce) {
+        tbody.innerHTML = `<tr><td colspan="24" class="rv-empty-state">
+            <span class="rv-empty-state-icon">🗂️</span>
+            <div class="rv-empty-state-text">
+                Belum ada data ditampilkan. Atur filter di atas, lalu klik <strong>Terapkan Filter</strong> untuk memuat data.
+            </div>
+        </td></tr>`;
+        return;
+    }
+
     if (originalData.length === 0) {
         tbody.innerHTML = `<tr><td colspan="24" class="rv-empty">Tidak ada data untuk filter ini.</td></tr>`;
         return;
@@ -339,10 +605,14 @@ function renderGrid() {
             }
             if (dirty) classes.push('rv-cell-dirty');
 
+            const undoIcon = dirty
+                ? `<span class="rv-undo-icon" title="Batalkan perubahan sel ini" onclick="undoCellChange(event, '${key}', '${field.group}', '${field.key}')">↺</span>`
+                : '';
+
             if (field.type === 'checkbox') {
                 const isChecked = value ? 'checked' : '';
                 return `<td class="${classes.join(' ')}" data-key="${key}" data-field="${field.key}" data-group="${field.group}">
-                    <input type="checkbox" class="rv-checkbox-toggle" ${isChecked} ${field.type === 'readonly' ? 'disabled' : ''} onchange="onCellCheckboxChange('${key}', '${field.group}', '${field.key}', this.checked)">
+                    <input type="checkbox" class="rv-checkbox-toggle" ${isChecked} ${field.type === 'readonly' ? 'disabled' : ''} onchange="onCellCheckboxChange('${key}', '${field.group}', '${field.key}', this.checked)">${undoIcon}
                 </td>`;
             }
 
@@ -350,7 +620,11 @@ function renderGrid() {
                 return `<td class="${classes.join(' ')}">${escapeHtml(display)}</td>`;
             }
 
-            return `<td class="${classes.join(' ')}" data-key="${key}" data-field="${field.key}" data-group="${field.group}" onclick="startCellEdit(this, '${key}', '${field.group}', '${field.key}')">${escapeHtml(display)}</td>`;
+            if (field.key === 'status') {
+                return `<td class="${classes.join(' ')}" data-key="${key}" data-field="${field.key}" data-group="${field.group}" onclick="startCellEdit(this, '${key}', '${field.group}', '${field.key}')">${statusBadgeHtml(display)}${undoIcon}</td>`;
+            }
+
+            return `<td class="${classes.join(' ')}" data-key="${key}" data-field="${field.key}" data-group="${field.group}" onclick="startCellEdit(this, '${key}', '${field.group}', '${field.key}')">${escapeHtml(display)}${undoIcon}</td>`;
         }).join('');
 
         return `<tr class="${problem ? 'rv-row-problem' : ''} ${isBatal ? 'rv-row-batal' : ''}" data-key="${key}">
@@ -392,6 +666,31 @@ function onCellCheckboxChange(key, group, fieldKey, checked) {
     setCellValue(key, group, fieldKey, checked);
 }
 
+// Undo perubahan satu field saja (poin E.2) - tidak mempengaruhi field lain
+// di baris yang sama atau baris lainnya.
+function undoCellChange(event, key, group, fieldKey) {
+    if (event) event.stopPropagation();
+    const entry = dirtyChanges[key];
+    if (!entry) return;
+    delete entry[group][fieldKey];
+    if (Object.keys(entry.order).length === 0 && Object.keys(entry.buangan).length === 0) {
+        delete dirtyChanges[key];
+    }
+    updateDirtyIndicator();
+    renderGrid();
+}
+
+// Urutan field yang dibuka lewat startCellEdit (skip readonly & checkbox,
+// karena checkbox punya mode edit sendiri via onchange langsung). Dipakai
+// untuk navigasi keyboard Tab/Shift+Tab (poin E.3).
+function getEditableFieldSequence() {
+    return FIELDS.filter(f => f.type !== 'readonly' && f.type !== 'checkbox');
+}
+
+function getCellElement(key, fieldKey) {
+    return document.querySelector(`td[data-key="${key}"][data-field="${fieldKey}"]`);
+}
+
 function startCellEdit(td, key, group, fieldKey) {
     if (td.querySelector('input,select')) return; // sudah dalam mode edit
     const row = findRowByKey(key);
@@ -425,6 +724,7 @@ function startCellEdit(td, key, group, fieldKey) {
     if (inputEl) {
         inputEl.focus();
         if (inputEl.select) inputEl.select();
+        inputEl.addEventListener('keydown', (e) => handleCellKeydown(e, inputEl, key, group, fieldKey));
     }
 }
 
@@ -435,6 +735,68 @@ function onCellInputCommit(key, group, fieldKey, rawValue) {
         value = rawValue === '' ? null : parseFloat(rawValue);
     }
     setCellValue(key, group, fieldKey, value);
+}
+
+// Navigasi keyboard ala spreadsheet (poin E.3): Tab/Shift+Tab pindah kolom,
+// Enter pindah baris (kolom sama), Escape batalkan tanpa commit.
+function handleCellKeydown(e, inputEl, key, group, fieldKey) {
+    if (e.key === 'Escape') {
+        e.preventDefault();
+        renderGrid();
+        return;
+    }
+
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        onCellInputCommit(key, group, fieldKey, inputEl.value);
+        moveToNextRowSameField(key, fieldKey);
+        return;
+    }
+
+    if (e.key === 'Tab') {
+        e.preventDefault();
+        onCellInputCommit(key, group, fieldKey, inputEl.value);
+        moveToAdjacentField(key, fieldKey, e.shiftKey ? -1 : 1);
+    }
+}
+
+function moveToNextRowSameField(key, fieldKey) {
+    const idx = originalData.findIndex(r => rowKey(r) === key);
+    if (idx === -1 || idx + 1 >= originalData.length) return;
+    const nextRow = originalData[idx + 1];
+    const nextKey = rowKey(nextRow);
+    const field = findField(fieldKey);
+    if (!field) return;
+    const td = getCellElement(nextKey, fieldKey);
+    if (td) startCellEdit(td, nextKey, field.group, fieldKey);
+}
+
+function moveToAdjacentField(key, fieldKey, direction) {
+    const sequence = getEditableFieldSequence();
+    const fieldIdx = sequence.findIndex(f => f.key === fieldKey);
+    if (fieldIdx === -1) return;
+
+    const rowIdx = originalData.findIndex(r => rowKey(r) === key);
+    if (rowIdx === -1) return;
+
+    let nextFieldIdx = fieldIdx + direction;
+    let nextRowIdx = rowIdx;
+
+    if (nextFieldIdx >= sequence.length) {
+        nextFieldIdx = 0;
+        nextRowIdx = rowIdx + 1;
+    } else if (nextFieldIdx < 0) {
+        nextFieldIdx = sequence.length - 1;
+        nextRowIdx = rowIdx - 1;
+    }
+
+    if (nextRowIdx < 0 || nextRowIdx >= originalData.length) return; // sudah di batas grid
+
+    const nextField = sequence[nextFieldIdx];
+    const nextRow = originalData[nextRowIdx];
+    const nextKey = rowKey(nextRow);
+    const td = getCellElement(nextKey, nextField.key);
+    if (td) startCellEdit(td, nextKey, nextField.group, nextField.key);
 }
 
 function updateDirtyIndicator() {

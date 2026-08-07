@@ -1,28 +1,56 @@
 /* ============================================================================
-   REVIEW DATA - DARK SPREADSHEET/EDITOR THEME
-   Sengaja berbeda total dari rekap.css (white-card + gradient ungu).
+   REVIEW DATA - SEKUALITAS LAPORAN (rekap.css), UI GRID EDITOR
+   Palet & pola visual diadopsi dari rekap.css supaya satu keluarga dengan
+   halaman Laporan, sambil mempertahankan pola grid/sticky-column/dirty-cell
+   yang sudah ada.
    ============================================================================ */
 
 :root {
-    --rv-toolbar-bg: #1e293b;
-    --rv-toolbar-border: #334155;
-    --rv-bg: #f1f5f9;
+    /* Palet inti - diselaraskan dengan rekap.css */
+    --rv-primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --rv-primary-color: #667eea;
+    --rv-primary-dark: #5568d3;
+    --rv-secondary-gradient: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+    --rv-danger-gradient: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+
+    --rv-white: #ffffff;
+    --rv-gray-100: #f8f9fa;
+    --rv-gray-200: #e9ecef;
+    --rv-gray-300: #dee2e6;
+    --rv-gray-400: #ced4da;
+    --rv-gray-500: #adb5bd;
+    --rv-gray-600: #6c757d;
+    --rv-gray-700: #495057;
+    --rv-gray-800: #343a40;
+    --rv-gray-900: #212529;
+
+    --rv-status-complete: #28a745;
+    --rv-status-process: #ffc107;
+    --rv-status-cancel: #dc3545;
+
+    --rv-radius-sm: 6px;
+    --rv-radius-md: 10px;
+    --rv-radius-lg: 12px;
+
+    --rv-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+    --rv-shadow-md: 0 4px 15px rgba(0, 0, 0, 0.08);
+    --rv-shadow-hover: 0 6px 20px rgba(102, 126, 234, 0.35);
+
+    --rv-transition: 0.2s ease;
+
+    /* Variabel spesifik grid editor (tetap dipertahankan dari versi sebelumnya) */
+    --rv-bg: #eef1f6;
     --rv-panel-bg: #ffffff;
-    --rv-border: #cbd5e1;
-    --rv-text: #0f172a;
-    --rv-text-muted: #64748b;
-    --rv-accent: #38bdf8;
-    --rv-accent-dark: #0284c7;
-    --rv-danger: #ef4444;
-    --rv-danger-dark: #b91c1c;
-    --rv-warn: #f59e0b;
-    --rv-dirty-bg: #fef3c7;
-    --rv-dirty-border: #f59e0b;
-    --rv-readonly-bg: #e2e8f0;
-    --rv-row-problem-border: #ef4444;
-    --rv-header-bg: #0f172a;
-    --rv-header-text: #e2e8f0;
-    --rv-sticky-shadow: rgba(0, 0, 0, 0.15);
+    --rv-border: #dee2e6;
+    --rv-text: #212529;
+    --rv-text-muted: #6c757d;
+    --rv-dirty-bg: #fff3cd;
+    --rv-dirty-border: #ffc107;
+    --rv-readonly-bg: #f1f3f5;
+    --rv-row-problem-border: #dc3545;
+    --rv-header-bg: #343a40;
+    --rv-header-text: #f1f3f5;
+    --rv-sticky-shadow: rgba(0, 0, 0, 0.12);
 }
 
 * {
@@ -45,14 +73,14 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: var(--rv-toolbar-bg);
-    border-bottom: 1px solid var(--rv-toolbar-border);
-    padding: 10px 18px;
+    background: var(--rv-primary-gradient);
+    padding: 14px 20px;
     position: sticky;
     top: 0;
     z-index: 50;
     gap: 12px;
     flex-wrap: wrap;
+    box-shadow: var(--rv-shadow-md);
 }
 
 .rv-toolbar-left, .rv-toolbar-right {
@@ -63,33 +91,35 @@ body {
 }
 
 .rv-back {
-    color: #cbd5e1;
+    color: #fff;
     text-decoration: none;
     font-size: 18px;
     padding: 4px 10px;
-    border-radius: 6px;
+    border-radius: var(--rv-radius-sm);
 }
 
 .rv-back:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.15);
 }
 
 .rv-title {
     display: flex;
     align-items: center;
     gap: 8px;
-    color: #f8fafc;
+    color: #fff;
     font-weight: 700;
-    font-size: 16px;
+    font-size: 17px;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.15);
 }
 
 .rv-dirty-indicator {
-    color: var(--rv-warn);
+    color: #fff;
     font-size: 12px;
     font-weight: 600;
-    padding: 4px 10px;
-    border: 1px solid var(--rv-warn);
-    border-radius: 6px;
+    padding: 5px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 20px;
+    background: rgba(0, 0, 0, 0.15);
 }
 
 /* ============================================================================
@@ -97,110 +127,259 @@ body {
    ============================================================================ */
 .rv-btn {
     border: none;
-    border-radius: 6px;
-    padding: 8px 14px;
+    border-radius: var(--rv-radius-sm);
+    padding: 9px 16px;
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
-    transition: filter 0.15s ease;
+    transition: all var(--rv-transition);
+    box-shadow: var(--rv-shadow-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .rv-btn:hover {
-    filter: brightness(1.1);
+    transform: translateY(-1px);
+}
+
+.rv-btn:active {
+    transform: translateY(0);
 }
 
 .rv-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    transform: none;
 }
 
 .rv-btn-sm {
-    padding: 6px 12px;
+    padding: 7px 13px;
     font-size: 12px;
 }
 
 .rv-btn-primary {
-    background: var(--rv-accent);
-    color: #0f172a;
+    background: linear-gradient(135deg, #ffffff 0%, #f1f3f9 100%);
+    color: var(--rv-primary-color);
+}
+
+.rv-btn-primary:hover:not(:disabled) {
+    background: #fff;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
 .rv-btn-secondary {
-    background: #334155;
-    color: #e2e8f0;
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.rv-btn-secondary:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.28);
 }
 
 .rv-btn-ghost {
     background: transparent;
-    color: #cbd5e1;
-    border: 1px solid #475569;
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.rv-btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.15);
 }
 
 .rv-btn-danger {
-    background: var(--rv-danger);
+    background: var(--rv-danger-gradient);
     color: #fff;
 }
 
+.rv-btn-danger:hover:not(:disabled) {
+    box-shadow: 0 6px 16px rgba(220, 53, 69, 0.4);
+}
+
+/* Tombol di dalam bulk-bar/filter-section pakai warna solid supaya kontras di atas putih */
+.rv-bulk-bar .rv-btn-sm:not(.rv-btn-danger) {
+    background: var(--rv-primary-gradient);
+    color: #fff;
+}
+
+.rv-filter-actions .rv-btn-primary {
+    background: var(--rv-primary-gradient);
+    color: #fff;
+}
+
+.rv-filter-actions .rv-btn-primary:hover:not(:disabled) {
+    box-shadow: var(--rv-shadow-hover);
+}
+
+.rv-filter-actions .rv-btn-secondary {
+    background: var(--rv-secondary-gradient);
+    color: #fff;
+    border: none;
+}
+
+.rv-spinner {
+    display: inline-block;
+    width: 13px;
+    height: 13px;
+    border: 2px solid rgba(102, 126, 234, 0.3);
+    border-top-color: var(--rv-primary-color);
+    border-radius: 50%;
+    animation: rv-spin 0.7s linear infinite;
+}
+
+@keyframes rv-spin {
+    to { transform: rotate(360deg); }
+}
+
 /* ============================================================================
-   SUMMARY BAR (ringkasan status, selalu terlihat)
+   QUICK FILTER CHIPS
+   ============================================================================ */
+.rv-chip-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 12px 20px 0 20px;
+}
+
+.rv-chip {
+    border: 1px solid var(--rv-primary-color);
+    background: #fff;
+    color: var(--rv-primary-color);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--rv-transition);
+}
+
+.rv-chip:hover {
+    background: #f0f1fb;
+}
+
+.rv-chip.active {
+    background: var(--rv-primary-gradient);
+    color: #fff;
+    border-color: transparent;
+}
+
+/* ============================================================================
+   SUMMARY STAT CARDS (ala rekap.css .summary-stat-card)
    ============================================================================ */
 .rv-summary-bar {
-    display: flex;
-    gap: 10px;
-    padding: 10px 18px;
-    background: #0f172a;
-    border-bottom: 1px solid var(--rv-toolbar-border);
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    padding: 16px 20px;
 }
 
 .rv-summary-item {
+    background: var(--rv-white);
+    border-radius: var(--rv-radius-md);
+    padding: 14px 16px;
     display: flex;
-    align-items: baseline;
-    gap: 6px;
-    padding: 6px 14px;
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid #334155;
+    align-items: center;
+    gap: 12px;
+    box-shadow: var(--rv-shadow-sm);
+    border: 2px solid var(--rv-gray-200);
+    transition: all var(--rv-transition);
 }
 
+.rv-summary-item:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--rv-shadow-md);
+    border-color: var(--rv-primary-color);
+}
+
+.rv-summary-item::before {
+    content: '📊';
+    font-size: 1.8em;
+    line-height: 1;
+    opacity: 0.85;
+}
+
+.rv-summary-complete::before { content: '✅'; }
+.rv-summary-process::before { content: '⏳'; }
+.rv-summary-batal::before { content: '🚫'; }
+
 .rv-summary-label {
+    display: block;
     font-size: 11px;
-    font-weight: 600;
-    color: #94a3b8;
+    font-weight: 700;
+    color: var(--rv-gray-600);
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.04em;
+    margin-bottom: 2px;
 }
 
 .rv-summary-value {
-    font-size: 15px;
+    display: block;
+    font-size: 1.7em;
     font-weight: 700;
-    color: #f8fafc;
+    color: var(--rv-gray-800);
+    line-height: 1;
 }
 
-.rv-summary-complete .rv-summary-value {
-    color: #4ade80;
-}
-
-.rv-summary-process .rv-summary-value {
-    color: var(--rv-warn);
-}
-
-.rv-summary-batal .rv-summary-value {
-    color: #f87171;
-}
+.rv-summary-complete .rv-summary-value { color: var(--rv-status-complete); }
+.rv-summary-process .rv-summary-value { color: #b8860b; }
+.rv-summary-batal .rv-summary-value { color: var(--rv-status-cancel); }
 
 /* ============================================================================
-   FILTER BAR (ramping, collapsible)
+   FILTER SECTION (card ala rekap.css .filter-section)
    ============================================================================ */
+.rv-filter-section {
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border-radius: var(--rv-radius-lg);
+    margin: 0 20px 16px 20px;
+    box-shadow: var(--rv-shadow-md);
+    border: 1px solid var(--rv-gray-300);
+    overflow: hidden;
+}
+
+.rv-filter-header {
+    background: var(--rv-primary-gradient);
+    color: #fff;
+    padding: 14px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+}
+
+.rv-filter-header:hover {
+    background: linear-gradient(135deg, var(--rv-primary-dark) 0%, #653a8a 100%);
+}
+
+.rv-filter-header h3 {
+    font-size: 1.05em;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.rv-filter-toggle-icon {
+    transition: transform var(--rv-transition);
+}
+
+.rv-filter-section.collapsed .rv-filter-toggle-icon {
+    transform: rotate(-180deg);
+}
+
+.rv-filter-section.collapsed .rv-filter-body,
+.rv-filter-section.collapsed .rv-chip-row {
+    display: none;
+}
+
 .rv-filter-bar {
-    background: var(--rv-panel-bg);
-    border-bottom: 1px solid var(--rv-border);
-    padding: 14px 18px;
+    padding: 16px 20px;
 }
 
 .rv-filter-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 10px;
+    gap: 12px;
 }
 
 .rv-filter-field {
@@ -211,39 +390,98 @@ body {
 
 .rv-filter-field label {
     font-size: 11px;
-    font-weight: 600;
-    color: var(--rv-text-muted);
+    font-weight: 700;
+    color: var(--rv-gray-600);
     text-transform: uppercase;
     letter-spacing: 0.03em;
 }
 
 .rv-filter-field input,
 .rv-filter-field select {
-    padding: 6px 8px;
-    border: 1px solid var(--rv-border);
-    border-radius: 5px;
+    padding: 7px 9px;
+    border: 1px solid var(--rv-gray-400);
+    border-radius: var(--rv-radius-sm);
     font-size: 12px;
     background: #fff;
     color: var(--rv-text);
 }
 
+.rv-filter-field input:focus,
+.rv-filter-field select:focus {
+    outline: none;
+    border-color: var(--rv-primary-color);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
 .rv-filter-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
-    margin-top: 12px;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+}
+
+.rv-filter-hint {
+    font-size: 12px;
+    color: var(--rv-status-cancel);
+    font-weight: 600;
+    margin-right: auto;
+}
+
+/* ============================================================================
+   DATA SIZE BANNER
+   ============================================================================ */
+.rv-banner {
+    margin: 0 20px 16px 20px;
+    padding: 12px 16px;
+    border-radius: var(--rv-radius-md);
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.rv-banner-danger {
+    background: #f8d7da;
+    color: #842029;
+    border: 1px solid #f1aeb5;
+}
+
+.rv-banner-warning {
+    background: #fff3cd;
+    color: #664d03;
+    border: 1px solid #ffe69c;
+}
+
+.rv-banner-close {
+    background: none;
+    border: none;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.7;
+}
+
+.rv-banner-close:hover {
+    opacity: 1;
 }
 
 /* ============================================================================
    GRID
    ============================================================================ */
 .rv-grid-wrapper {
-    padding: 0;
+    padding: 0 20px 20px 20px;
 }
 
 .rv-grid-scroll {
     overflow: auto;
-    max-height: calc(100vh - 60px);
+    max-height: calc(100vh - 120px);
+    border-radius: var(--rv-radius-lg);
+    box-shadow: var(--rv-shadow-md);
 }
 
 .rv-grid {
@@ -256,8 +494,8 @@ body {
 
 .rv-grid th, .rv-grid td {
     border-bottom: 1px solid var(--rv-border);
-    border-right: 1px solid #e2e8f0;
-    padding: 6px 10px;
+    border-right: 1px solid var(--rv-gray-200);
+    padding: 7px 10px;
     white-space: nowrap;
     text-align: left;
 }
@@ -304,22 +542,61 @@ thead .rv-sticky-col {
     white-space: normal !important;
 }
 
+.rv-empty-state {
+    text-align: center;
+    padding: 60px 20px !important;
+    white-space: normal !important;
+    color: var(--rv-gray-600);
+}
+
+.rv-empty-state-icon {
+    font-size: 2.6em;
+    display: block;
+    margin-bottom: 12px;
+    opacity: 0.7;
+}
+
+.rv-empty-state-text {
+    font-size: 14px;
+    line-height: 1.6;
+    max-width: 480px;
+    margin: 0 auto;
+}
+
+.rv-empty-state-text strong {
+    color: var(--rv-primary-color);
+}
+
 /* Row highlight untuk baris bermasalah */
 tr.rv-row-problem td.rv-col-noorder {
     border-left: 4px solid var(--rv-row-problem-border);
 }
 
 tr.rv-row-batal {
-    opacity: 0.6;
+    opacity: 0.65;
 }
+
+.rv-status-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+}
+
+.rv-status-badge.rv-status-complete { background: var(--rv-status-complete); }
+.rv-status-badge.rv-status-process { background: var(--rv-status-process); color: #212529; }
+.rv-status-badge.rv-status-cancel { background: var(--rv-status-cancel); }
 
 /* Editable cell */
 .rv-cell-editable {
     cursor: pointer;
+    position: relative;
 }
 
 .rv-cell-editable:hover {
-    background: #f0f9ff;
+    background: #eef2ff;
 }
 
 .rv-cell-readonly {
@@ -332,20 +609,54 @@ tr.rv-row-batal {
     background: var(--rv-dirty-bg) !important;
     border: 1px solid var(--rv-dirty-border) !important;
     font-weight: 600;
+    padding-right: 22px !important;
 }
 
 .rv-cell-input {
     width: 100%;
     min-width: 90px;
     padding: 4px 6px;
-    border: 1px solid var(--rv-accent-dark);
+    border: 1px solid var(--rv-primary-color);
     border-radius: 4px;
     font-size: 12px;
     font-family: inherit;
 }
 
 .rv-checkbox-toggle {
-    transform: scale(1.1);
+    transform: scale(1.15);
+}
+
+.rv-undo-icon {
+    position: absolute;
+    right: 3px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 13px;
+    color: #92720a;
+    cursor: pointer;
+    line-height: 1;
+    padding: 1px 3px;
+    border-radius: 3px;
+}
+
+.rv-undo-icon:hover {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================================================
+   SKELETON LOADING
+   ============================================================================ */
+.rv-skeleton-bar {
+    height: 12px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--rv-gray-200) 25%, var(--rv-gray-100) 50%, var(--rv-gray-200) 75%);
+    background-size: 200% 100%;
+    animation: rv-shimmer 1.3s ease-in-out infinite;
+}
+
+@keyframes rv-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
 }
 
 /* ============================================================================
@@ -356,19 +667,18 @@ tr.rv-row-batal {
     bottom: 0;
     left: 0;
     right: 0;
-    background: var(--rv-toolbar-bg);
-    border-top: 1px solid var(--rv-toolbar-border);
-    padding: 10px 18px;
+    background: var(--rv-gray-900);
+    padding: 12px 20px;
     display: flex;
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
     z-index: 60;
-    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25);
 }
 
 .rv-bulk-count {
-    color: #f8fafc;
+    color: #fff;
     font-weight: 700;
     margin-right: 8px;
 }
@@ -380,7 +690,7 @@ tr.rv-row-batal {
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.55);
+    background: rgba(33, 37, 41, 0.55);
     align-items: center;
     justify-content: center;
     z-index: 100;
@@ -392,26 +702,27 @@ tr.rv-row-batal {
 
 .rv-modal {
     background: #fff;
-    border-radius: 10px;
+    border-radius: var(--rv-radius-lg);
     width: 420px;
     max-width: 92vw;
     max-height: 85vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3);
 }
 
 .rv-modal-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 18px;
-    border-bottom: 1px solid var(--rv-border);
+    padding: 16px 20px;
+    background: var(--rv-primary-gradient);
+    border-radius: var(--rv-radius-lg) var(--rv-radius-lg) 0 0;
 }
 
 .rv-modal-header h3 {
     font-size: 15px;
-    color: var(--rv-text);
+    color: #fff;
 }
 
 .rv-modal-close {
@@ -419,12 +730,17 @@ tr.rv-row-batal {
     border: none;
     font-size: 20px;
     cursor: pointer;
-    color: var(--rv-text-muted);
+    color: #fff;
     line-height: 1;
+    opacity: 0.85;
+}
+
+.rv-modal-close:hover {
+    opacity: 1;
 }
 
 .rv-modal-body {
-    padding: 16px 18px;
+    padding: 18px 20px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
@@ -432,7 +748,7 @@ tr.rv-row-batal {
 }
 
 .rv-modal-footer {
-    padding: 14px 18px;
+    padding: 14px 20px;
     border-top: 1px solid var(--rv-border);
     display: flex;
     justify-content: flex-end;
@@ -456,14 +772,21 @@ tr.rv-row-batal {
 .rv-form-field textarea {
     padding: 7px 9px;
     border: 1px solid var(--rv-border);
-    border-radius: 5px;
+    border-radius: var(--rv-radius-sm);
     font-size: 13px;
     font-family: inherit;
 }
 
+.rv-form-field input:focus,
+.rv-form-field select:focus,
+.rv-form-field textarea:focus {
+    outline: none;
+    border-color: var(--rv-primary-color);
+}
+
 .rv-warning-text {
     font-size: 13px;
-    color: var(--rv-danger-dark);
+    color: #842029;
     line-height: 1.5;
 }
 
@@ -472,8 +795,8 @@ tr.rv-row-batal {
     flex-direction: column;
     gap: 4px;
     padding: 8px;
-    background: #f8fafc;
-    border-radius: 6px;
+    background: var(--rv-gray-100);
+    border-radius: var(--rv-radius-sm);
     margin-bottom: 8px;
 }
 
@@ -483,14 +806,14 @@ tr.rv-row-batal {
 }
 
 /* ============================================================================
-   TOAST (pola disalin dari buangan.css, warna disesuaikan tema Review)
+   TOAST
    ============================================================================ */
 .rv-toast {
     position: fixed;
     top: 20px;
     right: 20px;
     padding: 14px 22px;
-    border-radius: 8px;
+    border-radius: var(--rv-radius-md);
     color: white;
     font-weight: 600;
     font-size: 13px;
@@ -509,13 +832,13 @@ tr.rv-row-batal {
 }
 
 .rv-toast.success {
-    background: #16a34a;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
 }
 
 .rv-toast.error {
-    background: #dc2626;
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
 }
 
 .rv-toast.warning {
-    background: #d97706;
+    background: linear-gradient(135deg, #f0932b 0%, #d97706 100%);
 }

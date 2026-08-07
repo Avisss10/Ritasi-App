@@ -43,85 +43,105 @@
         </div>
     </div>
 
-    <div class="rv-filter-bar" id="filterBar" style="display:none;">
-        <div class="rv-filter-grid">
-            <div class="rv-filter-field">
-                <label>Proyek</label>
-                <select id="filterProyek" multiple size="4"></select>
+    <div class="rv-filter-section" id="filterSection">
+        <div class="rv-filter-header" id="btnToggleFilter" onclick="toggleFilterBar()">
+            <h3><span>🔍</span> Filter Data</h3>
+            <span class="rv-filter-toggle-icon">▾</span>
+        </div>
+
+        <div class="rv-chip-row">
+            <button type="button" class="rv-chip" id="chipHariIni" onclick="applyQuickFilter('hari_ini')">Hari Ini</button>
+            <button type="button" class="rv-chip" id="chip2Hari" onclick="applyQuickFilter('2_hari')">2 Hari Terakhir</button>
+            <button type="button" class="rv-chip" id="chipBulanIni" onclick="applyQuickFilter('bulan_ini')">Bulan Ini</button>
+        </div>
+
+        <div class="rv-filter-bar" id="filterBar">
+            <div class="rv-filter-grid">
+                <div class="rv-filter-field">
+                    <label>Proyek</label>
+                    <select id="filterProyek" multiple size="4"></select>
+                </div>
+                <div class="rv-filter-field">
+                    <label>Galian</label>
+                    <select id="filterGalian" multiple size="4"></select>
+                </div>
+                <div class="rv-filter-field">
+                    <label>Galian Alihan</label>
+                    <select id="filterGalianAlihan">
+                        <option value="">Semua</option>
+                    </select>
+                </div>
+                <div class="rv-filter-field">
+                    <label>Kendaraan</label>
+                    <input type="text" id="filterKendaraan" list="dlKendaraan" placeholder="Cari no. pintu...">
+                    <datalist id="dlKendaraan"></datalist>
+                </div>
+                <div class="rv-filter-field">
+                    <label>Supir</label>
+                    <input type="text" id="filterSupir" list="dlSupir" placeholder="Cari nama supir...">
+                    <datalist id="dlSupir"></datalist>
+                </div>
+                <div class="rv-filter-field">
+                    <label>Petugas Order</label>
+                    <input type="text" id="filterPetugas" list="dlPetugas" placeholder="Cari petugas...">
+                    <datalist id="dlPetugas"></datalist>
+                </div>
+                <div class="rv-filter-field">
+                    <label>No DO</label>
+                    <input type="text" id="filterNoDo" list="dlNoDo" placeholder="Cari no. DO...">
+                    <datalist id="dlNoDo"></datalist>
+                </div>
+                <div class="rv-filter-field">
+                    <label>Lokasi Bongkar</label>
+                    <input type="text" id="filterLokasi" list="dlLokasi" placeholder="Cari lokasi...">
+                    <datalist id="dlLokasi"></datalist>
+                </div>
+                <div class="rv-filter-field">
+                    <label>Status</label>
+                    <select id="filterStatus">
+                        <option value="">Semua</option>
+                        <option value="ON PROCESS">ON PROCESS</option>
+                        <option value="COMPLETE">COMPLETE</option>
+                        <option value="BATAL">BATAL</option>
+                    </select>
+                </div>
+                <div class="rv-filter-field">
+                    <label>Alihan</label>
+                    <select id="filterAlihan">
+                        <option value="">Semua</option>
+                        <option value="1">Ya</option>
+                        <option value="0">Tidak</option>
+                    </select>
+                </div>
+                <div class="rv-filter-field">
+                    <label>Tanggal Order Dari</label>
+                    <input type="date" id="filterTglOrderDari">
+                </div>
+                <div class="rv-filter-field">
+                    <label>Tanggal Order Sampai</label>
+                    <input type="date" id="filterTglOrderSampai">
+                </div>
+                <div class="rv-filter-field">
+                    <label>Tanggal Bongkar Dari</label>
+                    <input type="date" id="filterTglBongkarDari">
+                </div>
+                <div class="rv-filter-field">
+                    <label>Tanggal Bongkar Sampai</label>
+                    <input type="date" id="filterTglBongkarSampai">
+                </div>
             </div>
-            <div class="rv-filter-field">
-                <label>Galian</label>
-                <select id="filterGalian" multiple size="4"></select>
-            </div>
-            <div class="rv-filter-field">
-                <label>Galian Alihan</label>
-                <select id="filterGalianAlihan">
-                    <option value="">Semua</option>
-                </select>
-            </div>
-            <div class="rv-filter-field">
-                <label>Kendaraan</label>
-                <input type="text" id="filterKendaraan" list="dlKendaraan" placeholder="Cari no. pintu...">
-                <datalist id="dlKendaraan"></datalist>
-            </div>
-            <div class="rv-filter-field">
-                <label>Supir</label>
-                <input type="text" id="filterSupir" list="dlSupir" placeholder="Cari nama supir...">
-                <datalist id="dlSupir"></datalist>
-            </div>
-            <div class="rv-filter-field">
-                <label>Petugas Order</label>
-                <input type="text" id="filterPetugas" list="dlPetugas" placeholder="Cari petugas...">
-                <datalist id="dlPetugas"></datalist>
-            </div>
-            <div class="rv-filter-field">
-                <label>No DO</label>
-                <input type="text" id="filterNoDo" list="dlNoDo" placeholder="Cari no. DO...">
-                <datalist id="dlNoDo"></datalist>
-            </div>
-            <div class="rv-filter-field">
-                <label>Lokasi Bongkar</label>
-                <input type="text" id="filterLokasi" list="dlLokasi" placeholder="Cari lokasi...">
-                <datalist id="dlLokasi"></datalist>
-            </div>
-            <div class="rv-filter-field">
-                <label>Status</label>
-                <select id="filterStatus">
-                    <option value="">Semua</option>
-                    <option value="ON PROCESS">ON PROCESS</option>
-                    <option value="COMPLETE">COMPLETE</option>
-                    <option value="BATAL">BATAL</option>
-                </select>
-            </div>
-            <div class="rv-filter-field">
-                <label>Alihan</label>
-                <select id="filterAlihan">
-                    <option value="">Semua</option>
-                    <option value="1">Ya</option>
-                    <option value="0">Tidak</option>
-                </select>
-            </div>
-            <div class="rv-filter-field">
-                <label>Tanggal Order Dari</label>
-                <input type="date" id="filterTglOrderDari">
-            </div>
-            <div class="rv-filter-field">
-                <label>Tanggal Order Sampai</label>
-                <input type="date" id="filterTglOrderSampai">
-            </div>
-            <div class="rv-filter-field">
-                <label>Tanggal Bongkar Dari</label>
-                <input type="date" id="filterTglBongkarDari">
-            </div>
-            <div class="rv-filter-field">
-                <label>Tanggal Bongkar Sampai</label>
-                <input type="date" id="filterTglBongkarSampai">
+            <div class="rv-filter-actions">
+                <span class="rv-filter-hint" id="filterDateHint">Pilih rentang tanggal terlebih dahulu (Tanggal Order atau Tanggal Bongkar).</span>
+                <button class="rv-btn rv-btn-secondary" onclick="resetFilters()">Reset</button>
+                <button class="rv-btn rv-btn-primary" id="btnApplyFilter" onclick="applyFilters()" disabled>Terapkan Filter</button>
             </div>
         </div>
-        <div class="rv-filter-actions">
-            <button class="rv-btn rv-btn-secondary" onclick="resetFilters()">Reset</button>
-            <button class="rv-btn rv-btn-primary" onclick="applyFilters()">Terapkan Filter</button>
-        </div>
+    </div>
+
+    <div class="rv-banner rv-banner-danger" id="bannerTruncated" style="display:none;"></div>
+    <div class="rv-banner rv-banner-warning" id="bannerLarge" style="display:none;">
+        <span id="bannerLargeText"></span>
+        <button class="rv-banner-close" onclick="dismissBannerLarge()">&times;</button>
     </div>
 
     <div class="rv-grid-wrapper">
@@ -157,7 +177,14 @@
                     </tr>
                 </thead>
                 <tbody id="gridBody">
-                    <tr><td colspan="24" class="rv-loading">Memuat data...</td></tr>
+                    <tr>
+                        <td colspan="24" class="rv-empty-state">
+                            <span class="rv-empty-state-icon">🗂️</span>
+                            <div class="rv-empty-state-text">
+                                Belum ada data ditampilkan. Atur filter di atas, lalu klik <strong>Terapkan Filter</strong> untuk memuat data.
+                            </div>
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
