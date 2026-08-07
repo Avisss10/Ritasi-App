@@ -50,7 +50,10 @@
             <div class="riwayat-section">
                 <div class="riwayat-header">
                     <h2>Riwayat Import</h2>
-                    <button class="btn btn-secondary" id="btnRefreshRiwayat">🔄 Refresh</button>
+                    <div class="riwayat-header-actions">
+                        <button class="btn btn-danger" id="btnUndoLast" style="display:none;">↩️ Undo Import Terakhir</button>
+                        <button class="btn btn-secondary" id="btnRefreshRiwayat">🔄 Refresh</button>
+                    </div>
                 </div>
                 <div class="table-wrapper">
                     <table id="riwayatTable">
@@ -62,10 +65,11 @@
                                 <th>Total</th>
                                 <th>Berhasil</th>
                                 <th>Dilewati</th>
+                                <th>Aksi</th>
                             </tr>
                         </thead>
                         <tbody id="riwayatTableBody">
-                            <tr><td colspan="6" class="loading">Memuat data...</td></tr>
+                            <tr><td colspan="7" class="loading">Memuat data...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -93,6 +97,26 @@
             <div class="modal-actions">
                 <button class="btn btn-primary" id="btnConfirmAddMaster">Simpan</button>
                 <button class="btn btn-secondary" id="btnCancelAddMaster">Batal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Edit Nilai Field -->
+    <div class="modal-overlay" id="modalEditField" style="display:none;">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3>✏️ Edit Nilai</h3>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label id="editFieldLabel">Nilai</label>
+                    <input type="text" id="editFieldValue">
+                    <small class="hint">Perbaiki nilai ini jika hanya salah ketik. Setelah disimpan, baris akan dicocokkan ulang dengan data master.</small>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-primary" id="btnConfirmEditField">Simpan</button>
+                <button class="btn btn-secondary" id="btnCancelEditField">Batal</button>
             </div>
         </div>
     </div>
@@ -127,6 +151,36 @@
                     <span id="commitProgressPercent">0%</span>
                     <span id="commitProgressCount">0 / 0 baris</span>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Detail Riwayat Import -->
+    <div class="modal-overlay" id="modalRiwayatDetail" style="display:none;">
+        <div class="modal-container modal-container-wide">
+            <div class="modal-header">
+                <h3>📋 Detail Riwayat Import</h3>
+            </div>
+            <div class="modal-body" id="riwayatDetailBody">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="btnCloseRiwayatDetail">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Undo Import Terakhir -->
+    <div class="modal-overlay" id="modalUndoLast" style="display:none;">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3>↩️ Undo Import Terakhir</h3>
+            </div>
+            <div class="modal-body">
+                <p id="modalUndoLastText">Hapus data hasil import terakhir?</p>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-danger" id="btnConfirmUndoLast">Ya, Undo</button>
+                <button class="btn btn-secondary" id="btnCancelUndoLast">Batal</button>
             </div>
         </div>
     </div>

@@ -102,8 +102,10 @@ const panelState = {};
 
 // Context sementara untuk modal
 let addMasterContext = null;
+let editFieldContext = null;
 let commitContext = null;
 let unBatalContext = null;
+let undoLastContext = null;
 let commitProgressTimer = null;
 
 // ============================================================================
@@ -454,12 +456,13 @@ function renderRowActions(entitas, row) {
             const applyId = `applyall-${entitas}-${row.row_index}-${col.resolvable}`;
             html += `
                 <div class="row-actions">
-                    <button class="btn-suggestion-use" onclick="resolveField('${entitas}', ${row.row_index}, '${col.resolvable}', 'use_existing', ${resolved.suggestion.master_id}, document.getElementById('${applyId}').checked)">
+                    <button class="btn-suggestion-use" onclick="resolveField('${entitas}', ${row.row_index}, '${col.resolvable}', 'use_existing', ${resolved.suggestion.master_id}, document.getElementById('${applyId}').checked, event)">
                         Gunakan "${escapeHtml(resolved.suggestion.nama)}"
                     </button>
-                    <button class="btn-suggestion-deny" onclick="resolveField('${entitas}', ${row.row_index}, '${col.resolvable}', 'mark_new', null, false)">
+                    <button class="btn-suggestion-deny" onclick="resolveField('${entitas}', ${row.row_index}, '${col.resolvable}', 'mark_new', null, false, event)">
                         Bukan, ini beda
                     </button>
+                    <button class="btn-edit-field" onclick="openEditFieldModal('${entitas}', ${row.row_index}, '${col.resolvable}')">✏️ Edit nilai</button>
                     <label class="row-apply-all"><input type="checkbox" id="${applyId}"> terapkan ke semua baris sama</label>
                 </div>
             `;
@@ -467,6 +470,7 @@ function renderRowActions(entitas, row) {
             html += `
                 <div class="row-actions">
                     <button class="btn-add-master" onclick="openAddMasterModal('${entitas}', ${row.row_index}, '${col.resolvable}')">+ Tambah ke master</button>
+                    <button class="btn-edit-field" onclick="openEditFieldModal('${entitas}', ${row.row_index}, '${col.resolvable}')">✏️ Edit nilai</button>
                 </div>
             `;
         }
@@ -486,9 +490,12 @@ function renderRowActions(entitas, row) {
 // ============================================================================
 // RESOLVE REFERENSI (gunakan existing / tandai baru)
 // ============================================================================
-async function resolveField(entitas, rowIndex, field, action, masterId, applyToAll) {
+async function resolveField(entitas, rowIndex, field, action, masterId, applyToAll, evt) {
     const state = panelState[entitas];
     if (!state) return;
+
+    const actionsEl = evt && evt.currentTarget ? evt.currentTarget.closest('.row-actions') : null;
+    if (actionsEl) actionsEl.querySelectorAll('button').forEach((b) => { b.disabled = true; });
 
     try {
         const res = await fetch(`${API_BASE_URL}/import/${entitas}/resolve`, {
@@ -508,6 +515,7 @@ async function resolveField(entitas, rowIndex, field, action, masterId, applyToA
         if (!json.status) {
             showToast(json.message, 'error');
             if (res.status === 410) panelState[entitas] = null;
+            if (actionsEl) actionsEl.querySelectorAll('button').forEach((b) => { b.disabled = false; });
             return;
         }
 
@@ -515,6 +523,7 @@ async function resolveField(entitas, rowIndex, field, action, masterId, applyToA
         state.summary = json.data.summary;
         renderPanelResult(entitas);
     } catch (err) {
+        if (actionsEl) actionsEl.querySelectorAll('button').forEach((b) => { b.disabled = false; });
         showToast('Gagal resolve baris: ' + err.message, 'error');
     }
 }
@@ -546,6 +555,8 @@ async function confirmAddMaster() {
         return;
     }
 
+    const btn = document.getElementById('btnConfirmAddMaster');
+    btn.disabled = true;
     const state = panelState[entitas];
     try {
         const res = await fetch(`${API_BASE_URL}/import/${entitas}/add-master`, {
@@ -580,6 +591,67 @@ async function confirmAddMaster() {
         checkGating();
     } catch (err) {
         showToast('Gagal menambah master: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// ============================================================================
+// MODAL: EDIT NILAI FIELD (koreksi salah ketik sebelum commit)
+// ============================================================================
+function openEditFieldModal(entitas, rowIndex, field) {
+    const state = panelState[entitas];
+    const row = state.rows.find((r) => r.row_index === rowIndex);
+    const rf = RESOLVABLE_FIELDS[field];
+
+    editFieldContext = { entitas, rowIndex, field };
+    document.getElementById('editFieldLabel').textContent = `Nilai (${rf.label})`;
+    document.getElementById('editFieldValue').value = row.data[field] || '';
+    document.getElementById('modalEditField').style.display = 'flex';
+}
+
+async function confirmEditField() {
+    if (!editFieldContext) return;
+    const { entitas, rowIndex, field } = editFieldContext;
+    const value = document.getElementById('editFieldValue').value.trim();
+
+    if (!value) {
+        showToast('Nilai wajib diisi', 'warning');
+        return;
+    }
+
+    const state = panelState[entitas];
+    const btn = document.getElementById('btnConfirmEditField');
+    btn.disabled = true;
+    try {
+        const res = await fetch(`${API_BASE_URL}/import/${entitas}/edit-field`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                batch_id: state.batch_id,
+                row_index: rowIndex,
+                field,
+                value,
+            }),
+        });
+        const json = await res.json();
+
+        if (!json.status) {
+            showToast(json.message, 'error');
+            if (res.status === 410) panelState[entitas] = null;
+            return;
+        }
+
+        state.rows = json.data.rows;
+        state.summary = json.data.summary;
+        document.getElementById('modalEditField').style.display = 'none';
+        editFieldContext = null;
+        renderPanelResult(entitas);
+        showToast('Nilai berhasil diperbarui', 'success');
+    } catch (err) {
+        showToast('Gagal menyimpan perubahan: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
     }
 }
 
@@ -626,7 +698,10 @@ async function runCommit() {
 
         const reportEl = document.getElementById(`commitReport-${entitas}`);
         if (reportEl) {
-            reportEl.innerHTML = `<div class="import-commit-report">✅ ${json.data.berhasil} baris berhasil diimport, ${json.data.dilewati} baris dilewati dari total ${json.data.total}.</div>`;
+            const downloadLink = (entitas === 'ritasi' && json.data.log_id)
+                ? ` <a href="${API_BASE_URL}/import/log/${json.data.log_id}/download">⬇️ Download hasil import ini</a>`
+                : '';
+            reportEl.innerHTML = `<div class="import-commit-report">✅ ${json.data.berhasil} baris berhasil diimport, ${json.data.dilewati} baris dilewati dari total ${json.data.total}.${downloadLink}</div>`;
         }
         const btn = document.getElementById(`btnCommit-${entitas}`);
         if (btn) btn.disabled = true;
@@ -782,6 +857,12 @@ function initModals() {
     });
     document.getElementById('btnConfirmAddMaster').addEventListener('click', confirmAddMaster);
 
+    document.getElementById('btnCancelEditField').addEventListener('click', () => {
+        document.getElementById('modalEditField').style.display = 'none';
+        editFieldContext = null;
+    });
+    document.getElementById('btnConfirmEditField').addEventListener('click', confirmEditField);
+
     document.getElementById('btnCancelCommit').addEventListener('click', () => {
         document.getElementById('modalCommit').style.display = 'none';
         commitContext = null;
@@ -795,6 +876,22 @@ function initModals() {
     document.getElementById('btnConfirmUnBatal').addEventListener('click', runUnBatal);
 
     document.getElementById('btnRefreshRiwayat').addEventListener('click', loadRiwayat);
+
+    document.getElementById('btnCloseRiwayatDetail').addEventListener('click', () => {
+        document.getElementById('modalRiwayatDetail').style.display = 'none';
+    });
+
+    document.getElementById('btnUndoLast').addEventListener('click', () => {
+        if (!undoLastContext) return;
+        const { filename, total_baris } = undoLastContext;
+        document.getElementById('modalUndoLastText').textContent =
+            `Hapus seluruh data ritasi hasil import terakhir (file "${filename || '-'}", ${total_baris} baris)? Tindakan ini tidak bisa dibatalkan.`;
+        document.getElementById('modalUndoLast').style.display = 'flex';
+    });
+    document.getElementById('btnCancelUndoLast').addEventListener('click', () => {
+        document.getElementById('modalUndoLast').style.display = 'none';
+    });
+    document.getElementById('btnConfirmUndoLast').addEventListener('click', runUndoLast);
 }
 
 // ============================================================================
@@ -806,18 +903,28 @@ function downloadTemplate(entitas) {
 
 async function loadRiwayat() {
     const tbody = document.getElementById('riwayatTableBody');
-    tbody.innerHTML = `<tr><td colspan="6" class="loading">Memuat data...</td></tr>`;
+    const btnUndoLast = document.getElementById('btnUndoLast');
+    tbody.innerHTML = `<tr><td colspan="7" class="loading">Memuat data...</td></tr>`;
+    btnUndoLast.style.display = 'none';
+    undoLastContext = null;
 
     try {
         const res = await fetch(`${API_BASE_URL}/import/log`);
         const json = await res.json();
 
         if (!json.status || !json.data || json.data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" class="no-data">Belum ada riwayat import</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" class="no-data">Belum ada riwayat import</td></tr>`;
             return;
         }
 
-        tbody.innerHTML = json.data.map((r) => `
+        tbody.innerHTML = json.data.map((r) => {
+            const detailBtn = r.dilewati > 0
+                ? `<button class="btn-icon-action" title="Lihat detail baris dilewati" onclick="openRiwayatDetail(${r.id})">📋</button>`
+                : '';
+            const downloadBtn = r.entitas === 'ritasi'
+                ? `<a class="btn-icon-action" title="Download hasil import ini" href="${API_BASE_URL}/import/log/${r.id}/download">⬇️</a>`
+                : '';
+            return `
             <tr>
                 <td>${formatDateTime(r.created_at)}</td>
                 <td>${escapeHtml(r.entitas)}</td>
@@ -825,10 +932,82 @@ async function loadRiwayat() {
                 <td>${r.total_baris}</td>
                 <td>${r.berhasil}</td>
                 <td>${r.dilewati}</td>
+                <td>${detailBtn} ${downloadBtn}</td>
             </tr>
-        `).join('');
+        `;
+        }).join('');
+
+        const latest = json.data[0];
+        if (latest.entitas === 'ritasi') {
+            undoLastContext = { filename: latest.filename, total_baris: latest.total_baris };
+            btnUndoLast.style.display = '';
+        }
     } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="6" class="no-data">Gagal memuat riwayat</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="no-data">Gagal memuat riwayat</td></tr>`;
+    }
+}
+
+async function openRiwayatDetail(logId) {
+    const body = document.getElementById('riwayatDetailBody');
+    body.innerHTML = '<p class="loading">Memuat detail...</p>';
+    document.getElementById('modalRiwayatDetail').style.display = 'flex';
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/import/log/${logId}`);
+        const json = await res.json();
+
+        if (!json.status) {
+            body.innerHTML = `<p class="no-data">${escapeHtml(json.message)}</p>`;
+            return;
+        }
+
+        const log = json.data;
+        const detail = Array.isArray(log.detail_error) ? log.detail_error : [];
+
+        const summaryHtml = `
+            <p><strong>File:</strong> ${escapeHtml(log.filename || '-')}<br>
+            <strong>Waktu:</strong> ${formatDateTime(log.created_at)}<br>
+            <strong>Total:</strong> ${log.total_baris} baris — <strong>Berhasil:</strong> ${log.berhasil} — <strong>Dilewati:</strong> ${log.dilewati}</p>
+        `;
+
+        const listHtml = detail.length
+            ? `<div class="riwayat-detail-list">${detail.map((d) => `
+                <div class="riwayat-detail-row">
+                    <span class="row-status-badge ${escapeHtml(d.status)}">${escapeHtml(d.status)}</span>
+                    Baris ${(d.row_index ?? 0) + 1}: ${(d.messages || []).map(escapeHtml).join('; ')}
+                </div>
+            `).join('')}</div>`
+            : '<p class="no-data">Tidak ada baris yang dilewati/gagal.</p>';
+
+        body.innerHTML = summaryHtml + listHtml;
+    } catch (err) {
+        body.innerHTML = `<p class="no-data">Gagal memuat detail: ${escapeHtml(err.message)}</p>`;
+    }
+}
+
+async function runUndoLast() {
+    document.getElementById('modalUndoLast').style.display = 'none';
+    const btn = document.getElementById('btnConfirmUndoLast');
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/import/ritasi/undo-last`, { method: 'POST' });
+        const json = await res.json();
+
+        if (!json.status) {
+            showToast(json.message, 'error');
+            return;
+        }
+
+        showToast(
+            `Undo berhasil: ${json.data.orders_dihapus} order & ${json.data.buangan_dihapus} ritasi dihapus`,
+            'success'
+        );
+        await loadRiwayat();
+    } catch (err) {
+        showToast('Gagal melakukan undo: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
     }
 }
 

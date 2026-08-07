@@ -814,6 +814,17 @@ export function revalidateBatch(batch) {
   touchBatch(batch);
 }
 
+// Koreksi nilai mentah satu field pada satu baris CSV (mis. perbaikan salah
+// ketik nama supir/kendaraan/galian/proyek) sebelum divalidasi ulang. Beda
+// dengan applyOverride: ini mengubah data sumbernya, bukan menandai
+// use_existing/mark_new terhadap master.
+export function editRowField(batch, rowIndex, field, newValue) {
+  batch.dataRows[rowIndex][field] = String(newValue).trim();
+  if (batch.overrides[rowIndex]) {
+    delete batch.overrides[rowIndex][field];
+  }
+}
+
 // Terapkan override manual (use_existing / mark_new) ke satu baris, atau ke
 // semua baris dengan nilai field yang sama jika apply_to_all=true
 export function applyOverride(batch, rowIndex, field, override, applyToAll) {
@@ -864,7 +875,7 @@ async function insertMasterRow(conn, entitas, row) {
 // dalam satu commit — baris berikutnya dengan kunci sama hanya menambah
 // buangan-nya. groupOrderIds memetakan orderKey -> order_id yang sudah
 // dibuat/ditemukan dalam transaction ini.
-async function insertRitasiRow(conn, row, masterCache, groupOrderIds, usedUrutKeys) {
+async function insertRitasiRow(conn, row, masterCache, groupOrderIds, usedUrutKeys, batchId) {
   const c = row.computed;
   const noOrderTrim = String(row.data.no_order).trim();
 
@@ -912,14 +923,14 @@ async function insertRitasiRow(conn, row, masterCache, groupOrderIds, usedUrutKe
           kendaraan_id, supir_id, galian_id,
           no_do, jam_order, km_awal,
           uang_jalan, potongan, hasil_akhir,
-          proyek_id, proyek_harga, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          proyek_id, proyek_harga, status, import_batch_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           c.tanggalNorm, noOrderTrim, row.data.petugas_order.trim(),
           kendaraanId, supirId, galianId,
           row.data.no_do.trim(), c.jamNorm, c.kmVal,
           c.uangJalanVal, c.potonganVal, hasilAkhir,
-          proyekId, proyekHarga, status,
+          proyekId, proyekHarga, status, batchId,
         ]
       );
       orderId = result.insertId;
@@ -930,9 +941,9 @@ async function insertRitasiRow(conn, row, masterCache, groupOrderIds, usedUrutKe
         await conn.query(
           `INSERT INTO buangan (
             order_id, tanggal_bongkar, jam_bongkar, km_akhir, jarak_km,
-            lokasi_bongkar, alihan, galian_alihan_id, keterangan, uang_alihan, no_urut
-          ) VALUES (?, NULL, NULL, NULL, NULL, NULL, 0, NULL, ?, NULL, NULL)`,
-          [orderId, c.keterangan]
+            lokasi_bongkar, alihan, galian_alihan_id, keterangan, uang_alihan, no_urut, import_batch_id
+          ) VALUES (?, NULL, NULL, NULL, NULL, NULL, 0, NULL, ?, NULL, NULL, ?)`,
+          [orderId, c.keterangan, batchId]
         );
       }
     }
@@ -955,12 +966,12 @@ async function insertRitasiRow(conn, row, masterCache, groupOrderIds, usedUrutKe
     `INSERT INTO buangan (
       order_id, tanggal_bongkar, jam_bongkar,
       km_akhir, jarak_km, lokasi_bongkar, alihan, galian_alihan_id,
-      keterangan, uang_alihan, no_urut
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      keterangan, uang_alihan, no_urut, import_batch_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       orderId, c.tanggalBongkarNorm, c.jamBongkarNorm,
       c.kmAkhirVal, c.jarakVal, c.lokasiBongkar, c.alihanVal, c.galianAlihanId,
-      c.keterangan, c.uangAlihanVal, c.noUrut,
+      c.keterangan, c.uangAlihanVal, c.noUrut, batchId,
     ]
   );
 
@@ -1017,7 +1028,7 @@ export async function commitBatch(batch) {
       if (MASTER_FIELD_CONFIG[batch.entitas]) {
         insertResult = await insertMasterRow(conn, batch.entitas, row);
       } else if (batch.entitas === "ritasi") {
-        insertResult = await insertRitasiRow(conn, row, batch.masterCache, groupOrderIds, usedUrutKeys);
+        insertResult = await insertRitasiRow(conn, row, batch.masterCache, groupOrderIds, usedUrutKeys, batch.batch_id);
       } else if (batch.entitas === "mobil-luar") {
         insertResult = await insertMobilLuarRow(conn, row);
       }

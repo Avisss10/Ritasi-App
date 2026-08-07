@@ -345,6 +345,7 @@ header .subtitle {
 .btn-suggestion-use { background: #667eea; color: white; }
 .btn-suggestion-deny { background: #e0e0e0; color: #555; }
 .btn-add-master { background: #10b981; color: white; }
+.btn-edit-field { background: #6b7280; color: white; }
 .btn-unbatal { background: #f59e0b; color: white; }
 
 .row-apply-all {
@@ -438,6 +439,31 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
     margin-bottom: 16px;
 }
 
+.riwayat-header-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-icon-action {
+    display: inline-block;
+    background: none;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    text-decoration: none;
+    padding: 2px 4px;
+}
+.btn-icon-action:hover { opacity: 0.7; }
+
+.btn-danger {
+    background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+    color: white;
+}
+
+.btn-danger:hover {
+    background: linear-gradient(135deg, #d42d3f 0%, #dd4d38 100%);
+}
+
 .table-wrapper {
     overflow-x: auto;
 }
@@ -486,6 +512,26 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
     width: 90%;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
 }
+
+.modal-container-wide {
+    max-width: 640px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.riwayat-detail-list {
+    max-height: 50vh;
+    overflow-y: auto;
+    margin-top: 10px;
+}
+
+.riwayat-detail-row {
+    padding: 8px 10px;
+    border-bottom: 1px solid #e0e0e0;
+    font-size: 13px;
+}
+
+.riwayat-detail-row:last-child { border-bottom: none; }
 
 .modal-header h3 { color: #333; margin-bottom: 15px; }
 .modal-body { margin-bottom: 20px; }
