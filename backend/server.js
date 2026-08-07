@@ -44,6 +44,9 @@ app.use("/api/rekap", rekapRoutes);
 import importRoutes from "./modules/import.js";
 app.use("/api/import", importRoutes);
 
+import reviewRoutes from "./modules/review.js";
+app.use("/api/review", reviewRoutes);
+
 // ======================================================
 // GLOBAL ERROR HANDLING
 // ======================================================

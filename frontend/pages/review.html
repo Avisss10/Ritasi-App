@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Data - Ritasi App</title>
+    <link rel="stylesheet" href="../assets/css/review.css">
+</head>
+<body>
+
+    <div class="rv-toolbar">
+        <div class="rv-toolbar-left">
+            <a href="../index.html" class="rv-back">&larr;</a>
+            <div class="rv-title">
+                <span class="rv-title-icon">🛠️</span>
+                <span>Review Data</span>
+            </div>
+            <button class="rv-btn rv-btn-ghost" id="btnToggleFilter" onclick="toggleFilterBar()">Filter</button>
+        </div>
+        <div class="rv-toolbar-right">
+            <span class="rv-dirty-indicator" id="dirtyIndicator" style="display:none;">Perubahan belum disimpan</span>
+            <button class="rv-btn rv-btn-secondary" id="btnDiscardAll" onclick="discardAllChanges()">Batalkan Semua Perubahan</button>
+            <button class="rv-btn rv-btn-primary" id="btnSaveAll" onclick="saveAllChanges()">Simpan Semua Perubahan</button>
+        </div>
+    </div>
+
+    <div class="rv-summary-bar" id="summaryBar">
+        <div class="rv-summary-item">
+            <span class="rv-summary-label">Total</span>
+            <span class="rv-summary-value" id="summaryTotal">0</span>
+        </div>
+        <div class="rv-summary-item rv-summary-complete">
+            <span class="rv-summary-label">Complete</span>
+            <span class="rv-summary-value" id="summaryComplete">0</span>
+        </div>
+        <div class="rv-summary-item rv-summary-process">
+            <span class="rv-summary-label">On Process</span>
+            <span class="rv-summary-value" id="summaryProcess">0</span>
+        </div>
+        <div class="rv-summary-item rv-summary-batal">
+            <span class="rv-summary-label">Batal</span>
+            <span class="rv-summary-value" id="summaryBatal">0</span>
+        </div>
+    </div>
+
+    <div class="rv-filter-bar" id="filterBar" style="display:none;">
+        <div class="rv-filter-grid">
+            <div class="rv-filter-field">
+                <label>Proyek</label>
+                <select id="filterProyek" multiple size="4"></select>
+            </div>
+            <div class="rv-filter-field">
+                <label>Galian</label>
+                <select id="filterGalian" multiple size="4"></select>
+            </div>
+            <div class="rv-filter-field">
+                <label>Galian Alihan</label>
+                <select id="filterGalianAlihan">
+                    <option value="">Semua</option>
+                </select>
+            </div>
+            <div class="rv-filter-field">
+                <label>Kendaraan</label>
+                <input type="text" id="filterKendaraan" list="dlKendaraan" placeholder="Cari no. pintu...">
+                <datalist id="dlKendaraan"></datalist>
+            </div>
+            <div class="rv-filter-field">
+                <label>Supir</label>
+                <input type="text" id="filterSupir" list="dlSupir" placeholder="Cari nama supir...">
+                <datalist id="dlSupir"></datalist>
+            </div>
+            <div class="rv-filter-field">
+                <label>Petugas Order</label>
+                <input type="text" id="filterPetugas" list="dlPetugas" placeholder="Cari petugas...">
+                <datalist id="dlPetugas"></datalist>
+            </div>
+            <div class="rv-filter-field">
+                <label>No DO</label>
+                <input type="text" id="filterNoDo" list="dlNoDo" placeholder="Cari no. DO...">
+                <datalist id="dlNoDo"></datalist>
+            </div>
+            <div class="rv-filter-field">
+                <label>Lokasi Bongkar</label>
+                <input type="text" id="filterLokasi" list="dlLokasi" placeholder="Cari lokasi...">
+                <datalist id="dlLokasi"></datalist>
+            </div>
+            <div class="rv-filter-field">
+                <label>Status</label>
+                <select id="filterStatus">
+                    <option value="">Semua</option>
+                    <option value="ON PROCESS">ON PROCESS</option>
+                    <option value="COMPLETE">COMPLETE</option>
+                    <option value="BATAL">BATAL</option>
+                </select>
+            </div>
+            <div class="rv-filter-field">
+                <label>Alihan</label>
+                <select id="filterAlihan">
+                    <option value="">Semua</option>
+                    <option value="1">Ya</option>
+                    <option value="0">Tidak</option>
+                </select>
+            </div>
+            <div class="rv-filter-field">
+                <label>Tanggal Order Dari</label>
+                <input type="date" id="filterTglOrderDari">
+            </div>
+            <div class="rv-filter-field">
+                <label>Tanggal Order Sampai</label>
+                <input type="date" id="filterTglOrderSampai">
+            </div>
+            <div class="rv-filter-field">
+                <label>Tanggal Bongkar Dari</label>
+                <input type="date" id="filterTglBongkarDari">
+            </div>
+            <div class="rv-filter-field">
+                <label>Tanggal Bongkar Sampai</label>
+                <input type="date" id="filterTglBongkarSampai">
+            </div>
+        </div>
+        <div class="rv-filter-actions">
+            <button class="rv-btn rv-btn-secondary" onclick="resetFilters()">Reset</button>
+            <button class="rv-btn rv-btn-primary" onclick="applyFilters()">Terapkan Filter</button>
+        </div>
+    </div>
+
+    <div class="rv-grid-wrapper">
+        <div class="rv-grid-scroll" id="gridScroll">
+            <table class="rv-grid" id="reviewGrid">
+                <thead>
+                    <tr>
+                        <th class="rv-sticky-col rv-col-check"><input type="checkbox" id="checkAll" onchange="toggleSelectAll()"></th>
+                        <th class="rv-sticky-col rv-col-noorder">No Order</th>
+                        <th>Tgl Order</th>
+                        <th>Petugas</th>
+                        <th>Kendaraan</th>
+                        <th>Supir</th>
+                        <th>Galian</th>
+                        <th>No DO</th>
+                        <th>Jam Order</th>
+                        <th>KM Awal</th>
+                        <th>Uang Jalan</th>
+                        <th>Potongan</th>
+                        <th>Hasil Akhir</th>
+                        <th>Proyek</th>
+                        <th>Status</th>
+                        <th>Tgl Bongkar</th>
+                        <th>Jam Bongkar</th>
+                        <th>KM Akhir</th>
+                        <th>Jarak KM</th>
+                        <th>Lokasi Bongkar</th>
+                        <th>Alihan</th>
+                        <th>Galian Alihan</th>
+                        <th>Keterangan</th>
+                        <th>Uang Alihan</th>
+                        <th>No Urut</th>
+                    </tr>
+                </thead>
+                <tbody id="gridBody">
+                    <tr><td colspan="24" class="rv-loading">Memuat data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="rv-bulk-bar" id="bulkBar" style="display:none;">
+        <span class="rv-bulk-count" id="bulkCount">0 baris dipilih</span>
+        <button class="rv-btn rv-btn-sm" onclick="openIsiMassalModal()">Isi Massal</button>
+        <button class="rv-btn rv-btn-sm rv-btn-danger" onclick="openBatalModal()">Batalkan (BATAL)</button>
+        <button class="rv-btn rv-btn-sm" onclick="doUnBatal()">Un-Batal</button>
+        <button class="rv-btn rv-btn-sm" onclick="doRecalcJarak()">Hitung Ulang Jarak KM</button>
+        <button class="rv-btn rv-btn-sm rv-btn-danger" onclick="openDeleteModal()">Hapus Ritasi</button>
+    </div>
+
+    <!-- Modal: Isi Massal -->
+    <div class="rv-modal-overlay" id="modalIsiMassal">
+        <div class="rv-modal">
+            <div class="rv-modal-header">
+                <h3>Isi Massal</h3>
+                <button class="rv-modal-close" onclick="closeModal('modalIsiMassal')">&times;</button>
+            </div>
+            <div class="rv-modal-body">
+                <div class="rv-form-field">
+                    <label>Field Target</label>
+                    <select id="isiMassalField" onchange="renderIsiMassalValueInput()"></select>
+                </div>
+                <div class="rv-form-field" id="isiMassalValueWrap">
+                    <label>Nilai Baru</label>
+                    <input type="text" id="isiMassalValue">
+                </div>
+            </div>
+            <div class="rv-modal-footer">
+                <button class="rv-btn rv-btn-secondary" onclick="closeModal('modalIsiMassal')">Batal</button>
+                <button class="rv-btn rv-btn-primary" onclick="terapkanIsiMassal()">Terapkan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Batal Massal -->
+    <div class="rv-modal-overlay" id="modalBatal">
+        <div class="rv-modal">
+            <div class="rv-modal-header">
+                <h3>Batalkan Order Terpilih</h3>
+                <button class="rv-modal-close" onclick="closeModal('modalBatal')">&times;</button>
+            </div>
+            <div class="rv-modal-body">
+                <div class="rv-form-field">
+                    <label><input type="radio" name="keteranganMode" value="shared" checked onchange="renderBatalKeteranganInputs()"> Satu keterangan untuk semua</label>
+                    <label><input type="radio" name="keteranganMode" value="per_row" onchange="renderBatalKeteranganInputs()"> Keterangan per baris</label>
+                </div>
+                <div id="batalKeteranganArea"></div>
+            </div>
+            <div class="rv-modal-footer">
+                <button class="rv-btn rv-btn-secondary" onclick="closeModal('modalBatal')">Batal</button>
+                <button class="rv-btn rv-btn-danger" onclick="submitBatalMassal()">Batalkan Order</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Hapus Ritasi -->
+    <div class="rv-modal-overlay" id="modalDelete">
+        <div class="rv-modal">
+            <div class="rv-modal-header">
+                <h3>Hapus Ritasi Terpilih</h3>
+                <button class="rv-modal-close" onclick="closeModal('modalDelete')">&times;</button>
+            </div>
+            <div class="rv-modal-body">
+                <p class="rv-warning-text">Tindakan ini akan menghapus data buangan dan order terkait secara permanen. Ketik <strong>HAPUS</strong> untuk konfirmasi.</p>
+                <input type="text" id="deleteConfirmInput" placeholder="Ketik HAPUS" oninput="validateDeleteConfirm()">
+            </div>
+            <div class="rv-modal-footer">
+                <button class="rv-btn rv-btn-secondary" onclick="closeModal('modalDelete')">Batal</button>
+                <button class="rv-btn rv-btn-danger" id="btnConfirmDelete" onclick="submitDeleteMassal()" disabled>Hapus Ritasi</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="rv-toast"></div>
+
+    <script src="../assets/js/review.js"></script>
+</body>
+</html>
