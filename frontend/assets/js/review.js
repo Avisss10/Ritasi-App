@@ -26,6 +26,176 @@ function rowKey(row) {
 }
 
 // ----------------------------------------------------------------------------
+// MULTI-SELECT COMPONENT (adaptasi dari rekap.js, dipakai untuk Proyek & Galian)
+// ----------------------------------------------------------------------------
+const multiSelects = {};
+
+function initMultiSelect(containerId, data, labelKey, hiddenInputId) {
+    multiSelects[containerId] = {
+        data: data,
+        labelKey: labelKey,
+        hiddenInputId: hiddenInputId,
+        selected: new Map()
+    };
+
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const input = container.querySelector('.ms-input');
+    const dropdown = container.querySelector('.ms-dropdown');
+    const clearBtn = container.querySelector('.ms-clear');
+
+    if (input) {
+        input.addEventListener('focus', () => {
+            renderMsDropdown(containerId, input.value);
+            if (dropdown) dropdown.classList.add('open');
+        });
+        input.addEventListener('input', () => {
+            renderMsDropdown(containerId, input.value);
+            if (dropdown && !dropdown.classList.contains('open')) dropdown.classList.add('open');
+        });
+    }
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            clearMultiSelect(containerId);
+        });
+    }
+
+    document.addEventListener('click', (e) => {
+        const el = document.getElementById(containerId);
+        if (el && !el.contains(e.target)) {
+            const dd = el.querySelector('.ms-dropdown');
+            if (dd) dd.classList.remove('open');
+        }
+    });
+}
+
+function renderMsDropdown(containerId, search = '') {
+    const state = multiSelects[containerId];
+    if (!state) return;
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const dropdown = container.querySelector('.ms-dropdown');
+    if (!dropdown) return;
+
+    const filtered = state.data.filter(item => {
+        const label = (item[state.labelKey] || '').toLowerCase();
+        return label.includes((search || '').toLowerCase());
+    });
+
+    if (filtered.length === 0) {
+        dropdown.innerHTML = '<div class="ms-empty">Tidak ada data</div>';
+        return;
+    }
+
+    dropdown.innerHTML = filtered.slice(0, 60).map(item => {
+        const id = String(item.id);
+        const label = (item[state.labelKey] || '').replace(/"/g, '&quot;');
+        const isSelected = state.selected.has(id);
+        return `<label class="ms-option${isSelected ? ' selected' : ''}">
+            <input type="checkbox" value="${id}" data-label="${label}"${isSelected ? ' checked' : ''}>
+            <span>${item[state.labelKey] || ''}</span>
+        </label>`;
+    }).join('');
+
+    dropdown.querySelectorAll('input[type=checkbox]').forEach(cb => {
+        cb.addEventListener('change', (e) => {
+            e.stopPropagation();
+            toggleMsItem(containerId, e.target.value, e.target.dataset.label, e.target.checked);
+        });
+    });
+}
+
+function toggleMsItem(containerId, id, label, checked) {
+    const state = multiSelects[containerId];
+    if (!state) return;
+    if (checked) {
+        state.selected.set(String(id), label);
+    } else {
+        state.selected.delete(String(id));
+    }
+    renderMsTags(containerId);
+    updateMsHiddenInput(containerId);
+    const container = document.getElementById(containerId);
+    if (container) {
+        const input = container.querySelector('.ms-input');
+        renderMsDropdown(containerId, input ? input.value : '');
+    }
+}
+
+function renderMsTags(containerId) {
+    const state = multiSelects[containerId];
+    if (!state) return;
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const tags = container.querySelector('.ms-tags');
+    if (!tags) return;
+
+    tags.innerHTML = Array.from(state.selected.entries()).map(([id, label]) =>
+        `<span class="ms-tag"><span title="${label}">${label}</span><button type="button" class="ms-tag-remove" data-id="${id}">×</button></span>`
+    ).join('');
+
+    tags.querySelectorAll('.ms-tag-remove').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            state.selected.delete(btn.dataset.id);
+            renderMsTags(containerId);
+            updateMsHiddenInput(containerId);
+            const container = document.getElementById(containerId);
+            if (container) {
+                const dd = container.querySelector('.ms-dropdown');
+                if (dd && dd.classList.contains('open')) {
+                    const input = container.querySelector('.ms-input');
+                    renderMsDropdown(containerId, input ? input.value : '');
+                }
+            }
+        });
+    });
+}
+
+function updateMsHiddenInput(containerId) {
+    const state = multiSelects[containerId];
+    if (!state) return;
+    const el = document.getElementById(state.hiddenInputId);
+    if (el) el.value = Array.from(state.selected.keys()).join(',');
+}
+
+function clearMultiSelect(containerId) {
+    const state = multiSelects[containerId];
+    if (!state) return;
+    state.selected.clear();
+    renderMsTags(containerId);
+    updateMsHiddenInput(containerId);
+    const container = document.getElementById(containerId);
+    if (container) {
+        const input = container.querySelector('.ms-input');
+        if (input) input.value = '';
+        const dd = container.querySelector('.ms-dropdown');
+        if (dd) dd.classList.remove('open');
+    }
+}
+
+function getMsIds(containerId) {
+    const state = multiSelects[containerId];
+    if (!state) return '';
+    return Array.from(state.selected.keys()).join(',');
+}
+
+function setMsSelectedFromIds(containerId, ids) {
+    const state = multiSelects[containerId];
+    if (!state || !Array.isArray(ids)) return;
+    state.selected.clear();
+    ids.forEach(id => {
+        const item = state.data.find(d => String(d.id) === String(id));
+        if (item) state.selected.set(String(id), item[state.labelKey] || '');
+    });
+    renderMsTags(containerId);
+    updateMsHiddenInput(containerId);
+}
+
+// ----------------------------------------------------------------------------
 // FIELD DEFINITIONS
 // group: 'order' | 'buangan'
 // type: 'text' | 'date' | 'time' | 'number' | 'select' | 'checkbox' | 'readonly'
@@ -123,9 +293,9 @@ async function loadMasterData() {
         masterGalian = galian || [];
         masterProyek = proyek || [];
 
-        populateSelect('filterProyek', masterProyek, 'id', 'nama_proyek');
-        populateSelect('filterGalian', masterGalian, 'id', 'nama_galian');
-        populateSelect('filterGalianAlihan', masterGalian, 'id', 'nama_galian', true);
+        initMultiSelect('ms-proyek-review', masterProyek, 'nama_proyek', 'filterProyekIds');
+        initMultiSelect('ms-galian-review', masterGalian, 'nama_galian', 'filterGalianIds');
+        populateDatalist('dlGalianAlihan', masterGalian.map(g => g.nama_galian));
         populateDatalist('dlKendaraan', masterKendaraan.map(k => k.no_pintu));
         populateDatalist('dlSupir', masterSupir.map(s => s.nama));
         populateIsiMassalFieldOptions();
@@ -187,6 +357,13 @@ function resetFilters() {
         Array.from(s.options).forEach(o => o.selected = false);
         if (s.options.length && !s.multiple) s.selectedIndex = 0;
     });
+    clearMultiSelect('ms-proyek-review');
+    clearMultiSelect('ms-galian-review');
+    document.getElementById('filterTglOrderType').value = 'semua';
+    document.getElementById('filterTglBongkarType').value = 'semua';
+    document.getElementById('dateRangeOrder').classList.remove('show');
+    document.getElementById('dateRangeBongkar').classList.remove('show');
+    document.getElementById('galianAlihanFilterWrap').classList.remove('show');
     clearActiveChip();
     updateApplyButtonState();
 
@@ -210,17 +387,40 @@ function getSelectedValues(id) {
     return Array.from(el.selectedOptions).map(o => o.value);
 }
 
+// ----------------------------------------------------------------------------
+// GALIAN ALIHAN KONDISIONAL (adaptasi toggleGalianAlihanFilter dari rekap.js,
+// tanpa mekanisme refresh-dari-tabel-tampil - datalist diisi sekali di
+// loadMasterData() dari masterGalian)
+// ----------------------------------------------------------------------------
+function toggleGalianAlihanFilter() {
+    const alihanSelect = document.getElementById('filterAlihan');
+    const wrap = document.getElementById('galianAlihanFilterWrap');
+    const input = document.getElementById('filterGalianAlihan');
+    const hiddenId = document.getElementById('filterGalianAlihanId');
+
+    if (alihanSelect.value === '1') {
+        wrap.classList.add('show');
+    } else {
+        wrap.classList.remove('show');
+        input.value = '';
+        hiddenId.value = '';
+    }
+}
+
 function buildFilterQuery() {
     const params = new URLSearchParams();
 
-    const proyekIds = getSelectedValues('filterProyek');
-    if (proyekIds.length) params.set('proyek_id', proyekIds.join(','));
+    const proyekIds = getMsIds('ms-proyek-review');
+    if (proyekIds) params.set('proyek_id', proyekIds);
 
-    const galianIds = getSelectedValues('filterGalian');
-    if (galianIds.length) params.set('galian_id', galianIds.join(','));
+    const galianIds = getMsIds('ms-galian-review');
+    if (galianIds) params.set('galian_id', galianIds);
 
-    const galianAlihan = document.getElementById('filterGalianAlihan').value;
-    if (galianAlihan) params.set('galian_alihan_id', galianAlihan);
+    const galianAlihanText = document.getElementById('filterGalianAlihan').value.trim();
+    if (galianAlihanText) {
+        const match = masterGalian.find(g => g.nama_galian === galianAlihanText);
+        if (match) params.set('galian_alihan_id', match.id);
+    }
 
     const kendaraanText = document.getElementById('filterKendaraan').value.trim();
     if (kendaraanText) {
@@ -283,12 +483,66 @@ function updateApplyButtonState() {
 }
 
 // ----------------------------------------------------------------------------
-// QUICK FILTER CHIPS (poin B.5)
+// PERIODE TANGGAL: select tipe (2-hari/semua/hari-ini/7-hari/manual) +
+// section collapsible (adaptasi toggleDateRangeOrderGabungan/
+// toggleDateRangeBongkarGabungan/togglePeriodeSection dari rekap.js)
 // ----------------------------------------------------------------------------
 function formatLocalDate(d) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+function get2DaysAgoLocal() {
+    const d = new Date();
+    d.setDate(d.getDate() - 2);
+    return formatLocalDate(d);
+}
+
+function get7DaysAgoLocal() {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return formatLocalDate(d);
+}
+
+function togglePeriodeSection(header) {
+    header.classList.toggle('collapsed');
+}
+
+function toggleDateRangeType(scope) {
+    const typeSelect = document.getElementById(scope === 'order' ? 'filterTglOrderType' : 'filterTglBongkarType');
+    const rangeDiv = document.getElementById(scope === 'order' ? 'dateRangeOrder' : 'dateRangeBongkar');
+    const dariInput = document.getElementById(scope === 'order' ? 'filterTglOrderDari' : 'filterTglBongkarDari');
+    const sampaiInput = document.getElementById(scope === 'order' ? 'filterTglOrderSampai' : 'filterTglBongkarSampai');
+    const today = formatLocalDate(new Date());
+
+    const filterType = typeSelect.value;
+
+    if (filterType === 'manual') {
+        rangeDiv.classList.add('show');
+        dariInput.value = '';
+        sampaiInput.value = '';
+    } else {
+        rangeDiv.classList.remove('show');
+        if (filterType === 'hari-ini') {
+            dariInput.value = today;
+            sampaiInput.value = today;
+        } else if (filterType === '7-hari') {
+            dariInput.value = get7DaysAgoLocal();
+            sampaiInput.value = today;
+        } else if (filterType === '2-hari') {
+            dariInput.value = get2DaysAgoLocal();
+            sampaiInput.value = today;
+        } else if (filterType === 'semua') {
+            dariInput.value = '';
+            sampaiInput.value = '';
+        }
+    }
+
+    updateApplyButtonState();
+}
+
+// ----------------------------------------------------------------------------
+// QUICK FILTER CHIPS (poin B.5)
+// ----------------------------------------------------------------------------
 function clearActiveChip() {
     document.querySelectorAll('.rv-chip').forEach(c => c.classList.remove('active'));
 }
@@ -317,6 +571,13 @@ function applyQuickFilter(type) {
     document.getElementById('filterTglBongkarDari').value = '';
     document.getElementById('filterTglBongkarSampai').value = '';
 
+    // Sinkron visual: tampilkan sebagai "Pilih Manual" di select tipe periode
+    // supaya nilai tanggal yang di-set chip konsisten dengan tampilan section periode.
+    document.getElementById('filterTglOrderType').value = 'manual';
+    document.getElementById('dateRangeOrder').classList.add('show');
+    document.getElementById('filterTglBongkarType').value = 'semua';
+    document.getElementById('dateRangeBongkar').classList.remove('show');
+
     clearActiveChip();
     const chipIdMap = { hari_ini: 'chipHariIni', '2_hari': 'chip2Hari', bulan_ini: 'chipBulanIni' };
     const chipEl = document.getElementById(chipIdMap[type]);
@@ -331,8 +592,8 @@ function applyQuickFilter(type) {
 // ----------------------------------------------------------------------------
 function snapshotFilterValues() {
     return {
-        filterProyek: getSelectedValues('filterProyek'),
-        filterGalian: getSelectedValues('filterGalian'),
+        filterProyekIds: getMsIds('ms-proyek-review').split(',').filter(Boolean),
+        filterGalianIds: getMsIds('ms-galian-review').split(',').filter(Boolean),
         filterGalianAlihan: document.getElementById('filterGalianAlihan').value,
         filterKendaraan: document.getElementById('filterKendaraan').value,
         filterSupir: document.getElementById('filterSupir').value,
@@ -341,8 +602,10 @@ function snapshotFilterValues() {
         filterLokasi: document.getElementById('filterLokasi').value,
         filterStatus: document.getElementById('filterStatus').value,
         filterAlihan: document.getElementById('filterAlihan').value,
+        filterTglOrderType: document.getElementById('filterTglOrderType').value,
         filterTglOrderDari: document.getElementById('filterTglOrderDari').value,
         filterTglOrderSampai: document.getElementById('filterTglOrderSampai').value,
+        filterTglBongkarType: document.getElementById('filterTglBongkarType').value,
         filterTglBongkarDari: document.getElementById('filterTglBongkarDari').value,
         filterTglBongkarSampai: document.getElementById('filterTglBongkarSampai').value,
     };
@@ -368,24 +631,28 @@ function restoreLastFilters() {
     }
     if (!saved || typeof saved !== 'object') return;
 
-    const setMultiSelect = (id, values) => {
-        const el = document.getElementById(id);
-        if (!el || !Array.isArray(values)) return;
-        Array.from(el.options).forEach(o => { o.selected = values.includes(o.value); });
-    };
-
-    setMultiSelect('filterProyek', saved.filterProyek);
-    setMultiSelect('filterGalian', saved.filterGalian);
+    setMsSelectedFromIds('ms-proyek-review', saved.filterProyekIds);
+    setMsSelectedFromIds('ms-galian-review', saved.filterGalianIds);
 
     const simpleFields = [
         'filterGalianAlihan', 'filterKendaraan', 'filterSupir', 'filterPetugas',
         'filterNoDo', 'filterLokasi', 'filterStatus', 'filterAlihan',
-        'filterTglOrderDari', 'filterTglOrderSampai', 'filterTglBongkarDari', 'filterTglBongkarSampai',
+        'filterTglOrderType', 'filterTglOrderDari', 'filterTglOrderSampai',
+        'filterTglBongkarType', 'filterTglBongkarDari', 'filterTglBongkarSampai',
     ];
     simpleFields.forEach(id => {
         const el = document.getElementById(id);
         if (el && saved[id] !== undefined) el.value = saved[id];
     });
+
+    toggleGalianAlihanFilter();
+
+    if (document.getElementById('filterTglOrderType').value === 'manual') {
+        document.getElementById('dateRangeOrder').classList.add('show');
+    }
+    if (document.getElementById('filterTglBongkarType').value === 'manual') {
+        document.getElementById('dateRangeBongkar').classList.add('show');
+    }
 
     updateApplyButtonState();
 }

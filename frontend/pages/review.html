@@ -4,198 +4,266 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Review Data - Ritasi App</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../assets/css/review.css">
 </head>
 <body>
 
     <div class="rv-toolbar">
         <div class="rv-toolbar-left">
-            <a href="../index.html" class="rv-back">&larr;</a>
+            <a href="../index.html" class="rv-back" aria-label="Kembali">&larr;</a>
             <div class="rv-title">
-                <span class="rv-title-icon">🛠️</span>
+                <span class="rv-title-dot"></span>
                 <span>Review Data</span>
             </div>
-            <button class="rv-btn rv-btn-ghost" id="btnToggleFilter" onclick="toggleFilterBar()">Filter</button>
         </div>
         <div class="rv-toolbar-right">
             <span class="rv-dirty-indicator" id="dirtyIndicator" style="display:none;">Perubahan belum disimpan</span>
-            <button class="rv-btn rv-btn-secondary" id="btnDiscardAll" onclick="discardAllChanges()">Batalkan Semua Perubahan</button>
+            <button class="rv-btn rv-btn-outline-invert" id="btnDiscardAll" onclick="discardAllChanges()">Batalkan Semua Perubahan</button>
             <button class="rv-btn rv-btn-primary" id="btnSaveAll" onclick="saveAllChanges()">Simpan Semua Perubahan</button>
         </div>
     </div>
 
-    <div class="rv-summary-bar" id="summaryBar">
-        <div class="rv-summary-item">
-            <span class="rv-summary-label">Total</span>
-            <span class="rv-summary-value" id="summaryTotal">0</span>
-        </div>
-        <div class="rv-summary-item rv-summary-complete">
-            <span class="rv-summary-label">Complete</span>
-            <span class="rv-summary-value" id="summaryComplete">0</span>
-        </div>
-        <div class="rv-summary-item rv-summary-process">
-            <span class="rv-summary-label">On Process</span>
-            <span class="rv-summary-value" id="summaryProcess">0</span>
-        </div>
-        <div class="rv-summary-item rv-summary-batal">
-            <span class="rv-summary-label">Batal</span>
-            <span class="rv-summary-value" id="summaryBatal">0</span>
-        </div>
-    </div>
+    <div class="rv-page">
 
-    <div class="rv-filter-section" id="filterSection">
-        <div class="rv-filter-header" id="btnToggleFilter" onclick="toggleFilterBar()">
-            <h3><span>🔍</span> Filter Data</h3>
-            <span class="rv-filter-toggle-icon">▾</span>
-        </div>
-
-        <div class="rv-chip-row">
-            <button type="button" class="rv-chip" id="chipHariIni" onclick="applyQuickFilter('hari_ini')">Hari Ini</button>
-            <button type="button" class="rv-chip" id="chip2Hari" onclick="applyQuickFilter('2_hari')">2 Hari Terakhir</button>
-            <button type="button" class="rv-chip" id="chipBulanIni" onclick="applyQuickFilter('bulan_ini')">Bulan Ini</button>
-        </div>
-
-        <div class="rv-filter-bar" id="filterBar">
-            <div class="rv-filter-grid">
-                <div class="rv-filter-field">
-                    <label>Proyek</label>
-                    <select id="filterProyek" multiple size="4"></select>
-                </div>
-                <div class="rv-filter-field">
-                    <label>Galian</label>
-                    <select id="filterGalian" multiple size="4"></select>
-                </div>
-                <div class="rv-filter-field">
-                    <label>Galian Alihan</label>
-                    <select id="filterGalianAlihan">
-                        <option value="">Semua</option>
-                    </select>
-                </div>
-                <div class="rv-filter-field">
-                    <label>Kendaraan</label>
-                    <input type="text" id="filterKendaraan" list="dlKendaraan" placeholder="Cari no. pintu...">
-                    <datalist id="dlKendaraan"></datalist>
-                </div>
-                <div class="rv-filter-field">
-                    <label>Supir</label>
-                    <input type="text" id="filterSupir" list="dlSupir" placeholder="Cari nama supir...">
-                    <datalist id="dlSupir"></datalist>
-                </div>
-                <div class="rv-filter-field">
-                    <label>Petugas Order</label>
-                    <input type="text" id="filterPetugas" list="dlPetugas" placeholder="Cari petugas...">
-                    <datalist id="dlPetugas"></datalist>
-                </div>
-                <div class="rv-filter-field">
-                    <label>No DO</label>
-                    <input type="text" id="filterNoDo" list="dlNoDo" placeholder="Cari no. DO...">
-                    <datalist id="dlNoDo"></datalist>
-                </div>
-                <div class="rv-filter-field">
-                    <label>Lokasi Bongkar</label>
-                    <input type="text" id="filterLokasi" list="dlLokasi" placeholder="Cari lokasi...">
-                    <datalist id="dlLokasi"></datalist>
-                </div>
-                <div class="rv-filter-field">
-                    <label>Status</label>
-                    <select id="filterStatus">
-                        <option value="">Semua</option>
-                        <option value="ON PROCESS">ON PROCESS</option>
-                        <option value="COMPLETE">COMPLETE</option>
-                        <option value="BATAL">BATAL</option>
-                    </select>
-                </div>
-                <div class="rv-filter-field">
-                    <label>Alihan</label>
-                    <select id="filterAlihan">
-                        <option value="">Semua</option>
-                        <option value="1">Ya</option>
-                        <option value="0">Tidak</option>
-                    </select>
-                </div>
-                <div class="rv-filter-field">
-                    <label>Tanggal Order Dari</label>
-                    <input type="date" id="filterTglOrderDari">
-                </div>
-                <div class="rv-filter-field">
-                    <label>Tanggal Order Sampai</label>
-                    <input type="date" id="filterTglOrderSampai">
-                </div>
-                <div class="rv-filter-field">
-                    <label>Tanggal Bongkar Dari</label>
-                    <input type="date" id="filterTglBongkarDari">
-                </div>
-                <div class="rv-filter-field">
-                    <label>Tanggal Bongkar Sampai</label>
-                    <input type="date" id="filterTglBongkarSampai">
-                </div>
+        <div class="rv-summary-bar" id="summaryBar">
+            <div class="rv-summary-item">
+                <span class="rv-summary-value" id="summaryTotal">0</span>
+                <span class="rv-summary-label">Total</span>
             </div>
-            <div class="rv-filter-actions">
-                <span class="rv-filter-hint" id="filterDateHint">Pilih rentang tanggal terlebih dahulu (Tanggal Order atau Tanggal Bongkar).</span>
-                <button class="rv-btn rv-btn-secondary" onclick="resetFilters()">Reset</button>
-                <button class="rv-btn rv-btn-primary" id="btnApplyFilter" onclick="applyFilters()" disabled>Terapkan Filter</button>
+            <div class="rv-summary-item rv-summary-complete">
+                <span class="rv-summary-value" id="summaryComplete">0</span>
+                <span class="rv-summary-label">Complete</span>
+            </div>
+            <div class="rv-summary-item rv-summary-process">
+                <span class="rv-summary-value" id="summaryProcess">0</span>
+                <span class="rv-summary-label">On Process</span>
+            </div>
+            <div class="rv-summary-item rv-summary-batal">
+                <span class="rv-summary-value" id="summaryBatal">0</span>
+                <span class="rv-summary-label">Batal</span>
             </div>
         </div>
-    </div>
 
-    <div class="rv-banner rv-banner-danger" id="bannerTruncated" style="display:none;"></div>
-    <div class="rv-banner rv-banner-warning" id="bannerLarge" style="display:none;">
-        <span id="bannerLargeText"></span>
-        <button class="rv-banner-close" onclick="dismissBannerLarge()">&times;</button>
-    </div>
+        <div class="rv-filter-section" id="filterSection">
+            <div class="rv-filter-header" onclick="toggleFilterBar()">
+                <h3>Filter Data</h3>
+                <span class="rv-filter-toggle-icon">▾</span>
+            </div>
 
-    <div class="rv-grid-wrapper">
-        <div class="rv-grid-scroll" id="gridScroll">
-            <table class="rv-grid" id="reviewGrid">
-                <thead>
-                    <tr>
-                        <th class="rv-sticky-col rv-col-check"><input type="checkbox" id="checkAll" onchange="toggleSelectAll()"></th>
-                        <th class="rv-sticky-col rv-col-noorder">No Order</th>
-                        <th>Tgl Order</th>
-                        <th>Petugas</th>
-                        <th>Kendaraan</th>
-                        <th>Supir</th>
-                        <th>Galian</th>
-                        <th>No DO</th>
-                        <th>Jam Order</th>
-                        <th>KM Awal</th>
-                        <th>Uang Jalan</th>
-                        <th>Potongan</th>
-                        <th>Hasil Akhir</th>
-                        <th>Proyek</th>
-                        <th>Status</th>
-                        <th>Tgl Bongkar</th>
-                        <th>Jam Bongkar</th>
-                        <th>KM Akhir</th>
-                        <th>Jarak KM</th>
-                        <th>Lokasi Bongkar</th>
-                        <th>Alihan</th>
-                        <th>Galian Alihan</th>
-                        <th>Keterangan</th>
-                        <th>Uang Alihan</th>
-                        <th>No Urut</th>
-                    </tr>
-                </thead>
-                <tbody id="gridBody">
-                    <tr>
-                        <td colspan="24" class="rv-empty-state">
-                            <span class="rv-empty-state-icon">🗂️</span>
-                            <div class="rv-empty-state-text">
-                                Belum ada data ditampilkan. Atur filter di atas, lalu klik <strong>Terapkan Filter</strong> untuk memuat data.
+            <div class="rv-chip-row">
+                <button type="button" class="rv-chip" id="chipHariIni" onclick="applyQuickFilter('hari_ini')">Hari Ini</button>
+                <button type="button" class="rv-chip" id="chip2Hari" onclick="applyQuickFilter('2_hari')">2 Hari Terakhir</button>
+                <button type="button" class="rv-chip" id="chipBulanIni" onclick="applyQuickFilter('bulan_ini')">Bulan Ini</button>
+            </div>
+
+            <div class="rv-filter-bar" id="filterBar">
+                <div class="rv-filter-grid">
+                    <div class="rv-filter-field">
+                        <label>Proyek</label>
+                        <div class="ms-container" id="ms-proyek-review">
+                            <div class="ms-input-row">
+                                <input type="text" class="ms-input" placeholder="Cari proyek...">
+                                <button type="button" class="ms-clear" title="Hapus semua">✕</button>
                             </div>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+                            <div class="ms-tags"></div>
+                            <div class="ms-dropdown"></div>
+                            <input type="hidden" id="filterProyekIds">
+                        </div>
+                    </div>
+                    <div class="rv-filter-field">
+                        <label>Galian</label>
+                        <div class="ms-container" id="ms-galian-review">
+                            <div class="ms-input-row">
+                                <input type="text" class="ms-input" placeholder="Cari galian...">
+                                <button type="button" class="ms-clear" title="Hapus semua">✕</button>
+                            </div>
+                            <div class="ms-tags"></div>
+                            <div class="ms-dropdown"></div>
+                            <input type="hidden" id="filterGalianIds">
+                        </div>
+                    </div>
+                    <div class="rv-filter-field">
+                        <label>Kendaraan</label>
+                        <input type="text" id="filterKendaraan" list="dlKendaraan" placeholder="Cari no. pintu...">
+                        <datalist id="dlKendaraan"></datalist>
+                    </div>
+                    <div class="rv-filter-field">
+                        <label>Supir</label>
+                        <input type="text" id="filterSupir" list="dlSupir" placeholder="Cari nama supir...">
+                        <datalist id="dlSupir"></datalist>
+                    </div>
+                    <div class="rv-filter-field">
+                        <label>Petugas Order</label>
+                        <input type="text" id="filterPetugas" list="dlPetugas" placeholder="Cari petugas...">
+                        <datalist id="dlPetugas"></datalist>
+                    </div>
+                    <div class="rv-filter-field">
+                        <label>No DO</label>
+                        <input type="text" id="filterNoDo" list="dlNoDo" placeholder="Cari no. DO...">
+                        <datalist id="dlNoDo"></datalist>
+                    </div>
+                    <div class="rv-filter-field">
+                        <label>Lokasi Bongkar</label>
+                        <input type="text" id="filterLokasi" list="dlLokasi" placeholder="Cari lokasi...">
+                        <datalist id="dlLokasi"></datalist>
+                    </div>
+                    <div class="rv-filter-field">
+                        <label>Status</label>
+                        <select id="filterStatus">
+                            <option value="">Semua</option>
+                            <option value="ON PROCESS">ON PROCESS</option>
+                            <option value="COMPLETE">COMPLETE</option>
+                            <option value="BATAL">BATAL</option>
+                        </select>
+                    </div>
+                    <div class="rv-filter-field">
+                        <label>Alihan</label>
+                        <select id="filterAlihan" onchange="toggleGalianAlihanFilter()">
+                            <option value="">Semua</option>
+                            <option value="1">Ya</option>
+                            <option value="0">Tidak</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="galianAlihanFilterWrap" class="galian-alihan-filter">
+                    <div class="rv-filter-field">
+                        <label>Galian Alihan</label>
+                        <input type="text" id="filterGalianAlihan" list="dlGalianAlihan" placeholder="Pilih galian alihan...">
+                        <input type="hidden" id="filterGalianAlihanId">
+                        <datalist id="dlGalianAlihan"></datalist>
+                    </div>
+                </div>
+
+                <div class="filter-group-periode">
+                    <div class="filter-periode-header collapsed" onclick="togglePeriodeSection(this)">
+                        <h4>Filter Periode Tanggal Order</h4>
+                        <span class="filter-periode-toggle">▾</span>
+                    </div>
+                    <div class="filter-periode-body">
+                        <div class="rv-filter-field">
+                            <label>Periode Tanggal Order</label>
+                            <select id="filterTglOrderType" onchange="toggleDateRangeType('order')">
+                                <option value="2-hari">2 Hari Terakhir</option>
+                                <option value="semua" selected>Semua Data</option>
+                                <option value="hari-ini">Hari Ini</option>
+                                <option value="7-hari">7 Hari Terakhir</option>
+                                <option value="manual">Pilih Manual</option>
+                            </select>
+                        </div>
+                        <div id="dateRangeOrder" class="date-range-inputs">
+                            <div class="rv-filter-field">
+                                <label>Tanggal Order Dari</label>
+                                <input type="date" id="filterTglOrderDari">
+                            </div>
+                            <div class="rv-filter-field">
+                                <label>Tanggal Order Sampai</label>
+                                <input type="date" id="filterTglOrderSampai">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="filter-group-periode">
+                    <div class="filter-periode-header collapsed" onclick="togglePeriodeSection(this)">
+                        <h4>Filter Periode Tanggal Bongkar</h4>
+                        <span class="filter-periode-toggle">▾</span>
+                    </div>
+                    <div class="filter-periode-body">
+                        <div class="rv-filter-field">
+                            <label>Periode Tanggal Bongkar</label>
+                            <select id="filterTglBongkarType" onchange="toggleDateRangeType('bongkar')">
+                                <option value="2-hari">2 Hari Terakhir</option>
+                                <option value="semua" selected>Semua Data</option>
+                                <option value="hari-ini">Hari Ini</option>
+                                <option value="7-hari">7 Hari Terakhir</option>
+                                <option value="manual">Pilih Manual</option>
+                            </select>
+                        </div>
+                        <div id="dateRangeBongkar" class="date-range-inputs">
+                            <div class="rv-filter-field">
+                                <label>Tanggal Bongkar Dari</label>
+                                <input type="date" id="filterTglBongkarDari">
+                            </div>
+                            <div class="rv-filter-field">
+                                <label>Tanggal Bongkar Sampai</label>
+                                <input type="date" id="filterTglBongkarSampai">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rv-filter-actions">
+                    <span class="rv-filter-hint" id="filterDateHint">⚠ Pilih rentang tanggal terlebih dahulu (Tanggal Order atau Tanggal Bongkar).</span>
+                    <button class="rv-btn rv-btn-outline" onclick="resetFilters()">Reset</button>
+                    <button class="rv-btn rv-btn-primary" id="btnApplyFilter" onclick="applyFilters()" disabled>Terapkan Filter</button>
+                </div>
+            </div>
         </div>
+
+        <div class="rv-banner rv-banner-danger" id="bannerTruncated" style="display:none;"></div>
+        <div class="rv-banner rv-banner-warning" id="bannerLarge" style="display:none;">
+            <span id="bannerLargeText"></span>
+            <button class="rv-banner-close" onclick="dismissBannerLarge()">&times;</button>
+        </div>
+
+        <div class="rv-grid-wrapper">
+            <div class="rv-grid-scroll" id="gridScroll">
+                <table class="rv-grid" id="reviewGrid">
+                    <thead>
+                        <tr>
+                            <th class="rv-sticky-col rv-col-check"><input type="checkbox" id="checkAll" onchange="toggleSelectAll()"></th>
+                            <th class="rv-sticky-col rv-col-noorder">No Order</th>
+                            <th>Tgl Order</th>
+                            <th>Petugas</th>
+                            <th>Kendaraan</th>
+                            <th>Supir</th>
+                            <th>Galian</th>
+                            <th>No DO</th>
+                            <th>Jam Order</th>
+                            <th>KM Awal</th>
+                            <th>Uang Jalan</th>
+                            <th>Potongan</th>
+                            <th>Hasil Akhir</th>
+                            <th>Proyek</th>
+                            <th>Status</th>
+                            <th>Tgl Bongkar</th>
+                            <th>Jam Bongkar</th>
+                            <th>KM Akhir</th>
+                            <th>Jarak KM</th>
+                            <th>Lokasi Bongkar</th>
+                            <th>Alihan</th>
+                            <th>Galian Alihan</th>
+                            <th>Keterangan</th>
+                            <th>Uang Alihan</th>
+                            <th>No Urut</th>
+                        </tr>
+                    </thead>
+                    <tbody id="gridBody">
+                        <tr>
+                            <td colspan="24" class="rv-empty-state">
+                                <span class="rv-empty-state-icon">🗂️</span>
+                                <div class="rv-empty-state-text">
+                                    Belum ada data ditampilkan. Atur filter di atas, lalu klik <strong>Terapkan Filter</strong> untuk memuat data.
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
     </div>
 
     <div class="rv-bulk-bar" id="bulkBar" style="display:none;">
         <span class="rv-bulk-count" id="bulkCount">0 baris dipilih</span>
-        <button class="rv-btn rv-btn-sm" onclick="openIsiMassalModal()">Isi Massal</button>
+        <button class="rv-btn rv-btn-sm rv-btn-bulk" onclick="openIsiMassalModal()">Isi Massal</button>
         <button class="rv-btn rv-btn-sm rv-btn-danger" onclick="openBatalModal()">Batalkan (BATAL)</button>
-        <button class="rv-btn rv-btn-sm" onclick="doUnBatal()">Un-Batal</button>
-        <button class="rv-btn rv-btn-sm" onclick="doRecalcJarak()">Hitung Ulang Jarak KM</button>
+        <button class="rv-btn rv-btn-sm rv-btn-bulk" onclick="doUnBatal()">Un-Batal</button>
+        <button class="rv-btn rv-btn-sm rv-btn-bulk" onclick="doRecalcJarak()">Hitung Ulang Jarak KM</button>
         <button class="rv-btn rv-btn-sm rv-btn-danger" onclick="openDeleteModal()">Hapus Ritasi</button>
     </div>
 
@@ -217,7 +285,7 @@
                 </div>
             </div>
             <div class="rv-modal-footer">
-                <button class="rv-btn rv-btn-secondary" onclick="closeModal('modalIsiMassal')">Batal</button>
+                <button class="rv-btn rv-btn-outline" onclick="closeModal('modalIsiMassal')">Batal</button>
                 <button class="rv-btn rv-btn-primary" onclick="terapkanIsiMassal()">Terapkan</button>
             </div>
         </div>
@@ -232,13 +300,13 @@
             </div>
             <div class="rv-modal-body">
                 <div class="rv-form-field">
-                    <label><input type="radio" name="keteranganMode" value="shared" checked onchange="renderBatalKeteranganInputs()"> Satu keterangan untuk semua</label>
-                    <label><input type="radio" name="keteranganMode" value="per_row" onchange="renderBatalKeteranganInputs()"> Keterangan per baris</label>
+                    <label class="rv-radio-label"><input type="radio" name="keteranganMode" value="shared" checked onchange="renderBatalKeteranganInputs()"> Satu keterangan untuk semua</label>
+                    <label class="rv-radio-label"><input type="radio" name="keteranganMode" value="per_row" onchange="renderBatalKeteranganInputs()"> Keterangan per baris</label>
                 </div>
                 <div id="batalKeteranganArea"></div>
             </div>
             <div class="rv-modal-footer">
-                <button class="rv-btn rv-btn-secondary" onclick="closeModal('modalBatal')">Batal</button>
+                <button class="rv-btn rv-btn-outline" onclick="closeModal('modalBatal')">Batal</button>
                 <button class="rv-btn rv-btn-danger" onclick="submitBatalMassal()">Batalkan Order</button>
             </div>
         </div>
@@ -256,7 +324,7 @@
                 <input type="text" id="deleteConfirmInput" placeholder="Ketik HAPUS" oninput="validateDeleteConfirm()">
             </div>
             <div class="rv-modal-footer">
-                <button class="rv-btn rv-btn-secondary" onclick="closeModal('modalDelete')">Batal</button>
+                <button class="rv-btn rv-btn-outline" onclick="closeModal('modalDelete')">Batal</button>
                 <button class="rv-btn rv-btn-danger" id="btnConfirmDelete" onclick="submitDeleteMassal()" disabled>Hapus Ritasi</button>
             </div>
         </div>
