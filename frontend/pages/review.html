@@ -265,6 +265,8 @@
         <button class="rv-btn rv-btn-sm rv-btn-bulk" onclick="doUnBatal()">Un-Batal</button>
         <button class="rv-btn rv-btn-sm rv-btn-bulk" onclick="doRecalcJarak()">Hitung Ulang Jarak KM</button>
         <button class="rv-btn rv-btn-sm rv-btn-danger" onclick="openDeleteModal()">Hapus Ritasi</button>
+        <button class="rv-btn rv-btn-sm rv-btn-danger" onclick="openDeleteOrderModal()">Hapus Order</button>
+        <button class="rv-btn rv-btn-sm rv-btn-danger" onclick="openDeleteBuanganModal()">Hapus Buangan</button>
     </div>
 
     <!-- Modal: Isi Massal -->
@@ -326,6 +328,42 @@
             <div class="rv-modal-footer">
                 <button class="rv-btn rv-btn-outline" onclick="closeModal('modalDelete')">Batal</button>
                 <button class="rv-btn rv-btn-danger" id="btnConfirmDelete" onclick="submitDeleteMassal()" disabled>Hapus Ritasi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Hapus Order -->
+    <div class="rv-modal-overlay" id="modalDeleteOrder">
+        <div class="rv-modal">
+            <div class="rv-modal-header">
+                <h3>Hapus Order Terpilih</h3>
+                <button class="rv-modal-close" onclick="closeModal('modalDeleteOrder')">&times;</button>
+            </div>
+            <div class="rv-modal-body">
+                <p class="rv-warning-text">Tindakan ini akan menghapus data order terpilih secara permanen. Order yang masih memiliki data buangan akan dilewati. Ketik <strong>HAPUS</strong> untuk konfirmasi.</p>
+                <input type="text" id="deleteOrderConfirmInput" placeholder="Ketik HAPUS" oninput="validateDeleteOrderConfirm()">
+            </div>
+            <div class="rv-modal-footer">
+                <button class="rv-btn rv-btn-outline" onclick="closeModal('modalDeleteOrder')">Batal</button>
+                <button class="rv-btn rv-btn-danger" id="btnConfirmDeleteOrder" onclick="submitDeleteOrderMassal()" disabled>Hapus Order</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Hapus Buangan -->
+    <div class="rv-modal-overlay" id="modalDeleteBuangan">
+        <div class="rv-modal">
+            <div class="rv-modal-header">
+                <h3>Hapus Buangan Terpilih</h3>
+                <button class="rv-modal-close" onclick="closeModal('modalDeleteBuangan')">&times;</button>
+            </div>
+            <div class="rv-modal-body">
+                <p class="rv-warning-text">Tindakan ini akan menghapus data buangan terpilih secara permanen (order tetap ada). Ketik <strong>HAPUS</strong> untuk konfirmasi.</p>
+                <input type="text" id="deleteBuanganConfirmInput" placeholder="Ketik HAPUS" oninput="validateDeleteBuanganConfirm()">
+            </div>
+            <div class="rv-modal-footer">
+                <button class="rv-btn rv-btn-outline" onclick="closeModal('modalDeleteBuangan')">Batal</button>
+                <button class="rv-btn rv-btn-danger" id="btnConfirmDeleteBuangan" onclick="submitDeleteBuanganMassal()" disabled>Hapus Buangan</button>
             </div>
         </div>
     </div>

@@ -707,4 +707,124 @@ router.delete("/bulk-delete-ritasi", async (req, res) => {
   return success(res, "Bulk hapus ritasi selesai diproses", { deleted, failed });
 });
 
+// ============================================================================
+// DELETE /api/review/bulk-delete-order
+// ============================================================================
+router.delete("/bulk-delete-order", async (req, res) => {
+  const { order_ids, confirm } = req.body;
+
+  if (confirm !== true) {
+    return error(res, 400, "Konfirmasi diperlukan");
+  }
+  if (!Array.isArray(order_ids) || order_ids.length === 0) {
+    return error(res, 400, "order_ids wajib diisi");
+  }
+
+  let deleted = 0;
+  const failed = [];
+
+  for (const orderId of order_ids) {
+    let conn;
+    try {
+      conn = await db.getConnection();
+      await conn.beginTransaction();
+
+      const [orderRows] = await conn.query(`SELECT id FROM orders WHERE id = ? LIMIT 1`, [orderId]);
+      if (orderRows.length === 0) {
+        await conn.rollback();
+        failed.push({ order_id: orderId, buangan_id: null, message: `Order ID ${orderId} tidak ditemukan` });
+        continue;
+      }
+
+      const [existingBuangan] = await conn.query(`SELECT id FROM buangan WHERE order_id = ? LIMIT 1`, [orderId]);
+      if (existingBuangan.length > 0) {
+        await conn.rollback();
+        failed.push({
+          order_id: orderId,
+          buangan_id: null,
+          message: "Order ini masih memiliki data buangan. Hapus data buangan terlebih dahulu.",
+        });
+        continue;
+      }
+
+      const [delOrder] = await conn.query(`DELETE FROM orders WHERE id = ?`, [orderId]);
+      if (delOrder.affectedRows === 0) {
+        await conn.rollback();
+        failed.push({ order_id: orderId, buangan_id: null, message: `Order ID ${orderId} tidak ditemukan` });
+        continue;
+      }
+
+      await conn.commit();
+      deleted++;
+    } catch (rowErr) {
+      if (conn) await conn.rollback().catch(() => {});
+      console.error(`Error bulk-delete-order order ${orderId}:`, rowErr);
+      failed.push({ order_id: orderId, buangan_id: null, message: rowErr.message });
+    } finally {
+      if (conn) conn.release();
+    }
+  }
+
+  return success(res, "Bulk hapus order selesai diproses", { deleted, failed });
+});
+
+// ============================================================================
+// DELETE /api/review/bulk-delete-buangan
+// ============================================================================
+router.delete("/bulk-delete-buangan", async (req, res) => {
+  const { buangan_ids, confirm } = req.body;
+
+  if (confirm !== true) {
+    return error(res, 400, "Konfirmasi diperlukan");
+  }
+  if (!Array.isArray(buangan_ids) || buangan_ids.length === 0) {
+    return error(res, 400, "buangan_ids wajib diisi");
+  }
+
+  let deleted = 0;
+  const failed = [];
+
+  for (const buanganId of buangan_ids) {
+    let conn;
+    try {
+      conn = await db.getConnection();
+      await conn.beginTransaction();
+
+      const [buanganRows] = await conn.query(`SELECT order_id FROM buangan WHERE id = ? LIMIT 1`, [buanganId]);
+      if (buanganRows.length === 0) {
+        await conn.rollback();
+        failed.push({ order_id: null, buangan_id: buanganId, message: `Buangan ID ${buanganId} tidak ditemukan` });
+        continue;
+      }
+
+      const orderId = buanganRows[0].order_id;
+
+      const [orderRows] = await conn.query(`SELECT id FROM orders WHERE id = ? LIMIT 1`, [orderId]);
+      if (orderRows.length === 0) {
+        await conn.rollback();
+        failed.push({ order_id: orderId, buangan_id: buanganId, message: "Order terkait tidak ditemukan." });
+        continue;
+      }
+
+      const [delBuangan] = await conn.query(`DELETE FROM buangan WHERE id = ?`, [buanganId]);
+      if (delBuangan.affectedRows === 0) {
+        await conn.rollback();
+        failed.push({ order_id: orderId, buangan_id: buanganId, message: `Buangan ID ${buanganId} tidak ditemukan` });
+        continue;
+      }
+
+      await conn.commit();
+      deleted++;
+    } catch (rowErr) {
+      if (conn) await conn.rollback().catch(() => {});
+      console.error(`Error bulk-delete-buangan buangan ${buanganId}:`, rowErr);
+      failed.push({ order_id: null, buangan_id: buanganId, message: rowErr.message });
+    } finally {
+      if (conn) conn.release();
+    }
+  }
+
+  return success(res, "Bulk hapus buangan selesai diproses", { deleted, failed });
+});
+
 export default router;

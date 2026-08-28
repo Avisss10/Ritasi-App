@@ -26,6 +26,59 @@ function rowKey(row) {
 }
 
 // ----------------------------------------------------------------------------
+// DISPLAY FORMATTERS (selaras dengan rekap.js agar konsisten di seluruh app)
+// ----------------------------------------------------------------------------
+function formatCurrency(value) {
+    return 'Rp ' + parseInt(value).toLocaleString('id-ID');
+}
+
+function formatKilometer(value) {
+    if (typeof value === 'string' &&
+        (value.toUpperCase() === 'ODO ERROR' ||
+         value.toUpperCase() === 'ODOERROR' ||
+         value.toUpperCase() === 'ODO ERR' ||
+         value.toUpperCase() === 'ODOERR')) {
+        return 'ODO ERROR';
+    }
+
+    if (typeof value === 'string' && (value.includes('.') || value.includes(','))) {
+        const sep = value.includes('.') ? '.' : ',';
+        const parts = value.split(sep);
+        const intPart = parts[0] || '0';
+        const decPart = parts[1] || '';
+        const intNum = Number(intPart.replace(/\s+/g, ''));
+        const formattedInt = isNaN(intNum) ? intPart : intNum.toLocaleString('id-ID');
+        return decPart ? `${formattedInt},${decPart}` : formattedInt;
+    }
+
+    const numValue = Number(value);
+    if (isNaN(numValue)) return String(value);
+    if (Number.isInteger(numValue)) return numValue.toLocaleString('id-ID');
+
+    const numParts = numValue.toString().split('.');
+    const formattedInt = Number(numParts[0]).toLocaleString('id-ID');
+    const decPart = numParts[1] || '';
+    return decPart ? `${formattedInt},${decPart}` : formattedInt;
+}
+
+function formatDateDisplay(dateString) {
+    try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return String(dateString);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+    } catch (err) {
+        return String(dateString);
+    }
+}
+
+function formatTimeDisplay(value) {
+    return String(value).substring(0, 5);
+}
+
+// ----------------------------------------------------------------------------
 // MULTI-SELECT COMPONENT (adaptasi dari rekap.js, dipakai untuk Proyek & Galian)
 // ----------------------------------------------------------------------------
 const multiSelects = {};
@@ -201,29 +254,29 @@ function setMsSelectedFromIds(containerId, ids) {
 // type: 'text' | 'date' | 'time' | 'number' | 'select' | 'checkbox' | 'readonly'
 // ----------------------------------------------------------------------------
 const FIELDS = [
-    { key: 'tanggal_order', label: 'Tgl Order', group: 'order', type: 'date' },
+    { key: 'tanggal_order', label: 'Tgl Order', group: 'order', type: 'date', format: 'date' },
     { key: 'no_order', label: 'No Order', group: 'order', type: 'text', sticky: true },
     { key: 'petugas_order', label: 'Petugas', group: 'order', type: 'text' },
     { key: 'kendaraan_id', label: 'Kendaraan', group: 'order', type: 'select', options: () => masterKendaraan, optionValue: 'id', optionLabel: 'no_pintu', displayKey: 'no_pintu' },
     { key: 'supir_id', label: 'Supir', group: 'order', type: 'select', options: () => masterSupir, optionValue: 'id', optionLabel: 'nama', displayKey: 'supir_nama' },
     { key: 'galian_id', label: 'Galian', group: 'order', type: 'select', options: () => masterGalian, optionValue: 'id', optionLabel: 'nama_galian', displayKey: 'nama_galian' },
     { key: 'no_do', label: 'No DO', group: 'order', type: 'text' },
-    { key: 'jam_order', label: 'Jam Order', group: 'order', type: 'time' },
-    { key: 'km_awal', label: 'KM Awal', group: 'order', type: 'text' },
-    { key: 'uang_jalan', label: 'Uang Jalan', group: 'order', type: 'number' },
-    { key: 'potongan', label: 'Potongan', group: 'order', type: 'number' },
-    { key: 'hasil_akhir', label: 'Hasil Akhir', group: 'order', type: 'readonly' },
+    { key: 'jam_order', label: 'Jam Order', group: 'order', type: 'time', format: 'time' },
+    { key: 'km_awal', label: 'KM Awal', group: 'order', type: 'text', format: 'km' },
+    { key: 'uang_jalan', label: 'Uang Jalan', group: 'order', type: 'number', format: 'currency' },
+    { key: 'potongan', label: 'Potongan', group: 'order', type: 'number', format: 'currency' },
+    { key: 'hasil_akhir', label: 'Hasil Akhir', group: 'order', type: 'readonly', format: 'currency' },
     { key: 'proyek_id', label: 'Proyek', group: 'order', type: 'select', options: () => masterProyek, optionValue: 'id', optionLabel: 'nama_proyek', displayKey: 'nama_proyek' },
     { key: 'status', label: 'Status', group: 'order', type: 'select', options: () => [{ id: 'ON PROCESS', nama: 'ON PROCESS' }, { id: 'COMPLETE', nama: 'COMPLETE' }, { id: 'BATAL', nama: 'BATAL' }], optionValue: 'id', optionLabel: 'nama', displayKey: 'status' },
-    { key: 'tanggal_bongkar', label: 'Tgl Bongkar', group: 'buangan', type: 'date' },
-    { key: 'jam_bongkar', label: 'Jam Bongkar', group: 'buangan', type: 'time' },
-    { key: 'km_akhir', label: 'KM Akhir', group: 'buangan', type: 'text' },
-    { key: 'jarak_km', label: 'Jarak KM', group: 'buangan', type: 'readonly' },
+    { key: 'tanggal_bongkar', label: 'Tgl Bongkar', group: 'buangan', type: 'date', format: 'date' },
+    { key: 'jam_bongkar', label: 'Jam Bongkar', group: 'buangan', type: 'time', format: 'time' },
+    { key: 'km_akhir', label: 'KM Akhir', group: 'buangan', type: 'text', format: 'km' },
+    { key: 'jarak_km', label: 'Jarak KM', group: 'buangan', type: 'readonly', format: 'km' },
     { key: 'lokasi_bongkar', label: 'Lokasi Bongkar', group: 'buangan', type: 'text', datalist: 'dlLokasi' },
     { key: 'alihan', label: 'Alihan', group: 'buangan', type: 'checkbox' },
     { key: 'galian_alihan_id', label: 'Galian Alihan', group: 'buangan', type: 'select', options: () => masterGalian, optionValue: 'id', optionLabel: 'nama_galian', displayKey: 'galian_alihan_nama' },
     { key: 'keterangan', label: 'Keterangan', group: 'buangan', type: 'text' },
-    { key: 'uang_alihan', label: 'Uang Alihan', group: 'buangan', type: 'number' },
+    { key: 'uang_alihan', label: 'Uang Alihan', group: 'buangan', type: 'number', format: 'currency' },
     { key: 'no_urut', label: 'No Urut', group: 'buangan', type: 'number' },
 ];
 
@@ -647,11 +700,21 @@ function restoreLastFilters() {
 
     toggleGalianAlihanFilter();
 
-    if (document.getElementById('filterTglOrderType').value === 'manual') {
+    // Tipe periode relatif (hari-ini/2-hari/7-hari) harus dihitung ulang dari
+    // tanggal sekarang, bukan memakai tanggal literal yang tersimpan - kalau
+    // tidak, filter jadi "nyangkut" ke tanggal sesi sebelumnya setelah ganti hari.
+    const orderType = document.getElementById('filterTglOrderType').value;
+    if (orderType === 'manual') {
         document.getElementById('dateRangeOrder').classList.add('show');
+    } else if (orderType !== 'semua') {
+        toggleDateRangeType('order');
     }
-    if (document.getElementById('filterTglBongkarType').value === 'manual') {
+
+    const bongkarType = document.getElementById('filterTglBongkarType').value;
+    if (bongkarType === 'manual') {
         document.getElementById('dateRangeBongkar').classList.add('show');
+    } else if (bongkarType !== 'semua') {
+        toggleDateRangeType('bongkar');
     }
 
     updateApplyButtonState();
@@ -825,7 +888,11 @@ function displayValue(row, field, value) {
     if (field.type === 'checkbox') {
         return value ? 'Ya' : 'Tidak';
     }
-    if (value === null || value === undefined) return '';
+    if (value === null || value === undefined || value === '') return '';
+    if (field.format === 'currency') return formatCurrency(value);
+    if (field.format === 'km') return formatKilometer(value);
+    if (field.format === 'date') return formatDateDisplay(value);
+    if (field.format === 'time') return formatTimeDisplay(value);
     return value;
 }
 
@@ -861,7 +928,7 @@ function renderGrid() {
         const isBatal = row.status === 'BATAL';
         const checked = selectedRows.has(key) ? 'checked' : '';
 
-        const cells = FIELDS.map(field => {
+        const cells = FIELDS.filter(field => !field.sticky).map(field => {
             const { value, dirty } = getEffectiveValue(row, field);
             const display = displayValue(row, field, value);
             const classes = [];
@@ -951,7 +1018,7 @@ function undoCellChange(event, key, group, fieldKey) {
 // karena checkbox punya mode edit sendiri via onchange langsung). Dipakai
 // untuk navigasi keyboard Tab/Shift+Tab (poin E.3).
 function getEditableFieldSequence() {
-    return FIELDS.filter(f => f.type !== 'readonly' && f.type !== 'checkbox');
+    return FIELDS.filter(f => f.type !== 'readonly' && f.type !== 'checkbox' && !f.sticky);
 }
 
 function getCellElement(key, fieldKey) {
@@ -1319,6 +1386,81 @@ async function submitDeleteMassal() {
     } catch (err) {
         console.error('Gagal bulk delete ritasi:', err);
         showToast('Gagal menghapus ritasi: ' + err.message, 'error');
+    }
+}
+
+// ----------------------------------------------------------------------------
+// HAPUS ORDER MASSAL (ditolak jika order masih punya data buangan)
+// ----------------------------------------------------------------------------
+function openDeleteOrderModal() {
+    if (selectedRows.size === 0) return;
+    document.getElementById('deleteOrderConfirmInput').value = '';
+    document.getElementById('btnConfirmDeleteOrder').disabled = true;
+    openModal('modalDeleteOrder');
+}
+
+function validateDeleteOrderConfirm() {
+    const val = document.getElementById('deleteOrderConfirmInput').value.trim().toUpperCase();
+    document.getElementById('btnConfirmDeleteOrder').disabled = val !== 'HAPUS';
+}
+
+async function submitDeleteOrderMassal() {
+    const orderIds = getSelectedRowObjects().map(row => row.order_id);
+
+    try {
+        const result = await apiFetch('/review/bulk-delete-order', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order_ids: orderIds, confirm: true }),
+        });
+        closeModal('modalDeleteOrder');
+        showToast(`Berhasil menghapus ${result.deleted} order${result.failed.length ? `, ${result.failed.length} gagal (kemungkinan masih memiliki data buangan)` : ''}`, result.failed.length ? 'warning' : 'success');
+        if (result.failed.length) console.warn('Bulk delete order gagal:', result.failed);
+        await loadReviewData();
+    } catch (err) {
+        console.error('Gagal bulk delete order:', err);
+        showToast('Gagal menghapus order: ' + err.message, 'error');
+    }
+}
+
+// ----------------------------------------------------------------------------
+// HAPUS BUANGAN MASSAL (order tetap ada, ditolak jika order terkait hilang)
+// ----------------------------------------------------------------------------
+function openDeleteBuanganModal() {
+    if (selectedRows.size === 0) return;
+    document.getElementById('deleteBuanganConfirmInput').value = '';
+    document.getElementById('btnConfirmDeleteBuangan').disabled = true;
+    openModal('modalDeleteBuangan');
+}
+
+function validateDeleteBuanganConfirm() {
+    const val = document.getElementById('deleteBuanganConfirmInput').value.trim().toUpperCase();
+    document.getElementById('btnConfirmDeleteBuangan').disabled = val !== 'HAPUS';
+}
+
+async function submitDeleteBuanganMassal() {
+    const rows = getSelectedRowObjects();
+    const buanganIds = rows.filter(r => r.buangan_id).map(r => r.buangan_id);
+
+    if (buanganIds.length === 0) {
+        showToast('Tidak ada baris terpilih yang punya data buangan untuk dihapus', 'warning');
+        closeModal('modalDeleteBuangan');
+        return;
+    }
+
+    try {
+        const result = await apiFetch('/review/bulk-delete-buangan', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ buangan_ids: buanganIds, confirm: true }),
+        });
+        closeModal('modalDeleteBuangan');
+        showToast(`Berhasil menghapus ${result.deleted} data buangan${result.failed.length ? `, ${result.failed.length} gagal` : ''}`, result.failed.length ? 'warning' : 'success');
+        if (result.failed.length) console.warn('Bulk delete buangan gagal:', result.failed);
+        await loadReviewData();
+    } catch (err) {
+        console.error('Gagal bulk delete buangan:', err);
+        showToast('Gagal menghapus data buangan: ' + err.message, 'error');
     }
 }
 
