@@ -35,13 +35,13 @@ app.use("/api/master", masterRoutes);
 import orderRoutes from "./modules/order.js";
 app.use("/api/order", orderRoutes);
 
-import buanganRoutes from "./modules/buangan.js";
+import buanganRoutes, { migrateMobilLuarNullable } from "./modules/buangan.js";
 app.use("/api/buangan", buanganRoutes);
 
 import rekapRoutes from "./modules/rekap.js";
 app.use("/api/rekap", rekapRoutes);
 
-import importRoutes from "./modules/import.js";
+import importRoutes, { migrateImportLogTable, migrateImportBatchIdColumns } from "./modules/import.js";
 app.use("/api/import", importRoutes);
 
 import reviewRoutes from "./modules/review.js";
@@ -79,7 +79,16 @@ app.listen(PORT, async () => {
   try {
     const conn = await pool.query("SELECT NOW() as time");
     console.log("💾 DB Connected:", conn[0][0].time);
-    
+
+    // Jalankan migrasi startup sekarang, setelah DB terkonfirmasi hidup -
+    // bukan saat modul di-import (ETIMEDOUT saat cold start sebelumnya
+    // membuat migrasi ini gagal permanen tanpa retry).
+    await Promise.all([
+      migrateMobilLuarNullable(),
+      migrateImportLogTable(),
+      migrateImportBatchIdColumns(),
+    ]);
+
     // Auto open browser after DB connected
     console.log("🌐 Membuka browser...");
     

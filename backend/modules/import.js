@@ -31,13 +31,16 @@ import {
 } from "../utils/csvImport.js";
 import { buildTemplateWorkbook } from "../utils/templateExcel.js";
 import { generateExcel } from "../utils/exportExcel.js";
+import { runStartupMigration } from "../utils/runStartupMigration.js";
 
 const router = express.Router();
 
 // Startup migration: buat tabel import_log jika belum ada (pola self-migration
-// mengikuti buangan.js)
-(async () => {
-  try {
+// mengikuti buangan.js). Dipanggil dari server.js setelah koneksi DB
+// terkonfirmasi hidup (lihat runStartupMigration untuk retry terhadap
+// timeout koneksi sementara).
+export async function migrateImportLogTable() {
+  await runStartupMigration("tabel import_log", async () => {
     await db.query(`
       CREATE TABLE IF NOT EXISTS import_log (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -51,16 +54,14 @@ const router = express.Router();
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-  } catch (err) {
-    console.warn("Gagal membuat tabel import_log:", err.message);
-  }
-})();
+  });
+}
 
 // Startup migration: tambah kolom import_batch_id di orders & buangan agar
 // data hasil commit import bisa ditelusuri per sesi (dipakai fitur undo-last).
-(async () => {
-  for (const table of ["orders", "buangan"]) {
-    try {
+export async function migrateImportBatchIdColumns() {
+  await runStartupMigration("import_batch_id pada orders/buangan", async () => {
+    for (const table of ["orders", "buangan"]) {
       const [cols] = await db.query(
         `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'import_batch_id'`,
@@ -69,11 +70,9 @@ const router = express.Router();
       if (cols.length === 0) {
         await db.query(`ALTER TABLE ${table} ADD COLUMN import_batch_id VARCHAR(64) NULL`);
       }
-    } catch (err) {
-      console.warn(`Gagal migrasi import_batch_id pada ${table}:`, err.message);
     }
-  }
-})();
+  });
+}
 
 // ============================================================================
 // UPLOAD MIDDLEWARE (multer memoryStorage, limit 5 MB)

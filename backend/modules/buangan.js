@@ -6,12 +6,15 @@ import express from "express";
 import db from "../config/db.js";
 import { success, error } from "../utils/response.js";
 import { isExactOdoVariant, parseKmFromDb } from "../utils/normalize.js";
+import { runStartupMigration } from "../utils/runStartupMigration.js";
 
 const router = express.Router();
 
-// Startup migration: make all mobil_luar non-id columns nullable
-(async () => {
-  try {
+// Startup migration: make all mobil_luar non-id columns nullable.
+// Dipanggil dari server.js setelah koneksi DB terkonfirmasi hidup (lihat
+// runStartupMigration untuk retry terhadap timeout koneksi sementara).
+export async function migrateMobilLuarNullable() {
+  await runStartupMigration("nullable mobil_luar", async () => {
     const [cols] = await db.query(`
       SELECT COLUMN_NAME, COLUMN_TYPE
       FROM INFORMATION_SCHEMA.COLUMNS
@@ -29,10 +32,8 @@ const router = express.Router();
         console.warn(`Gagal ALTER mobil_luar.${col.COLUMN_NAME}:`, e.message);
       }
     }
-  } catch (err) {
-    console.warn('Gagal migrasi nullable mobil_luar:', err.message);
-  }
-})();
+  });
+}
 
 // ============================================================================
 // GET ALL BUANGAN
